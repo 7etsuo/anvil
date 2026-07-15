@@ -62,6 +62,21 @@ describe("agent ACI", () => {
     handle.dispose();
   });
 
+  it("engine metrics appear on observe", async () => {
+    const handle = await createGame({ root: hello, headless: true, seed: 1 });
+    handle.tick(1 / 60);
+    const snap = await observe(handle);
+    const m = snap.engine.metrics as {
+      entities: number;
+      entityBudget: number;
+      lastTickMs: number;
+    };
+    expect(m.entities).toBeGreaterThanOrEqual(0);
+    expect(m.entityBudget).toBe(500);
+    expect(typeof m.lastTickMs).toBe("number");
+    handle.dispose();
+  });
+
   it("replay is deterministic for same seed", async () => {
     const tape = new ReplayRecorder(42);
     tape.record({ type: "wait", frames: 3 });

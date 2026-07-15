@@ -373,6 +373,7 @@ async function cmdDoctor(args: string[]): Promise<void> {
             code: r.error?.code,
             message: r.error?.message,
             path: r.error?.path,
+            diagnosis: r.diagnosis,
           })),
       };
     } catch (e) {

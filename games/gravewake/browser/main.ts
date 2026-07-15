@@ -329,6 +329,7 @@ async function main(): Promise<void> {
     handle.input.setDown("move_back", keysHeld.has("KeyS") || keysHeld.has("ArrowDown"));
   };
   window.addEventListener("keydown", (e) => {
+    if (!started) startLatched = true;
     keysHeld.add(e.code);
     handle.input.handleKey(e.code, true);
     syncMove();
@@ -343,6 +344,26 @@ async function main(): Promise<void> {
   });
 
   let clickSlash = false;
+  /** Survives keyup before next rAF — short Space/click was missing the start frame. */
+  let startLatched = false;
+  let started = false;
+  let camX = 0;
+  let camY = 0;
+  let shakeX = 0;
+  let shakeY = 0;
+
+  const beginPlay = () => {
+    if (started) return;
+    started = true;
+    startLatched = false;
+    clickSlash = false;
+    const p0 = handle.world.get("player");
+    if (p0?.transform) {
+      camX = p0.transform.x * SCALE - VIEW_W / 2;
+      camY = p0.transform.y * SCALE - VIEW_H / 2;
+    }
+  };
+
   /** Screen → world click for Diablo pathing */
   const onWorldClick = (clientX: number, clientY: number, button: number) => {
     const gw = getBrowserGravewake();
@@ -354,16 +375,33 @@ async function main(): Promise<void> {
     const wx = (sx + camX) / SCALE;
     const wy = (sy + camY) / SCALE;
     if (button === 0) {
-      // LMB: move / engage (Diablo)
       gw.clickWorld(wx, wy);
     } else if (button === 2) {
-      // RMB: slash toward mouse
       clickSlash = true;
     }
   };
+
+  // Title start: latch on ANY key/pointer so brief taps always count
+  window.addEventListener(
+    "keydown",
+    (e) => {
+      if (!started) {
+        startLatched = true;
+        e.preventDefault();
+      }
+    },
+    true,
+  );
+  const latchStart = (e: Event) => {
+    if (!started) {
+      startLatched = true;
+      e.preventDefault();
+    }
+  };
+  mount.addEventListener("pointerdown", latchStart);
   mount.addEventListener("mousedown", (e) => {
     if (!started) {
-      if (e.button === 0) clickSlash = true;
+      startLatched = true;
       return;
     }
     if (e.button === 0 || e.button === 2) {
@@ -372,6 +410,10 @@ async function main(): Promise<void> {
     }
   });
   mount.addEventListener("contextmenu", (e) => e.preventDefault());
+  // Also allow clicking the document body (if focus is wrong)
+  document.addEventListener("keydown", (e) => {
+    if (!started) startLatched = true;
+  });
 
   const floorSrc = images.get("env/floor.png") ?? null;
   const wallTex = images.get("env/wall.png") ?? null;
@@ -419,11 +461,7 @@ async function main(): Promise<void> {
   }
   const combatFx: Particle[] = [];
 
-  let camX = 0;
-  let camY = 0;
-  let shakeX = 0;
-  let shakeY = 0;
-  let started = false;
+  // camX/camY/shake declared above with beginPlay()
   let lastPlayerX = 0;
   let lastPlayerY = 0;
   let last = performance.now();
@@ -567,32 +605,32 @@ async function main(): Promise<void> {
       ctx.fillText("The parish no longer answers the bells", VIEW_W / 2, VIEW_H / 2 - 4);
       ctx.fillStyle = "#e6dcc8";
       ctx.font = "bold 18px system-ui";
-      ctx.fillText("Click or press any key to begin", VIEW_W / 2, VIEW_H / 2 + 48);
+      // Big hit target
+      ctx.fillStyle = "rgba(201,164,108,0.15)";
+      ctx.fillRect(VIEW_W / 2 - 180, VIEW_H / 2 + 28, 360, 44);
+      ctx.strokeStyle = "rgba(201,164,108,0.6)";
+      ctx.strokeRect(VIEW_W / 2 - 180, VIEW_H / 2 + 28, 360, 44);
+      ctx.fillStyle = "#e6dcc8";
+      ctx.font = "bold 20px system-ui";
+      ctx.fillText("CLICK ANYWHERE TO BEGIN", VIEW_W / 2, VIEW_H / 2 + 58);
       ctx.fillStyle = "#888";
       ctx.font = "13px system-ui";
       ctx.fillText(
         "LMB move / engage  ·  RMB or Space slash  ·  2 Whirl  ·  3 Smite  ·  1 Potion  ·  F loot  ·  I bag",
         VIEW_W / 2,
-        VIEW_H / 2 + 86,
+        VIEW_H / 2 + 100,
       );
       ctx.fillStyle = "#666";
       ctx.font = "12px system-ui";
       ctx.fillText(
         "WASD also works  ·  Click enemies to chase  ·  Delve dungeons  ·  Endless hunt",
         VIEW_W / 2,
-        VIEW_H / 2 + 112,
+        VIEW_H / 2 + 126,
       );
       ctx.textAlign = "left";
 
-      if (keysHeld.size || clickSlash) {
-        started = true;
-        clickSlash = false;
-        // snap camera to player immediately
-        const p0 = handle.world.get("player");
-        if (p0?.transform) {
-          camX = p0.transform.x * SCALE - VIEW_W / 2;
-          camY = p0.transform.y * SCALE - VIEW_H / 2;
-        }
+      if (startLatched || keysHeld.size || clickSlash) {
+        beginPlay();
       }
       return;
     }

@@ -4,7 +4,7 @@
 
 import type { World } from "../world/World.js";
 import { rollLootTable } from "../content/validateContent.js";
-import { rollDropItemLevel, rollItemInstance } from "./itemLevel.js";
+import { rollDropItemLevel, rollItemInstance } from "./itemization.js";
 import { spawnGoldPile, spawnGroundLoot } from "./Loot.js";
 import type { ItemDef } from "./types.js";
 

@@ -12,13 +12,22 @@ export type { ItemDefLookup } from "./Equipment.js";
 export { CharacterSheet } from "./CharacterSheet.js";
 export type { CharacterSheetOpts, StatBreakdown } from "./CharacterSheet.js";
 export {
+  DEFAULT_ITEMIZATION,
+  itemPowerFactor,
   scaleStatsForItemLevel,
   rollDropItemLevel,
+  computeReqLevel,
   rollItemInstance,
   stackReqLevel,
   canEquipAtLevel,
+  itemPowerScore,
+} from "./itemization.js";
+export type {
+  ItemizationConfig,
+  ScaleItemStatsOpts,
+  RolledItemInstance,
+  ItemLevelOpts,
 } from "./itemLevel.js";
-export type { ItemLevelOpts, RolledItemInstance } from "./itemLevel.js";
 export {
   spawnGroundLoot,
   spawnGoldPile,

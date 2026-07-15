@@ -6,6 +6,9 @@
   "description": "Gravewake — Diablo-like ARPG on Anvil (M9 vertical slice)",
   "scripts": {
     "build": "tsc -p tsconfig.json",
+    "dev": "vite --config vite.config.ts --port 5180",
+    "play": "vite --config vite.config.ts --port 5180",
+    "build:web": "vite build --config vite.config.ts",
     "test": "node ../../anvil/packages/cli/dist/index.js test .",
     "validate": "node ../../anvil/packages/cli/dist/index.js validate ."
   },
@@ -16,6 +19,7 @@
   },
   "devDependencies": {
     "@types/node": "^22.10.0",
-    "typescript": "^5.7.2"
+    "typescript": "^5.7.2",
+    "vite": "^6.0.3"
   }
 }

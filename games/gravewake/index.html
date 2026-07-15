@@ -1,0 +1,72 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Gravewake</title>
+    <style>
+      * { box-sizing: border-box; }
+      html, body {
+        margin: 0;
+        height: 100%;
+        background: #0a0a0e;
+        color: #e8e0d4;
+        font-family: "Segoe UI", system-ui, sans-serif;
+      }
+      #wrap {
+        min-height: 100%;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        padding: 12px 12px 24px;
+        gap: 10px;
+      }
+      h1 {
+        margin: 0;
+        font-size: 1.35rem;
+        letter-spacing: 0.08em;
+        font-weight: 600;
+        color: #c4a882;
+      }
+      #help {
+        max-width: 960px;
+        font-size: 0.85rem;
+        opacity: 0.85;
+        text-align: center;
+        line-height: 1.4;
+      }
+      #mount {
+        border: 2px solid #3a3028;
+        box-shadow: 0 0 40px rgba(0,0,0,0.6);
+        background: #111;
+      }
+      #hud {
+        font-family: ui-monospace, monospace;
+        font-size: 13px;
+        color: #d0c4b0;
+        min-height: 1.2em;
+      }
+      kbd {
+        background: #2a2420;
+        border: 1px solid #5a4a38;
+        border-radius: 3px;
+        padding: 0 5px;
+        font-size: 0.8em;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="wrap">
+      <h1>GRAVEWAKE</h1>
+      <div id="help">
+        <kbd>WASD</kbd> move ·
+        <kbd>Space</kbd> / click Rite Slash ·
+        <kbd>1</kbd> potion ·
+        Walk into glowing portals: Town → Parish → Crypt · Clear Parish for crypt gate · Kill Bellwarden to win
+      </div>
+      <div id="mount"></div>
+      <div id="hud">Loading…</div>
+    </div>
+    <script type="module" src="/browser/main.ts"></script>
+  </body>
+</html>

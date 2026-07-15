@@ -7,5 +7,19 @@
   "team": "enemy",
   "radius": 14,
   "contactDamage": 12,
-  "meleeRange": 40
+  "meleeRange": 40,
+  "animations": {
+    "idle": [
+      "actors/crypt_guard.png"
+    ],
+    "walk": [
+      "actors/crypt_guard.png"
+    ],
+    "attack": [
+      "actors/crypt_guard.png"
+    ],
+    "death": [
+      "actors/crypt_guard.png"
+    ]
+  }
 }

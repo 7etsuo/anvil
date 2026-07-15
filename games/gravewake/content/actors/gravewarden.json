@@ -6,5 +6,19 @@
   "ai": "none",
   "team": "player",
   "radius": 12,
-  "contactDamage": 0
+  "contactDamage": 0,
+  "animations": {
+    "idle": [
+      "actors/gravewarden.png"
+    ],
+    "walk": [
+      "actors/gravewarden.png"
+    ],
+    "attack": [
+      "actors/gravewarden.png"
+    ],
+    "death": [
+      "actors/gravewarden.png"
+    ]
+  }
 }

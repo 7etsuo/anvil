@@ -14,6 +14,8 @@
 **Game module:** `./dist/module.js` (relative load from CLI).  
 **Art:** Greybox / manifest optional paths (Imagine later).
 
-**Not in M9 slice:** full 12-room dungeon graph, vendor UI, full inventory, cinematics, Imagine art packs, multiplayer.
+**Playable:** `pnpm run play` → browser at http://127.0.0.1:5180/ (WASD + Space).
 
-See `docs/` for full design bible; this package is the **playable greybox** on Anvil APIs.
+**Not in slice yet:** full 12-room dungeon graph, vendor UI, full inventory, cinematics, multiplayer.
+
+See `docs/` for full design bible.

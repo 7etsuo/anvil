@@ -48,6 +48,9 @@ importers:
       typescript:
         specifier: ^5.7.2
         version: 5.9.3
+      vite:
+        specifier: ^6.0.3
+        version: 6.4.3(@types/node@22.20.1)(yaml@2.9.0)
 
   examples/hello-card: {}
 

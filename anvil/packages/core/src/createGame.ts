@@ -7,7 +7,7 @@ import {
   type AnvilError,
 } from "@anvil/schema";
 import yaml from "yaml";
-import { Kernel } from "./kernel/Kernel.js";
+import { ANVIL_VERSION, Kernel } from "./kernel/Kernel.js";
 import type { GenreModule } from "./modules/ModuleRegistry.js";
 import type { RenderFacade } from "./render/RenderFacade.js";
 import { NullRenderFacade } from "./render/RenderFacade.js";
@@ -33,9 +33,17 @@ export interface GameHandle {
   readonly input: Kernel["input"];
   readonly assets: Kernel["assets"];
   readonly modules: Kernel["modules"];
+  /** First-class engine services */
+  readonly audio: Kernel["audio"];
+  readonly cinema: Kernel["cinema"];
+  readonly particles: Kernel["particles"];
+  readonly quests: Kernel["quests"];
+  readonly plugins: Kernel["plugins"];
+  readonly ui: Kernel["ui"];
   readonly kernel: Kernel;
   readonly game: GameYaml;
   readonly root: string;
+  readonly version: string;
   tick(dtWallSeconds: number): void;
   pause(): void;
   resume(): void;
@@ -157,9 +165,16 @@ export async function createGame(
     input: kernel.input,
     assets: kernel.assets,
     modules: kernel.modules,
+    audio: kernel.audio,
+    cinema: kernel.cinema,
+    particles: kernel.particles,
+    quests: kernel.quests,
+    plugins: kernel.plugins,
+    ui: kernel.ui,
     kernel,
     game,
     root,
+    version: ANVIL_VERSION,
     tick: (dt) => kernel.tick(dt),
     pause: () => kernel.pause(),
     resume: () => kernel.resume(),

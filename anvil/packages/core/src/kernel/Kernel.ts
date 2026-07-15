@@ -2,19 +2,26 @@ import { AssetServer } from "../assets/AssetServer.js";
 import { AudioSystem } from "../audio/AudioSystem.js";
 import { CinematicSystem } from "../cinema/CinematicSystem.js";
 import { EventBus } from "../events/EventBus.js";
+import { ParticleSystem } from "../fx/ParticleSystem.js";
 import { InputMap } from "../input/InputMap.js";
 import {
   type GenreModule,
   type KernelInternals,
   ModuleRegistry,
 } from "../modules/ModuleRegistry.js";
+import { PluginRegistry } from "../plugins/PluginRegistry.js";
+import { QuestSystem } from "../quest/QuestSystem.js";
 import type { CanvasRenderFacade } from "../render/CanvasRenderFacade.js";
 import type { RenderFacade } from "../render/RenderFacade.js";
 import { NullRenderFacade } from "../render/RenderFacade.js";
 import { SceneManager } from "../scene/SceneManager.js";
 import { createAnimationSystem } from "../systems/AnimationSystem.js";
+import { UiKit } from "../ui/UiKit.js";
 import { World } from "../world/World.js";
 import { SeededRng } from "./SeededRng.js";
+
+/** Engine semver exposed on observe / GameHandle */
+export const ANVIL_VERSION = "0.4.0";
 
 export interface SystemEntry {
   name: string;
@@ -27,6 +34,10 @@ export class Kernel implements KernelInternals {
   readonly events = new EventBus();
   readonly input = new InputMap();
   readonly modules = new ModuleRegistry();
+  readonly plugins = new PluginRegistry();
+  readonly particles = new ParticleSystem();
+  readonly quests = new QuestSystem();
+  readonly ui = new UiKit();
   readonly assets: AssetServer;
   readonly scenes: SceneManager;
   readonly renderer: RenderFacade;
@@ -81,9 +92,10 @@ export class Kernel implements KernelInternals {
       onDestroy: (id) => this.events.emit("entity:destroy", { id }),
     });
 
-    // Built-in systems
-    this.addSystem("animation", 300, createAnimationSystem(this.world));
+    // Built-in systems (priority ascending = earlier)
     this.addSystem("cinema", 50, () => this.cinema.update());
+    this.addSystem("animation", 300, createAnimationSystem(this.world));
+    this.addSystem("particles", 350, (dt) => this.particles.update(dt));
     this.addSystem("lifetime", 500, (dt) => {
       for (const e of this.world.query("lifetime")) {
         const lt = e.lifetime!;
@@ -91,8 +103,9 @@ export class Kernel implements KernelInternals {
         if (lt.remainingMs <= 0) this.world.destroy(e.id);
       }
     });
+    this.addSystem("plugins", 900, (dt) => this.plugins.update(dt));
 
-    // Wire canvas assets if applicable
+    // Wire canvas / phaser assets if applicable
     const r = this.renderer as CanvasRenderFacade;
     if (typeof r.setAssetServer === "function") {
       r.setAssetServer(this.assets);
@@ -217,9 +230,25 @@ export class Kernel implements KernelInternals {
     for (const s of this.systems) s.fn(dt);
   }
 
+  /** Snapshot of first-class engine services (for observe / agents). */
+  engineSnapshot(): Record<string, unknown> {
+    return {
+      version: ANVIL_VERSION,
+      modules: this.modules.list(),
+      plugins: this.plugins.list(),
+      particles: this.particles.particles.length,
+      questsActive: this.quests.listActive().map((q) => q.defId),
+      questsCompleted: this.quests.listCompleted().map((q) => q.defId),
+      systems: this.systems.map((s) => s.name),
+    };
+  }
+
   dispose(): void {
     this.disposed = true;
     this.cinema.stop(false);
+    this.plugins.dispose();
+    this.particles.clear();
+    this.audio.stopMusic();
     this.renderer.dispose();
     this.world.clear();
   }

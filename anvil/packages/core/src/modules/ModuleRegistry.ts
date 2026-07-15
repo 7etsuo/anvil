@@ -8,6 +8,15 @@ export interface KernelInternals {
   ): void;
   registerScene(name: string, factory: SceneFactory): void;
   setGenreObserve?(fn: () => Record<string, unknown>): void;
+  /** First-class services (present on real Kernel) */
+  particles?: import("../fx/ParticleSystem.js").ParticleSystem;
+  quests?: import("../quest/QuestSystem.js").QuestSystem;
+  plugins?: import("../plugins/PluginRegistry.js").PluginRegistry;
+  ui?: import("../ui/UiKit.js").UiKit;
+  audio?: import("../audio/AudioSystem.js").AudioSystem;
+  world?: import("../world/World.js").World;
+  events?: import("../events/EventBus.js").EventBus;
+  input?: import("../input/InputMap.js").InputMap;
 }
 
 export interface GenreModule {

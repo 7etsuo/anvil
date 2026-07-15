@@ -27,6 +27,8 @@ export interface ObserveSnapshot {
   input: Record<string, boolean>;
   ui: Record<string, unknown>;
   genre: Record<string, unknown>;
+  /** First-class engine services snapshot */
+  engine: Record<string, unknown>;
   screenshot?: string;
 }
 
@@ -44,7 +46,7 @@ export async function observe(
   }));
 
   const snap: ObserveSnapshot = {
-    anvilVersion: "0.1.0",
+    anvilVersion: handle.version ?? "0.4.0",
     schemaVersion: 1,
     scene: handle.scenes.current(),
     time: handle.getTime(),
@@ -55,6 +57,7 @@ export async function observe(
     input: handle.input.snapshot(),
     ui: {},
     genre: handle.kernel.getGenreObserve(),
+    engine: handle.kernel.engineSnapshot(),
   };
 
   if (opts.shot) {

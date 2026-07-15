@@ -1,0 +1,25 @@
+id: shmup.bullet-player
+title: Player fire rate and bullet speed tuning
+genre: shmup
+files:
+  - path: content/stages/stage1.json
+    write: |
+      {
+        "id": "stage1",
+        "width": 240,
+        "height": 320,
+        "playerX": 120,
+        "playerY": 280,
+        "fireCooldownMs": 120,
+        "bulletSpeed": 340,
+        "lives": 3,
+        "waves": [
+          {
+            "id": "w1",
+            "t": 0,
+            "spawns": [
+              { "enemy": "popcorn", "x": 120, "y": 40, "pattern": "down" }
+            ]
+          }
+        ]
+      }

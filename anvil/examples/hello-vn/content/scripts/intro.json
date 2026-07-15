@@ -1,0 +1,59 @@
+{
+  "id": "intro",
+  "start": "n1",
+  "nodes": [
+    {
+      "id": "n1",
+      "type": "line",
+      "speaker": "Narrator",
+      "text": "You wake in a greybox room.",
+      "bg": "bg/room.png",
+      "next": "n2"
+    },
+    {
+      "id": "n2",
+      "type": "line",
+      "speaker": "Guide",
+      "text": "Two doors. Which will you take?",
+      "portrait": "portraits/guide.png",
+      "next": "choice"
+    },
+    {
+      "id": "choice",
+      "type": "choice",
+      "prompt": "Choose a door",
+      "options": [
+        { "text": "Left door", "next": "left1" },
+        { "text": "Right door", "next": "right1" }
+      ]
+    },
+    {
+      "id": "left1",
+      "type": "line",
+      "speaker": "Guide",
+      "text": "The left path is quiet.",
+      "next": "left2"
+    },
+    {
+      "id": "left2",
+      "type": "line",
+      "speaker": "Narrator",
+      "text": "You find a soft ending.",
+      "next": "end_a"
+    },
+    {
+      "id": "right1",
+      "type": "line",
+      "speaker": "Guide",
+      "text": "The right path hums with danger.",
+      "next": "right2"
+    },
+    {
+      "id": "right2",
+      "type": "jump",
+      "next": "end_b"
+    },
+    { "id": "end_a", "type": "end", "endingId": "soft" },
+    { "id": "end_b", "type": "end", "endingId": "danger" }
+  ]
+}

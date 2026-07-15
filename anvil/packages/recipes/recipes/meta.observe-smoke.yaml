@@ -1,0 +1,15 @@
+id: meta.observe-smoke
+title: Minimal observe/test smoke scenario
+genre: none
+files:
+  - path: tests/observe_smoke.json
+    write: |
+      {
+        "id": "observe_smoke",
+        "seed": 1,
+        "maxTicks": 5,
+        "steps": [
+          { "tick": 0, "assert": { "path": "scene", "exists": true } },
+          { "tick": 1, "assert": { "path": "tick", "gte": 0 } }
+        ]
+      }

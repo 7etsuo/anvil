@@ -1,0 +1,14 @@
+{
+  "id": "branch_b",
+  "seed": 1,
+  "maxTicks": 40,
+  "steps": [
+    { "tick": 1, "action": "confirm" },
+    { "tick": 3, "action": "confirm" },
+    { "tick": 5, "action": "choice_1" },
+    { "tick": 7, "assert": { "path": "genre.vn.nodeId", "eq": "right1" } },
+    { "tick": 8, "action": "confirm" },
+    { "tick": 10, "assert": { "path": "genre.vn.ended", "eq": true } },
+    { "tick": 10, "assert": { "path": "genre.vn.endingId", "eq": "danger" } }
+  ]
+}

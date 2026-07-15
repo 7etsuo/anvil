@@ -1,0 +1,28 @@
+id: topdown.contact-damage
+title: Enemy contact damage and player i-frames
+genre: topdown2d
+files:
+  - path: content/actors/slime.json
+    write: |
+      {
+        "id": "slime",
+        "name": "Slime",
+        "hp": 10,
+        "speed": 55,
+        "ai": "chase_melee",
+        "team": "enemy",
+        "radius": 12,
+        "contactDamage": 5,
+        "meleeRange": 24
+      }
+  - path: tests/contact_damage.json
+    write: |
+      {
+        "id": "contact_damage",
+        "seed": 1,
+        "maxTicks": 360,
+        "steps": [
+          { "tick": 0, "assert": { "path": "genre.topdown.entities.0.hp", "eq": 30 } },
+          { "tick": 300, "assert": { "path": "genre.topdown.entities.0.hp", "lt": 30 } }
+        ]
+      }

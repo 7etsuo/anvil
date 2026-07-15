@@ -1,0 +1,15 @@
+{
+  "id": "contact_damage",
+  "seed": 1,
+  "maxTicks": 360,
+  "steps": [
+    {
+      "tick": 0,
+      "assert": { "path": "genre.topdown.entities.0.hp", "eq": 30 }
+    },
+    {
+      "tick": 300,
+      "assert": { "path": "genre.topdown.entities.0.hp", "lt": 30 }
+    }
+  ]
+}

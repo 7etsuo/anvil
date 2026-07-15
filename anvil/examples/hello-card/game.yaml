@@ -1,0 +1,8 @@
+id: hello-card
+title: Hello Card
+genre: card
+modules:
+  - genre-card
+entryScene: battle
+seed: 1
+schemaVersion: 1

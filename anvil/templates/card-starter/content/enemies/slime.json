@@ -1,0 +1,8 @@
+{
+  "id": "slime",
+  "name": "Slime",
+  "hp": 12,
+  "intents": [
+    { "kind": "attack", "amount": 4 }
+  ]
+}

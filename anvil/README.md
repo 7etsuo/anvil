@@ -20,8 +20,12 @@ Agent-native multi-genre game engine / SDK.
 |-------|--------|
 | Planning (full engine M1–M9) | **Complete** |
 | **M1 code** | **Done** |
-| **M2 code** | **Done** (assets, anim, audio, cinema, save/load, observe --shot) |
-| Next | **M3** genre-card |
+| **M2 code** | **Done** |
+| **M3 code** | **Done** (genre-card, hello-card, recipes) |
+| **M4 code** | **Done** (genre-topdown2d, hello-topdown, recipes) |
+| **M5 code** | **Done** (genre-vn, genre-shmup, recipes ≥15) |
+| **M6 code** | **Done** (AGENTS, CI matrix, errors, build, perf) |
+| Next | **M7** genre-fps2 |
 
 ## Quick start (dev)
 

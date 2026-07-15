@@ -1,0 +1,8 @@
+id: vn-starter
+title: Hello VN
+genre: vn
+modules:
+  - genre-vn
+entryScene: main
+seed: 1
+schemaVersion: 1

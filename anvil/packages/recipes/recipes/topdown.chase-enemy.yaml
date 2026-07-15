@@ -1,0 +1,17 @@
+id: topdown.chase-enemy
+title: Chase melee enemy (slime)
+genre: topdown2d
+files:
+  - path: content/actors/slime.json
+    write: |
+      {
+        "id": "slime",
+        "name": "Slime",
+        "hp": 10,
+        "speed": 55,
+        "ai": "chase_melee",
+        "team": "enemy",
+        "radius": 12,
+        "contactDamage": 5,
+        "meleeRange": 24
+      }

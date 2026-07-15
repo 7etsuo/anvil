@@ -7,6 +7,7 @@ export interface KernelInternals {
     fn: (dt: number) => void,
   ): void;
   registerScene(name: string, factory: SceneFactory): void;
+  setGenreObserve?(fn: () => Record<string, unknown>): void;
 }
 
 export interface GenreModule {

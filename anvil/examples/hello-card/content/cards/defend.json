@@ -1,0 +1,6 @@
+{
+  "id": "defend",
+  "name": "Defend",
+  "cost": 1,
+  "effects": [{ "op": "block", "amount": 5, "target": "self" }]
+}

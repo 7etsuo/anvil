@@ -72,4 +72,4 @@ See `00_INDEX.md`.
 
 ## Next
 
-Execute **`T-M1-001`** in `20_FULL_TASK_BREAKDOWN.md`.
+M1–M6 complete. Execute **`T-M7-001`** (`genre-fps2`) in `20_FULL_TASK_BREAKDOWN.md`.

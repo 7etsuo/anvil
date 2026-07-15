@@ -1,0 +1,15 @@
+id: card.enemy-basic
+title: Add a basic enemy
+genre: card
+files:
+  - path: content/enemies/slime.json
+    write: |
+      {
+        "id": "slime",
+        "name": "Slime",
+        "hp": 20,
+        "intents": [
+          { "kind": "attack", "amount": 4 },
+          { "kind": "block", "amount": 3 }
+        ]
+      }

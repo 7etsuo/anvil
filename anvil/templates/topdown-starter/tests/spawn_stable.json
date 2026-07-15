@@ -1,0 +1,11 @@
+{
+  "id": "spawn_stable",
+  "seed": 1,
+  "maxTicks": 5,
+  "steps": [
+    { "tick": 0, "assert": { "path": "genre.topdown.entities.0.x", "eq": 48 } },
+    { "tick": 0, "assert": { "path": "genre.topdown.entities.0.y", "eq": 120 } },
+    { "tick": 0, "assert": { "path": "genre.topdown.entities.1.x", "eq": 240 } },
+    { "tick": 0, "assert": { "path": "genre.topdown.entities.1.y", "eq": 120 } }
+  ]
+}

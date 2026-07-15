@@ -1,0 +1,16 @@
+{
+  "id": "lives_lose",
+  "seed": 1,
+  "maxTicks": 400,
+  "steps": [
+    { "tick": 0, "assert": { "path": "genre.shmup.lives", "eq": 3 } },
+    {
+      "tick": 1,
+      "setDown": { "move_up": true }
+    },
+    {
+      "tick": 350,
+      "assert": { "path": "genre.shmup.lives", "lt": 3 }
+    }
+  ]
+}

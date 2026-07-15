@@ -54,7 +54,7 @@ export async function observe(
     entities,
     input: handle.input.snapshot(),
     ui: {},
-    genre: {},
+    genre: handle.kernel.getGenreObserve(),
   };
 
   if (opts.shot) {

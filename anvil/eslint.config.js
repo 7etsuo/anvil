@@ -3,7 +3,13 @@ import tseslint from "typescript-eslint";
 /** T-M1-017: ban phaser outside @anvil/render-phaser */
 export default tseslint.config(
   {
-    ignores: ["**/dist/**", "**/node_modules/**", "docs/**"],
+    ignores: [
+      "**/dist/**",
+      "**/dist-ci/**",
+      "**/node_modules/**",
+      "docs/**",
+      "examples/**/dist*/**",
+    ],
   },
   ...tseslint.configs.recommended,
   {

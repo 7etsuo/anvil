@@ -6,8 +6,8 @@ Thin dispatcher for coding agents ([agents.md](https://agents.md/) format).
 
 | Path | Status | Work allowed |
 |------|--------|--------------|
-| `anvil/` | **Active** — game engine/framework | Yes |
-| `games/gravewake/` | **Parked** — future ARPG | **No** until Anvil M6+ |
+| `anvil/` | **Active** — game engine (M1–M6 done) | Yes |
+| `games/gravewake/` | **Parked** — future ARPG | **No** until Anvil M9 unpark |
 | `games/*` | Future titles | Only when unparked |
 
 Framework and games stay separate. Never put game content inside `anvil/`.
@@ -19,15 +19,28 @@ Framework and games stay separate. Never put game content inside `anvil/`.
 3. `anvil/docs/design/AGENTS.md`  
 4. Task’s `anvil/docs/design/specs/S-*.md`
 
-## Commands (after Anvil M1)
+## Commands
 
 ```bash
 cd anvil
 pnpm install
+pnpm -r run build
 pnpm test
-pnpm exec anvil validate examples/hello-empty
-pnpm exec anvil test examples/hello-empty
+pnpm lint
+pnpm validate:examples
+pnpm test:examples
+
+# CLI
+pnpm anvil version
+pnpm anvil validate examples/hello-empty
+pnpm anvil test examples/hello-card
+pnpm anvil observe --root examples/hello-empty --json
+pnpm anvil recipe list
+pnpm anvil build examples/hello-empty
+pnpm anvil new demo --genre topdown2d
 ```
+
+Supported genres: `none`, `card`, `topdown2d`, `vn`, `shmup`.
 
 ## Hard rules
 

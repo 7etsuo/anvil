@@ -1,0 +1,21 @@
+id: topdown.restart
+title: Restart map on death (confirm / Space)
+genre: topdown2d
+files:
+  - path: tests/restart_hint.json
+    write: |
+      {
+        "id": "restart_hint",
+        "seed": 1,
+        "maxTicks": 5,
+        "steps": [
+          {
+            "tick": 0,
+            "assert": { "path": "genre.topdown.lost", "eq": false }
+          },
+          {
+            "tick": 0,
+            "assert": { "path": "genre.topdown.won", "eq": false }
+          }
+        ]
+      }

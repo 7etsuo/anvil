@@ -1,0 +1,10 @@
+{
+  "id": "gunner",
+  "name": "Gunner",
+  "hp": 2,
+  "speed": 35,
+  "radius": 12,
+  "score": 150,
+  "fire": { "kind": "down", "speed": 120 },
+  "fireCooldownMs": 600
+}

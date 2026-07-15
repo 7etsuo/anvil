@@ -1,0 +1,18 @@
+{
+  "id": "linear_end",
+  "seed": 1,
+  "maxTicks": 40,
+  "steps": [
+    { "tick": 0, "assert": { "path": "genre.vn.nodeId", "eq": "n1" } },
+    { "tick": 1, "action": "confirm" },
+    { "tick": 3, "assert": { "path": "genre.vn.nodeId", "eq": "n2" } },
+    { "tick": 4, "action": "confirm" },
+    { "tick": 6, "assert": { "path": "genre.vn.nodeId", "eq": "choice" } },
+    { "tick": 7, "action": "choice_0" },
+    { "tick": 9, "assert": { "path": "genre.vn.nodeId", "eq": "left1" } },
+    { "tick": 10, "action": "confirm" },
+    { "tick": 12, "action": "confirm" },
+    { "tick": 14, "assert": { "path": "genre.vn.ended", "eq": true } },
+    { "tick": 14, "assert": { "path": "genre.vn.endingId", "eq": "soft" } }
+  ]
+}

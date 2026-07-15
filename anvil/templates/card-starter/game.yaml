@@ -1,0 +1,8 @@
+id: card-starter
+title: Card Starter
+genre: card
+modules:
+  - genre-card
+entryScene: battle
+seed: 1
+schemaVersion: 1

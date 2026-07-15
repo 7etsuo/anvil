@@ -31,25 +31,12 @@
 
 ## 4. CI workflow (GitHub Actions)
 
-```yaml
-# conceptual — implement in M1/M6
-on: [push, pull_request]
-jobs:
-  build-test:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: pnpm/action-setup@v4
-      - uses: actions/setup-node@v4
-        with: { node-version: '22', cache: 'pnpm' }
-      - run: pnpm install
-      - run: pnpm lint
-      - run: pnpm test
-      - run: pnpm exec anvil validate examples/hello-empty
-      - run: pnpm exec anvil test examples/hello-empty
-```
+Live workflow: **repo root** `.github/workflows/ci.yml`
 
-Headless browser/canvas: use node canvas or skip screenshot tests in CI until M2; JSON observe always on.
+- Job `build-test`: install, build, lint, unit tests, recipe count ≥15, `anvil build` smoke  
+- Job `examples` **matrix**: `hello-empty`, `hello-card`, `hello-topdown`, `hello-vn`, `hello-shmup` → validate + test each  
+
+Headless: JSON observe always; screenshot optional (`--shot`).
 
 ## 5. Coverage
 

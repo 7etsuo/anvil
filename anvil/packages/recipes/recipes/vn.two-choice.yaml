@@ -1,0 +1,30 @@
+id: vn.two-choice
+title: VN two-choice branch with two endings
+genre: vn
+files:
+  - path: content/scripts/branch.json
+    write: |
+      {
+        "id": "branch",
+        "start": "intro",
+        "nodes": [
+          {
+            "id": "intro",
+            "type": "line",
+            "speaker": "Guide",
+            "text": "Pick a path.",
+            "next": "choice"
+          },
+          {
+            "id": "choice",
+            "type": "choice",
+            "prompt": "Where?",
+            "options": [
+              { "text": "A", "next": "end_a" },
+              { "text": "B", "next": "end_b" }
+            ]
+          },
+          { "id": "end_a", "type": "end", "endingId": "ending_a" },
+          { "id": "end_b", "type": "end", "endingId": "ending_b" }
+        ]
+      }

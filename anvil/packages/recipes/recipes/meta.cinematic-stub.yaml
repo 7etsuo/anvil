@@ -1,0 +1,12 @@
+id: meta.cinematic-stub
+title: Stub cinematic definition for later media
+genre: none
+files:
+  - path: content/cinematics/intro.json
+    write: |
+      {
+        "id": "intro",
+        "src": "video/intro.mp4",
+        "skippable": true,
+        "loop": false
+      }

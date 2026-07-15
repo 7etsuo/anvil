@@ -9,6 +9,8 @@ export interface SceneContext {
   input: InputMap;
   assets: AssetServer;
   data?: unknown;
+  seed?: number;
+  random?: () => number;
 }
 
 export interface Scene {

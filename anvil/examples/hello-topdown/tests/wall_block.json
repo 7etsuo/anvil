@@ -1,0 +1,17 @@
+{
+  "id": "wall_block",
+  "seed": 1,
+  "maxTicks": 90,
+  "steps": [
+    { "tick": 0, "assert": { "path": "genre.topdown.mapId", "eq": "room1" } },
+    { "tick": 0, "assert": { "path": "genre.topdown.entities.0.y", "eq": 120 } },
+    {
+      "tick": 1,
+      "setDown": { "move_up": true }
+    },
+    {
+      "tick": 60,
+      "assert": { "path": "genre.topdown.entities.0.y", "gte": 28 }
+    }
+  ]
+}

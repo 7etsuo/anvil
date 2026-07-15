@@ -1,0 +1,27 @@
+id: vn.linear-scene
+title: Linear VN dialogue scene
+genre: vn
+files:
+  - path: content/scripts/linear.json
+    write: |
+      {
+        "id": "linear",
+        "start": "a",
+        "nodes": [
+          {
+            "id": "a",
+            "type": "line",
+            "speaker": "Narrator",
+            "text": "Once upon a greybox.",
+            "next": "b"
+          },
+          {
+            "id": "b",
+            "type": "line",
+            "speaker": "Hero",
+            "text": "And then it ended.",
+            "next": "end"
+          },
+          { "id": "end", "type": "end", "endingId": "done" }
+        ]
+      }

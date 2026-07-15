@@ -1,5 +1,6 @@
 node_modules/
 dist/
+dist-ci/
 *.tsbuildinfo
 .DS_Store
 coverage/
@@ -8,3 +9,5 @@ coverage/
 .env.*
 artifacts/
 saves/
+examples/**/dist*/
+

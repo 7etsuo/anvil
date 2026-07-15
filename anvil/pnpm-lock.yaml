@@ -30,6 +30,8 @@ importers:
         specifier: ^2.1.8
         version: 2.1.9(@types/node@22.20.1)
 
+  examples/hello-card: {}
+
   examples/hello-empty:
     dependencies:
       '@anvil/core':
@@ -46,14 +48,38 @@ importers:
         specifier: ^6.0.3
         version: 6.4.3(@types/node@22.20.1)(yaml@2.9.0)
 
+  examples/hello-shmup: {}
+
+  examples/hello-topdown: {}
+
+  examples/hello-vn: {}
+
   packages/cli:
     dependencies:
       '@anvil/core':
         specifier: workspace:*
         version: link:../core
+      '@anvil/genre-card':
+        specifier: workspace:*
+        version: link:../genre-card
+      '@anvil/genre-shmup':
+        specifier: workspace:*
+        version: link:../genre-shmup
+      '@anvil/genre-topdown2d':
+        specifier: workspace:*
+        version: link:../genre-topdown2d
+      '@anvil/genre-vn':
+        specifier: workspace:*
+        version: link:../genre-vn
+      '@anvil/recipes':
+        specifier: workspace:*
+        version: link:../recipes
       '@anvil/schema':
         specifier: workspace:*
         version: link:../schema
+      yaml:
+        specifier: ^2.6.1
+        version: 2.9.0
     devDependencies:
       typescript:
         specifier: ^5.7.2
@@ -70,6 +96,70 @@ importers:
       yaml:
         specifier: ^2.6.1
         version: 2.9.0
+    devDependencies:
+      typescript:
+        specifier: ^5.7.2
+        version: 5.9.3
+      vitest:
+        specifier: ^2.1.8
+        version: 2.1.9(@types/node@22.20.1)
+
+  packages/genre-card:
+    dependencies:
+      '@anvil/core':
+        specifier: workspace:*
+        version: link:../core
+      '@anvil/schema':
+        specifier: workspace:*
+        version: link:../schema
+    devDependencies:
+      typescript:
+        specifier: ^5.7.2
+        version: 5.9.3
+      vitest:
+        specifier: ^2.1.8
+        version: 2.1.9(@types/node@22.20.1)
+
+  packages/genre-shmup:
+    dependencies:
+      '@anvil/core':
+        specifier: workspace:*
+        version: link:../core
+      '@anvil/schema':
+        specifier: workspace:*
+        version: link:../schema
+    devDependencies:
+      typescript:
+        specifier: ^5.7.2
+        version: 5.9.3
+      vitest:
+        specifier: ^2.1.8
+        version: 2.1.9(@types/node@22.20.1)
+
+  packages/genre-topdown2d:
+    dependencies:
+      '@anvil/core':
+        specifier: workspace:*
+        version: link:../core
+      '@anvil/schema':
+        specifier: workspace:*
+        version: link:../schema
+    devDependencies:
+      typescript:
+        specifier: ^5.7.2
+        version: 5.9.3
+      vitest:
+        specifier: ^2.1.8
+        version: 2.1.9(@types/node@22.20.1)
+
+  packages/genre-vn:
+    dependencies:
+      '@anvil/core':
+        specifier: workspace:*
+        version: link:../core
+      '@anvil/schema':
+        specifier: workspace:*
+        version: link:../schema
     devDependencies:
       typescript:
         specifier: ^5.7.2

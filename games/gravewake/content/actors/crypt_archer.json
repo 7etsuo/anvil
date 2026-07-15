@@ -13,5 +13,18 @@
   "projectileSpeed": 280,
   "projectileCooldownMs": 600,
   "projectileFireMs": 1800,
-  "animations": { "idle": ["actors/wretch.png"], "walk": ["actors/wretch.png"] }
+  "animations": {
+    "idle": [
+      "actors/crypt_archer.png"
+    ],
+    "walk": [
+      "actors/crypt_archer.png"
+    ],
+    "attack": [
+      "actors/crypt_archer.png"
+    ],
+    "death": [
+      "actors/crypt_archer.png"
+    ]
+  }
 }

@@ -8,5 +8,18 @@
   "radius": 16,
   "contactDamage": 20,
   "meleeRange": 48,
-  "animations": { "idle": ["actors/bellwarden.png"], "walk": ["actors/bellwarden.png"] }
+  "animations": {
+    "idle": [
+      "actors/death_knight.png"
+    ],
+    "walk": [
+      "actors/death_knight.png"
+    ],
+    "attack": [
+      "actors/death_knight.png"
+    ],
+    "death": [
+      "actors/death_knight.png"
+    ]
+  }
 }

@@ -8,5 +8,18 @@
   "radius": 10,
   "contactDamage": 9,
   "meleeRange": 36,
-  "animations": { "idle": ["actors/scuttler.png"], "walk": ["actors/scuttler.png"] }
+  "animations": {
+    "idle": [
+      "actors/plague_scuttler.png"
+    ],
+    "walk": [
+      "actors/plague_scuttler.png"
+    ],
+    "attack": [
+      "actors/plague_scuttler.png"
+    ],
+    "death": [
+      "actors/plague_scuttler.png"
+    ]
+  }
 }

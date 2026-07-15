@@ -8,5 +8,18 @@
   "radius": 13,
   "contactDamage": 14,
   "meleeRange": 42,
-  "animations": { "idle": ["actors/crypt_guard.png"], "walk": ["actors/crypt_guard.png"] }
+  "animations": {
+    "idle": [
+      "actors/hell_raider.png"
+    ],
+    "walk": [
+      "actors/hell_raider.png"
+    ],
+    "attack": [
+      "actors/hell_raider.png"
+    ],
+    "death": [
+      "actors/hell_raider.png"
+    ]
+  }
 }

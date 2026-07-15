@@ -416,7 +416,9 @@ export class GravewakeGame {
     if (input.isPressed("choice_1") || input.isPressed("play_card_1"))
       this.cast("potion");
     if (input.isPressed("inventory")) this.showInv = !this.showInv;
-    if (input.isPressed("interact")) this.tryLoot();
+    if (input.isPressed("interact")) {
+      if (!this.tryVendor()) this.tryLoot();
+    }
 
     this.autoPickupGold();
     this.grantXpForKills();
@@ -551,6 +553,43 @@ export class GravewakeGame {
       color: "#6f6",
       t: 1,
     });
+  }
+
+  /** Town vendor: buy potions for gold when near the shrine. */
+  private tryVendor(): boolean {
+    if (this.area !== "town") return false;
+    const pos = this.sim?.getPlayerPos();
+    if (!pos) return false;
+    // shrine near NW ruins
+    if (Math.hypot(pos.x - 220, pos.y - 160) > 70) return false;
+    const cost = 25;
+    if (this.sheet.gold < cost) {
+      this.pushFx({
+        kind: "float",
+        x: pos.x,
+        y: pos.y,
+        text: "Need 25g",
+        color: "#e88",
+        t: 1,
+      });
+      return true;
+    }
+    this.sheet.addGold(-cost);
+    this.sheet.pickup("health_potion", 1);
+    this.pushFx({
+      kind: "float",
+      x: pos.x,
+      y: pos.y,
+      text: "Potion −25g",
+      color: "#6f6",
+      t: 1.1,
+    });
+    this.pushFx({
+      kind: "banner",
+      text: "Ash shrine grants a draught",
+      t: 1.4,
+    });
+    return true;
   }
 
   private tryLoot(): void {

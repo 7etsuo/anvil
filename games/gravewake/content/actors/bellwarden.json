@@ -9,9 +9,17 @@
   "contactDamage": 18,
   "meleeRange": 50,
   "animations": {
-    "idle": ["actors/bellwarden.png"],
-    "walk": ["actors/bellwarden.png"],
-    "attack": ["actors/bellwarden.png"],
-    "death": ["actors/bellwarden.png"]
+    "idle": [
+      "actors/bellwarden.png"
+    ],
+    "walk": [
+      "actors/bellwarden.png"
+    ],
+    "attack": [
+      "actors/bellwarden.png"
+    ],
+    "death": [
+      "actors/bellwarden.png"
+    ]
   }
 }

@@ -8,5 +8,18 @@
   "radius": 10,
   "contactDamage": 7,
   "meleeRange": 38,
-  "animations": { "idle": ["actors/scuttler.png"], "walk": ["actors/scuttler.png"] }
+  "animations": {
+    "idle": [
+      "actors/thrall.png"
+    ],
+    "walk": [
+      "actors/thrall.png"
+    ],
+    "attack": [
+      "actors/thrall.png"
+    ],
+    "death": [
+      "actors/thrall.png"
+    ]
+  }
 }

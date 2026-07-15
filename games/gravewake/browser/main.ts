@@ -16,68 +16,67 @@ const SCALE = 1.25;
 let VIEW_W = 1280;
 let VIEW_H = 720;
 
+/** Every Imagine-processed sprite identity (unique art — no palette-swap remaps). */
+const ACTOR_IDS = [
+  "gravewarden",
+  "scuttler",
+  "wretch",
+  "crypt_guard",
+  "bellwarden",
+  "fallen",
+  "thrall",
+  "bone_hound",
+  "plague_scuttler",
+  "shade",
+  "void_shade",
+  "ash_ghoul",
+  "crypt_archer",
+  "raider",
+  "hell_raider",
+  "bone_brute",
+  "death_knight",
+  "bone_tyrant",
+] as const;
+
 const ASSET_URLS: Record<string, string> = {
-  "actors/gravewarden.png": "/assets/actors/gravewarden.png",
-  "actors/gravewarden_down.png": "/assets/actors/gravewarden_down.png",
-  "actors/gravewarden_up.png": "/assets/actors/gravewarden_up.png",
-  "actors/gravewarden_right.png": "/assets/actors/gravewarden_right.png",
-  "actors/scuttler.png": "/assets/actors/scuttler.png",
-  "actors/scuttler_down.png": "/assets/actors/scuttler_down.png",
-  "actors/scuttler_right.png": "/assets/actors/scuttler_right.png",
-  "actors/wretch.png": "/assets/actors/wretch.png",
-  "actors/wretch_down.png": "/assets/actors/wretch_down.png",
-  "actors/wretch_right.png": "/assets/actors/wretch_right.png",
-  "actors/crypt_guard.png": "/assets/actors/crypt_guard.png",
-  "actors/crypt_guard_down.png": "/assets/actors/crypt_guard_down.png",
-  "actors/crypt_guard_right.png": "/assets/actors/crypt_guard_right.png",
-  "actors/bellwarden.png": "/assets/actors/bellwarden.png",
-  "actors/bellwarden_down.png": "/assets/actors/bellwarden_down.png",
-  "actors/bellwarden_right.png": "/assets/actors/bellwarden_right.png",
   "env/floor.png": "/assets/env/floor.png",
   "env/wall.png": "/assets/env/wall.png",
+  "fx/portal.png": "/assets/fx/portal.png",
+  "fx/loot_pile.png": "/assets/fx/loot_pile.png",
 };
+for (const id of ACTOR_IDS) {
+  ASSET_URLS[`actors/${id}.png`] = `/assets/actors/${id}.png`;
+  ASSET_URLS[`actors/${id}_down.png`] = `/assets/actors/${id}_down.png`;
+  ASSET_URLS[`actors/${id}_right.png`] = `/assets/actors/${id}_right.png`;
+}
+// hero up sheet
+ASSET_URLS["actors/gravewarden_up.png"] = "/assets/actors/gravewarden_up.png";
 
-/** Visual aliases: mob types reuse art sheets with identity tints. */
-const ACTOR_SHEET: Record<string, string> = {
-  fallen: "scuttler",
-  thrall: "scuttler",
-  bone_hound: "scuttler",
-  plague_scuttler: "scuttler",
-  scuttler: "scuttler",
-  shade: "wretch",
-  wretch: "wretch",
-  void_shade: "wretch",
-  ash_ghoul: "wretch",
-  crypt_archer: "wretch",
-  raider: "crypt_guard",
-  hell_raider: "crypt_guard",
-  crypt_guard: "crypt_guard",
-  bone_brute: "crypt_guard",
-  death_knight: "bellwarden",
-  bone_tyrant: "bellwarden",
-  bellwarden: "bellwarden",
-  gravewarden: "gravewarden",
-};
+/** Identity map — each mob uses its own sheet. */
+const ACTOR_SHEET: Record<string, string> = Object.fromEntries(
+  ACTOR_IDS.map((id) => [id, id]),
+);
 
+/** Soft identity washes only when elite or missing art. */
 const ACTOR_TINT: Record<string, string | null> = {
-  fallen: "rgba(180,90,40,0.35)",
-  thrall: "rgba(100,80,60,0.4)",
-  bone_hound: "rgba(220,220,230,0.35)",
-  plague_scuttler: "rgba(60,180,40,0.4)",
-  scuttler: null,
-  shade: "rgba(60,40,120,0.45)",
-  wretch: null,
-  void_shade: "rgba(40,20,90,0.55)",
-  ash_ghoul: "rgba(160,80,40,0.4)",
-  crypt_archer: "rgba(90,110,160,0.4)",
-  raider: "rgba(120,40,40,0.3)",
-  hell_raider: "rgba(200,40,20,0.45)",
-  crypt_guard: null,
-  bone_brute: "rgba(180,180,200,0.35)",
-  death_knight: "rgba(40,0,60,0.4)",
-  bone_tyrant: "rgba(200,160,40,0.35)",
-  bellwarden: "rgba(80,60,20,0.2)",
   gravewarden: null,
+  scuttler: null,
+  wretch: null,
+  crypt_guard: null,
+  bellwarden: null,
+  fallen: null,
+  thrall: null,
+  bone_hound: null,
+  plague_scuttler: null,
+  shade: null,
+  void_shade: null,
+  ash_ghoul: null,
+  crypt_archer: null,
+  raider: null,
+  hell_raider: null,
+  bone_brute: null,
+  death_knight: null,
+  bone_tyrant: null,
 };
 
 const RARITY_COLOR: Record<string, string> = {
@@ -331,6 +330,8 @@ async function main(): Promise<void> {
 
   const floor = images.get("env/floor.png")!;
   const wallTex = images.get("env/wall.png")!;
+  const portalImg = images.get("fx/portal.png") ?? null;
+  const lootImg = images.get("fx/loot_pile.png") ?? null;
 
   const ash: Particle[] = [];
   for (let i = 0; i < 70; i++) {
@@ -625,15 +626,23 @@ async function main(): Promise<void> {
     }
     ctx.restore();
 
-    // player light
+    // player torch + ambient zone lighting
     if (player?.transform) {
       const lx = player.transform.x * SCALE - viewCamX;
       const ly = player.transform.y * SCALE - viewCamY;
-      const lightR = blob.area === "crypt" ? 220 : 300;
-      const light = ctx.createRadialGradient(lx, ly, 20, lx, ly, lightR);
-      light.addColorStop(0, "rgba(255,200,120,0.1)");
-      light.addColorStop(0.35, "rgba(0,0,0,0)");
-      light.addColorStop(1, blob.area === "crypt" ? "rgba(0,0,0,0.72)" : "rgba(0,0,0,0.55)");
+      const dark =
+        blob.areaKind === "dungeon" ? 0.78 : blob.area === "wastes" ? 0.58 : 0.45;
+      const lightR = blob.areaKind === "dungeon" ? 240 : 340;
+      // warm core
+      const core = ctx.createRadialGradient(lx, ly, 8, lx, ly, 90);
+      core.addColorStop(0, "rgba(255,210,140,0.16)");
+      core.addColorStop(1, "rgba(0,0,0,0)");
+      ctx.fillStyle = core;
+      ctx.fillRect(0, 0, VIEW_W, VIEW_H);
+      const light = ctx.createRadialGradient(lx, ly, 30, lx, ly, lightR);
+      light.addColorStop(0, "rgba(255,200,120,0.06)");
+      light.addColorStop(0.4, "rgba(0,0,0,0)");
+      light.addColorStop(1, `rgba(0,0,0,${dark})`);
       ctx.fillStyle = light;
       ctx.fillRect(0, 0, VIEW_W, VIEW_H);
     }
@@ -660,7 +669,35 @@ async function main(): Promise<void> {
         ctx.strokeRect(x + 2, y + 2, Math.max(0, ww - 4), Math.max(0, hh - 4));
       }
 
-      // dungeon / hub portals (rect markers)
+      // town ash shrine (vendor)
+      if (blob.area === "town") {
+        const sx = 220 * SCALE - viewCamX;
+        const sy = 160 * SCALE - viewCamY;
+        const g = ctx.createRadialGradient(sx, sy, 4, sx, sy, 48);
+        g.addColorStop(0, "rgba(255,160,60,0.45)");
+        g.addColorStop(1, "rgba(0,0,0,0)");
+        ctx.fillStyle = g;
+        ctx.beginPath();
+        ctx.arc(sx, sy, 48, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.fillStyle = "#c96";
+        ctx.beginPath();
+        ctx.moveTo(sx, sy - 22);
+        ctx.lineTo(sx + 14, sy + 12);
+        ctx.lineTo(sx - 14, sy + 12);
+        ctx.closePath();
+        ctx.fill();
+        ctx.font = "bold 11px Cinzel, Georgia, serif";
+        ctx.textAlign = "center";
+        ctx.fillStyle = "#e8c878";
+        ctx.fillText("Ash Shrine", sx, sy - 30);
+        ctx.fillStyle = "#aaa";
+        ctx.font = "10px system-ui";
+        ctx.fillText("F · Potion 25g", sx, sy + 28);
+        ctx.textAlign = "left";
+      }
+
+      // dungeon / hub portals — Imagine portal prop + kind tint
       const portals = (blob.portals as Array<{
         x: number;
         y: number;
@@ -670,45 +707,37 @@ async function main(): Promise<void> {
         kind?: string;
       }>) ?? area.portals ?? [];
       for (const pr of portals) {
-        const px = pr.x * SCALE - viewCamX;
-        const py = pr.y * SCALE - viewCamY;
-        const pw = pr.w * SCALE;
-        const ph = pr.h * SCALE;
-        const pulse = 0.35 + Math.sin(now / 320) * 0.2;
-        let col = `rgba(201,164,108,${pulse})`;
-        if (pr.kind === "dungeon") col = `rgba(100,140,255,${pulse})`;
-        if (pr.kind === "boss") col = `rgba(220,80,40,${pulse + 0.1})`;
-        if (pr.kind === "hub") col = `rgba(120,200,120,${pulse})`;
-        // runic ring
-        ctx.strokeStyle = col;
-        ctx.lineWidth = 3;
-        ctx.strokeRect(px, py, pw, ph);
-        ctx.fillStyle = col.replace(/[\d.]+\)$/, "0.15)");
-        ctx.fillRect(px, py, pw, ph);
-        // inner glow
-        const g = ctx.createRadialGradient(
-          px + pw / 2,
-          py + ph / 2,
-          4,
-          px + pw / 2,
-          py + ph / 2,
-          Math.max(pw, ph),
-        );
-        g.addColorStop(0, col);
-        g.addColorStop(1, "rgba(0,0,0,0)");
-        ctx.fillStyle = g;
-        ctx.fillRect(px - 10, py - 10, pw + 20, ph + 20);
+        const cx = (pr.x + pr.w / 2) * SCALE - viewCamX;
+        const cy = (pr.y + pr.h / 2) * SCALE - viewCamY;
+        const pw = Math.max(pr.w, pr.h) * SCALE * 1.35;
+        const ph = pw * 1.15;
+        const pulse = 0.75 + Math.sin(now / 280) * 0.15;
+        if (portalImg) {
+          ctx.save();
+          ctx.globalAlpha = pulse;
+          if (pr.kind === "boss") ctx.filter = "hue-rotate(-30deg) saturate(1.4)";
+          else if (pr.kind === "hub") ctx.filter = "hue-rotate(90deg) saturate(0.9)";
+          else if (pr.kind === "dungeon") ctx.filter = "hue-rotate(10deg)";
+          ctx.drawImage(portalImg, cx - pw / 2, cy - ph / 2, pw, ph);
+          ctx.filter = "none";
+          ctx.restore();
+        } else {
+          ctx.fillStyle = `rgba(100,140,255,${0.3 * pulse})`;
+          ctx.fillRect(cx - pw / 2, cy - ph / 2, pw, ph);
+        }
         if (pr.label) {
-          ctx.font = "bold 13px Cinzel, Georgia, serif";
+          ctx.font = "bold 14px Cinzel, Georgia, serif";
           ctx.textAlign = "center";
+          ctx.fillStyle = "rgba(0,0,0,0.65)";
+          ctx.fillRect(cx - 54, cy - ph / 2 - 26, 108, 20);
           ctx.fillStyle = "#e8dcc0";
-          ctx.fillText(pr.label, px + pw / 2, py - 8);
+          ctx.fillText(pr.label, cx, cy - ph / 2 - 12);
           ctx.textAlign = "left";
         }
       }
     }
 
-    // LOOT piles (before actors so they sit on floor)
+    // LOOT piles — Imagine prop + glow
     for (const e of handle.world.query("transform")) {
       if (!e.tags.includes("loot") || !e.transform) continue;
       const loot = e.data.loot as { defId?: string; gold?: number; qty?: number } | undefined;
@@ -716,25 +745,22 @@ async function main(): Promise<void> {
       const sy = e.transform.y * SCALE - viewCamY;
       const isGold = loot?.defId === "gold";
       const pulse = 0.55 + Math.sin(now / 180 + e.transform.x) * 0.35;
-      // glow
-      const glow = ctx.createRadialGradient(sx, sy, 2, sx, sy, 22);
+      const glow = ctx.createRadialGradient(sx, sy, 2, sx, sy, 28);
       glow.addColorStop(0, isGold ? `rgba(255,210,60,${pulse})` : `rgba(120,160,255,${pulse * 0.8})`);
       glow.addColorStop(1, "rgba(0,0,0,0)");
       ctx.fillStyle = glow;
       ctx.beginPath();
-      ctx.arc(sx, sy, 22, 0, Math.PI * 2);
+      ctx.arc(sx, sy, 28, 0, Math.PI * 2);
       ctx.fill();
-      // pile
-      ctx.fillStyle = isGold ? "#e8c040" : "#6a8cff";
-      ctx.beginPath();
-      ctx.ellipse(sx, sy + 2, 10, 5, 0, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.fillStyle = isGold ? "#fff0a0" : "#c0d0ff";
-      ctx.beginPath();
-      ctx.arc(sx - 3, sy - 2, 3, 0, Math.PI * 2);
-      ctx.arc(sx + 4, sy - 1, 2.5, 0, Math.PI * 2);
-      ctx.fill();
-      // label when near player
+      if (lootImg) {
+        const s = isGold ? 36 : 44;
+        ctx.drawImage(lootImg, sx - s / 2, sy - s * 0.65, s, s);
+      } else {
+        ctx.fillStyle = isGold ? "#e8c040" : "#6a8cff";
+        ctx.beginPath();
+        ctx.ellipse(sx, sy + 2, 10, 5, 0, 0, Math.PI * 2);
+        ctx.fill();
+      }
       if (player?.transform) {
         const d = Math.hypot(e.transform.x - player.transform.x, e.transform.y - player.transform.y);
         if (d < 90) {
@@ -744,11 +770,11 @@ async function main(): Promise<void> {
           ctx.font = "bold 11px system-ui";
           ctx.textAlign = "center";
           ctx.fillStyle = isGold ? "#fd4" : "#acf";
-          ctx.fillText(name, sx, sy - 16);
+          ctx.fillText(name, sx, sy - 28);
           if (d < 48) {
             ctx.fillStyle = "#ccc";
             ctx.font = "10px system-ui";
-            ctx.fillText("[F]", sx, sy - 28);
+            ctx.fillText("[F]", sx, sy - 40);
           }
           ctx.textAlign = "left";
         }

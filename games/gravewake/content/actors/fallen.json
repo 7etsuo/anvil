@@ -9,7 +9,17 @@
   "contactDamage": 6,
   "meleeRange": 36,
   "animations": {
-    "idle": ["actors/scuttler.png"],
-    "walk": ["actors/scuttler.png"]
+    "idle": [
+      "actors/fallen.png"
+    ],
+    "walk": [
+      "actors/fallen.png"
+    ],
+    "attack": [
+      "actors/fallen.png"
+    ],
+    "death": [
+      "actors/fallen.png"
+    ]
   }
 }

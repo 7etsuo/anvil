@@ -65,6 +65,10 @@ async function main(): Promise<void> {
       case "doctor":
         await cmdDoctor(args.slice(1));
         break;
+      case "net":
+        if (args[1] === "health") await cmdNetHealth(args.slice(2));
+        else usageError("net health [--url http://127.0.0.1:2567]");
+        break;
       default:
         usageError(`Unknown command: ${cmd}`);
     }
@@ -95,6 +99,7 @@ Commands:
   recipe list | recipe show <id>
   tools [--json]
   doctor [path] [--json]
+  net health [--url http://host:port]
 `);
 }
 
@@ -399,6 +404,37 @@ async function cmdDoctor(args: string[]): Promise<void> {
   };
   console.log(JSON.stringify(out, null, 2));
   process.exit(out.ok ? 0 : 1);
+}
+
+/** Probe Colyseus /health for agents & ops. */
+async function cmdNetHealth(args: string[]): Promise<void> {
+  const url =
+    getFlag(args, "--url") ??
+    process.env.ANVIL_NET_URL ??
+    "http://127.0.0.1:2567";
+  const healthUrl = url.replace(/\/$/, "") + "/health";
+  try {
+    const res = await fetch(healthUrl);
+    const body = await res.json();
+    console.log(
+      JSON.stringify(
+        { ok: res.ok, status: res.status, url: healthUrl, body },
+        null,
+        2,
+      ),
+    );
+    process.exit(res.ok ? 0 : 1);
+  } catch (e) {
+    console.log(
+      JSON.stringify({
+        ok: false,
+        url: healthUrl,
+        error: e instanceof Error ? e.message : String(e),
+        hint: "Start server: pnpm --filter @anvil/net-colyseus dev:server",
+      }),
+    );
+    process.exit(1);
+  }
 }
 
 /**

@@ -15,6 +15,8 @@ export interface AnvilGameRoomOptions {
   maxInputsPerSec?: number;
   auth?: AuthValidator;
   spawn?: { x: number; y: number };
+  /** Allow reconnection for N seconds after disconnect (0 = off) */
+  reconnectionSeconds?: number;
 }
 
 type ClientMeta = {
@@ -33,6 +35,7 @@ export class AnvilGameRoom extends Room<AnvilRoomState> {
   private auth: AuthValidator = defaultAuthValidator;
   private spawn = { x: 100, y: 100 };
   private meta = new Map<string, ClientMeta>();
+  private reconnectionSeconds = 60;
 
   onCreate(options: AnvilGameRoomOptions = {}): void {
     const defaults =
@@ -47,6 +50,10 @@ export class AnvilGameRoom extends Room<AnvilRoomState> {
     this.maxInputsPerSec = opt.maxInputsPerSec ?? 30;
     this.auth = opt.auth ?? defaultAuthValidator;
     this.spawn = opt.spawn ?? { x: 100, y: 100 };
+    this.reconnectionSeconds = opt.reconnectionSeconds ?? 60;
+
+    // Seat reservation / patch rate for internet play
+    this.setSeatReservationTime(15);
 
     const hz = opt.tickRate ?? 20;
     this.setSimulationInterval((dtMs) => this.simulate(dtMs / 1000), 1000 / hz);
@@ -76,6 +83,16 @@ export class AnvilGameRoom extends Room<AnvilRoomState> {
     _options: unknown,
     auth: { name?: string } | undefined,
   ): void {
+    // Reconnect reuses session — player may already exist
+    if (this.state.players.has(client.sessionId)) {
+      this.meta.set(client.sessionId, {
+        inputs: new Set(),
+        rate: { windowStartMs: Date.now(), count: 0 },
+        lastSeq: -1,
+      });
+      return;
+    }
+
     const p = new PlayerState();
     p.sessionId = client.sessionId;
     p.name = (auth?.name ?? "Player").slice(0, 24);
@@ -93,9 +110,22 @@ export class AnvilGameRoom extends Room<AnvilRoomState> {
     });
   }
 
-  onLeave(client: Client): void {
-    this.state.players.delete(client.sessionId);
-    this.meta.delete(client.sessionId);
+  async onLeave(client: Client, consented: boolean): Promise<void> {
+    // Consented leave or reconnection disabled → drop player
+    if (consented || this.reconnectionSeconds <= 0) {
+      this.state.players.delete(client.sessionId);
+      this.meta.delete(client.sessionId);
+      return;
+    }
+
+    try {
+      // Keep seat + state until client reconnects or timeout
+      await this.allowReconnection(client, this.reconnectionSeconds);
+      // Reconnected: meta re-bound in onJoin
+    } catch {
+      this.state.players.delete(client.sessionId);
+      this.meta.delete(client.sessionId);
+    }
   }
 
   private handleInput(client: Client, message: unknown): void {

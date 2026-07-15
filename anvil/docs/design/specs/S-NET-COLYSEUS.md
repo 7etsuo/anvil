@@ -7,50 +7,80 @@ Legacy `@anvil/genre-net` loopback/raw `ws` relay is for tests/spikes only.
 
 | Piece | Library |
 |-------|---------|
-| Server framework | [Colyseus](https://colyseus.io/) (`colyseus`, `@colyseus/core`) |
-| State sync | `@colyseus/schema` (binary patches) |
-| Transport | `@colyseus/ws-transport` (WebSocket) |
+| Server framework | [Colyseus](https://colyseus.io/) |
+| State sync | `@colyseus/schema` |
+| Transport | `@colyseus/ws-transport` |
 | Client | `colyseus.js` |
+| Multi-node (optional) | `@colyseus/redis-presence` + `@colyseus/redis-driver` |
 
 ## Authority model
 
 1. Client joins with `{ name, token? }` — `onAuth` runs.
-2. Client sends **only** `{ type implicitly via room.send("input"), actions[], seq? }`.
-3. Server validates actions (whitelist), rate-limits, applies movement.
-4. Server patches `AnvilRoomState` (players map: x, y, hp, …) to all clients.
+2. Client sends **only** `room.send("input", { actions, seq? })`.
+3. Server validates (whitelist), rate-limits, simulates.
+4. Server patches `AnvilRoomState` to clients.
 5. Clients **never** send position or HP.
 
-## Security (built-in)
+## Security
 
 | Control | Implementation |
 |---------|----------------|
-| Auth hook | `onAuth` + pluggable `AuthValidator` (default: name + optional token length) |
-| Input whitelist | `ALLOWED_INPUT_ACTIONS` — unknown dropped |
-| Rate limit | max inputs/sec per client (default 30) |
-| Seq reject | optional `seq` ignores replays/old |
-| Max clients | room `maxClients` (default 16) |
-| No client-trusted state | only server mutates `PlayerState` |
+| Auth hook | pluggable `AuthValidator` |
+| Input whitelist | `ALLOWED_INPUT_ACTIONS` |
+| Rate limit | max inputs/sec (default 30) |
+| Seq reject | ignores old/duplicate `seq` |
+| Max clients | default 16 |
+| Reconnect window | `allowReconnection` (default 60s) |
+| TLS | terminate at reverse proxy (see `deploy/nginx-wss.conf`) |
 
-**You still must:** terminate TLS (WSS) at reverse proxy/load balancer; plug real JWT/session verify into `auth`.
+## Ops
+
+| Endpoint | Purpose |
+|----------|---------|
+| `GET /health` | JSON stats (rooms, clients, redis, uptime) |
+| `GET /metrics` | Prometheus text exposition |
+
+| Env | Purpose |
+|-----|---------|
+| `REDIS_URL` | Enable Redis presence/driver |
+| `ANVIL_PUBLIC_ADDRESS` | Public WSS/HTTPS URL |
+| `ANVIL_TRUST_PROXY` | `1` behind nginx |
+| `ANVIL_RECONNECT_SEC` | Reconnect seat seconds |
+| `PORT` / `HOST` | Bind address |
+
+```bash
+# local multi-node deps
+docker compose -f packages/net-colyseus/deploy/docker-compose.yml up -d
+REDIS_URL=redis://127.0.0.1:6379 pnpm --filter @anvil/net-colyseus dev:server
+
+# agent/ops probe
+anvil net health --url http://127.0.0.1:2567
+```
 
 ## API
 
 ```ts
-// server
-import { createAnvilNetServer } from "@anvil/net-colyseus";
-const server = await createAnvilNetServer({ port: 2567 });
+import { createAnvilNetServer, connectAnvilNet } from "@anvil/net-colyseus";
 
-// client
-import { connectAnvilNet } from "@anvil/net-colyseus";
+const server = await createAnvilNetServer({
+  port: 2567,
+  redisUrl: process.env.REDIS_URL,
+  trustProxy: true,
+  publicAddress: "https://game.example.com",
+});
+
 const net = await connectAnvilNet({
-  endpoint: "ws://127.0.0.1:2567",
+  endpoint: "wss://game.example.com",
   name: "Hero",
-  // token: "…", // if you enable token checks
+  token: "…",
 });
 net.sendInput(["move_right"], 1);
-const me = net.getState().players.get(net.sessionId);
+
+// after disconnect:
+// const again = await net.reconnect();
 ```
 
-## Health
+## Deploy files
 
-`GET http://host:port/health` → `{ ok: true }`.
+- `packages/net-colyseus/deploy/nginx-wss.conf` — WSS terminator
+- `packages/net-colyseus/deploy/docker-compose.yml` — Redis

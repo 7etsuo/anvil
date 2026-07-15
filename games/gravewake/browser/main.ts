@@ -711,6 +711,14 @@ async function main(): Promise<void> {
         ctx.fillText("LEVEL UP", VIEW_W / 2, 130);
         ctx.shadowBlur = 0;
         ctx.textAlign = "left";
+      } else if (f.kind === "banner") {
+        ctx.font = "bold 26px Cinzel, Georgia, serif";
+        ctx.textAlign = "center";
+        ctx.fillStyle = `rgba(0,0,0,${alpha * 0.55})`;
+        ctx.fillRect(VIEW_W / 2 - 200, 100, 400, 44);
+        ctx.fillStyle = `rgba(201,164,108,${alpha})`;
+        ctx.fillText(f.text, VIEW_W / 2, 130);
+        ctx.textAlign = "left";
       }
     }
 

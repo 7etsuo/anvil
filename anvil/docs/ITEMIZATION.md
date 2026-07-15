@@ -1,91 +1,100 @@
-# Anvil itemization (ARPG gear math)
+# Itemization (generic gear progression)
 
-Proper engine-level model for **any** equippable item (weapons, armor, jewelry)—not armor-only.
+Engine module: `@anvil/core` → `rpg/itemization.ts`  
+**One implementation** — no parallel item-level helpers.
 
-## Concepts
+Applies to **any equippable item** (weapons, armor, jewelry, tools…), not one genre.
 
-| Term | Meaning |
-|------|---------|
-| **ItemDef.stats** | Base template stats at **base item level** (usually 1) |
-| **itemLevel (iLvl)** | Power of a *rolled instance* |
-| **reqLevel** | Character level required to equip (`charLevel ≥ reqLevel`) |
-| **rolledStats** | Final stats on the instance after budget + quality |
+## Why this lives in the engine
 
-Higher character levels **can always wear lower** req gear.
+Titles should author **base stats once**. The engine owns:
 
-## Formulas
+- instance **item level**
+- **stat budget** scaling
+- **quality** rolls
+- **required level** for equip
+- optional **drop level** suggestion
 
-### Level power (primary stats)
+Games that do not want this can ignore it and pass flat `rolledStats` / skip `reqLevel`.
 
-\[
-\text{power}(L) = 1 + g \cdot (L - L_{\text{base}})
-\]
+## Data model
 
-Default \( g = 0.12 \) (12% per level). Linear growth keeps early gear usable longer while still rewarding progression.
+| Field | Where | Meaning |
+|-------|--------|---------|
+| `ItemDef.stats` | content JSON | Base stats at `ItemDef.itemLevel` (default 1) |
+| `ItemDef.slot` / `rarity` | content | Slot + rarity budget coefficients |
+| `ItemStack.itemLevel` | runtime instance | Power level of this drop |
+| `ItemStack.reqLevel` | runtime | Min character level to equip |
+| `ItemStack.rolledStats` | runtime | Final stats (prefer over def.stats when set) |
 
-### Instance stat
+## Default math (override with `ItemizationConfig`)
 
-\[
-\text{stat} = \text{base} \cdot \text{power}(L) \cdot S_{\text{slot}} \cdot R_{\text{rarity}} \cdot Q
-\]
+```
+power(L)  = 1 + growthPerLevel * (L - baseLevel)     // default growth 0.12
+quality   ∈ [1 − variance, 1 + variance]               // default ±0.12
+stat      = base × power × slotMul × rarityMul × quality
+reqLevel  = itemLevel                                  // soft mode optional
+```
 
-- \( S_{\text{slot}} \): weapon \(>\) chest \(>\) head \(>\) jewelry (budget coefficients)
-- \( R_{\text{rarity}} \): common \(0.9\), magic \(1.0\), rare \(1.2\), unique \(1.4\)
-- \( Q \): quality roll in \([1-v, 1+v]\), default \( v = 0.12 \) (±12%)
+Crit chance / crit mult use soft additive growth so they do not explode.
 
-Crit chance/mult use **soft additive** growth so they do not explode.
+**Equip rule:** `characterLevel >= reqLevel` (higher levels may wear lower gear).
 
-### Drop item level
+**Suggested drop level:** `max(cLvl, zoneLevel) + U{-jitter..+jitter}`.
 
-\[
-\text{iLvl} = \max(1,\ \max(\text{cLvl}, \text{zoneLevel}) + U\{-2..+2\})
-\]
-
-### Required level
-
-Default: \(\text{reqLevel} = \text{iLvl}\) (strict). Soft mode: \(\lfloor \text{iLvl} \cdot 0.85 \rfloor\).
-
-## API
+## API (public)
 
 ```ts
 import {
+  DEFAULT_ITEMIZATION,
   rollItemInstance,
   rollDropItemLevel,
   scaleStatsForItemLevel,
   canEquipAtLevel,
-  DEFAULT_ITEMIZATION,
+  itemPowerScore,
+  dropFromTable,
 } from "@anvil/core";
 
-const inst = rollItemInstance(def, 10); // iLvl 10
-// inst.rolledStats, inst.reqLevel, inst.minStats/maxStats for tooltips
-sheet.pickup(def.id, 1, {
-  rolledStats: inst.rolledStats,
-  itemLevel: inst.itemLevel,
-  reqLevel: inst.reqLevel,
+// Full instance
+const inst = rollItemInstance(def, 10);
+// inst: { itemLevel, reqLevel, rolledStats, minStats, maxStats }
+
+// Or only scale
+const stats = scaleStatsForItemLevel(def.stats, 10, def, {
+  config: { growthPerLevel: 0.08 }, // custom curve
+  fixedQuality: 1,                  // no RNG
 });
-sheet.equip(uid); // fails with error "level_req" if cLvl < reqLevel
+
+// Drops (loot policy uses the same math)
+dropFromTable(world, x, y, table, {
+  itemDefs,
+  characterLevel: 5,
+  zoneLevel: 7,
+});
 ```
 
-## Content authoring
+## Ownership (no overlap)
 
-Define **level-1** (or `itemLevel` on def) base stats only:
+| Concern | Module |
+|---------|--------|
+| Budget / level / quality math | `itemization.ts` only |
+| Equip slot map + level gate | `Equipment.ts` calls `canEquipAtLevel` |
+| Inventory rows | `Inventory.ts` stores fields |
+| Sheet helpers | `CharacterSheet.pickupLeveled` / `equip` |
+| Ground piles | `Loot.ts` carries fields on entity |
+| Weighted tables + drop roll | `LootPolicy.dropFromTable` |
 
-```json
-{
-  "id": "ash_mail",
-  "slot": "chest",
-  "rarity": "magic",
-  "stats": { "armor": 6, "maxHp": 20 }
-}
+Do **not** reimplement scaling inside games. Call `rollItemInstance` / `dropFromTable`.
+
+## Tuning without forking
+
+```ts
+rollItemInstance(def, level, {
+  config: {
+    growthPerLevel: 0.05,      // flatter progression
+    variance: 0.05,            // tighter rolls
+    rarityMul: { ...DEFAULT_ITEMIZATION.rarityMul, unique: 2.0 },
+  },
+  softReq: true,               // reqLevel = floor(ilvl * 0.85)
+});
 ```
-
-Do not author every level by hand—the engine scales instances.
-
-## Design refs
-
-- Diablo: iLvl gates affix/power; monster/area level drives drop iLvl  
-- Diablo 4: item power scales base armor/DPS; affix ranges by breakpoints  
-- WoW: item level ≈ stat budget; slot modifiers  
-- PoE: iLvl gates mod tiers (we use continuous budget + quality as a simpler engine default)
-
-Tune via `DEFAULT_ITEMIZATION` or `rollItemInstance(..., { config: { growthPerLevel: 0.1 } })`.

@@ -9,7 +9,17 @@
   "contactDamage": 11,
   "meleeRange": 40,
   "animations": {
-    "idle": ["actors/crypt_guard.png"],
-    "walk": ["actors/crypt_guard.png"]
+    "idle": [
+      "actors/raider.png"
+    ],
+    "walk": [
+      "actors/raider.png"
+    ],
+    "attack": [
+      "actors/raider.png"
+    ],
+    "death": [
+      "actors/raider.png"
+    ]
   }
 }

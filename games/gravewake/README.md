@@ -36,6 +36,12 @@ Boss kills are **milestones**, not the end of the game. Packs keep spawning; thr
 | **I** | Inventory |
 | Walk into **portals** / map edges | Travel |
 
+### Art
+
+Unique **Grok Imagine** sprites for all 18 combatants (thralls, hounds, ghouls, archers, brutes, death knight, bone tyrant, …), new floor/wall tiles, portal prop, loot pile. No more palette-swap scorpion spam.
+
+**Ash Shrine** in Lychgate: **F** buys a potion for 25g.
+
 ### Systems (Anvil)
 
 CharacterSheet, loot tables, equip, multi-skill combat, quests, particles, **PackSpawner** (timed respawns), scaled `spawnActorPublic`.

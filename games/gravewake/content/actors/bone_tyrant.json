@@ -8,5 +8,18 @@
   "radius": 20,
   "contactDamage": 24,
   "meleeRange": 52,
-  "animations": { "idle": ["actors/bellwarden.png"], "walk": ["actors/bellwarden.png"] }
+  "animations": {
+    "idle": [
+      "actors/bone_tyrant.png"
+    ],
+    "walk": [
+      "actors/bone_tyrant.png"
+    ],
+    "attack": [
+      "actors/bone_tyrant.png"
+    ],
+    "death": [
+      "actors/bone_tyrant.png"
+    ]
+  }
 }

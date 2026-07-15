@@ -8,5 +8,18 @@
   "radius": 9,
   "contactDamage": 8,
   "meleeRange": 34,
-  "animations": { "idle": ["actors/scuttler.png"], "walk": ["actors/scuttler.png"] }
+  "animations": {
+    "idle": [
+      "actors/bone_hound.png"
+    ],
+    "walk": [
+      "actors/bone_hound.png"
+    ],
+    "attack": [
+      "actors/bone_hound.png"
+    ],
+    "death": [
+      "actors/bone_hound.png"
+    ]
+  }
 }

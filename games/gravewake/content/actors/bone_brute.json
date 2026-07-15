@@ -8,5 +8,18 @@
   "radius": 16,
   "contactDamage": 16,
   "meleeRange": 46,
-  "animations": { "idle": ["actors/crypt_guard.png"], "walk": ["actors/crypt_guard.png"] }
+  "animations": {
+    "idle": [
+      "actors/bone_brute.png"
+    ],
+    "walk": [
+      "actors/bone_brute.png"
+    ],
+    "attack": [
+      "actors/bone_brute.png"
+    ],
+    "death": [
+      "actors/bone_brute.png"
+    ]
+  }
 }

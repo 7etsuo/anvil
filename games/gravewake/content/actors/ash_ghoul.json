@@ -8,5 +8,18 @@
   "radius": 12,
   "contactDamage": 11,
   "meleeRange": 40,
-  "animations": { "idle": ["actors/wretch.png"], "walk": ["actors/wretch.png"] }
+  "animations": {
+    "idle": [
+      "actors/ash_ghoul.png"
+    ],
+    "walk": [
+      "actors/ash_ghoul.png"
+    ],
+    "attack": [
+      "actors/ash_ghoul.png"
+    ],
+    "death": [
+      "actors/ash_ghoul.png"
+    ]
+  }
 }

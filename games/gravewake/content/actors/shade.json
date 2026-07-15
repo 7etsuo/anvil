@@ -14,7 +14,17 @@
   "projectileCooldownMs": 900,
   "projectileLifetimeMs": 2500,
   "animations": {
-    "idle": ["actors/wretch.png"],
-    "walk": ["actors/wretch.png"]
+    "idle": [
+      "actors/shade.png"
+    ],
+    "walk": [
+      "actors/shade.png"
+    ],
+    "attack": [
+      "actors/shade.png"
+    ],
+    "death": [
+      "actors/shade.png"
+    ]
   }
 }

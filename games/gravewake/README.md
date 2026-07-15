@@ -1,46 +1,55 @@
 # Gravewake
 
-Top-down **Diablo-like ARPG** on **Anvil**.
+**Playable** top-down Diablo-like ARPG on **Anvil** (browser + keyboard).
 
-**Ashen Lychgate** (town) → **Cinder Parish** (grind) → **Bellcrypt** (boss).
+**Ashen Lychgate** → **Cinder Parish** → **Bellcrypt** → **Bellwarden**.
 
-| | |
-|--|--|
-| Engine | **Anvil** (`@anvil/core` + topdown sim) |
-| Status | **M9 unparked** — greybox vertical slice |
-| Art | Greybox; Imagine packs later |
-
-## Run / test (from repo)
+## Play (browser)
 
 ```bash
-# build Anvil + game module
-cd anvil && pnpm -r run build
-cd ../games/gravewake && pnpm install && pnpm run build
-pnpm test          # anvil CLI headless scenarios
-pnpm validate
+# from repo
+cd anvil && pnpm install && pnpm -r run build
+
+cd ../games/gravewake
+pnpm install
+pnpm run build      # headless module for tests
+pnpm run play       # opens Vite — open the URL it prints (default http://127.0.0.1:5180/)
 ```
 
-Or from `anvil/`:
+Or:
 
 ```bash
-node packages/cli/dist/index.js validate ../games/gravewake
-node packages/cli/dist/index.js test ../games/gravewake
+cd anvil
+pnpm anvil dev ../games/gravewake
+# (uses vite.config.ts in the game folder)
 ```
 
-## Docs
+### Controls
 
-Full design: **[docs/INDEX.md](docs/INDEX.md)**.  
-Slice notes: **[UNPARKED.md](./UNPARKED.md)**.
+| Key | Action |
+|-----|--------|
+| **WASD** | Move |
+| **Space** or **mouse click** | Rite Slash (melee) |
+| **1** | Health potion |
+| Walk into **green** portals | Change area |
+| **Red** portal | Locked until Parish is clear |
 
-## Controls (slice)
+### Goal
 
-| Input | Action |
-|-------|--------|
-| WASD | Move |
-| Space / shoot | Rite Slash (melee) |
-| Digit 1 | Potion |
-| Walk into portal zones | Change area |
+Leave town east → clear Cinder Parish → enter Bellcrypt → defeat the **Bellwarden**.
 
-## License
+## Headless tests (CI / agents)
 
-TBD
+```bash
+pnpm test
+# or: node ../../anvil/packages/cli/dist/index.js test .
+```
+
+## Assets
+
+Character/enemy art generated with **Grok Imagine**, under `public/assets/` (and `assets/`).
+
+## Design docs
+
+Full GDD bible: [docs/INDEX.md](docs/INDEX.md).  
+This package is the **playable vertical slice**, not every planned room/system yet.

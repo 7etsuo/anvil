@@ -12,5 +12,19 @@
   "projectileDamage": 9,
   "projectileSpeed": 220,
   "projectileCooldownMs": 1300,
-  "projectileLifetimeMs": 2500
+  "projectileLifetimeMs": 2500,
+  "animations": {
+    "idle": [
+      "actors/wretch.png"
+    ],
+    "walk": [
+      "actors/wretch.png"
+    ],
+    "attack": [
+      "actors/wretch.png"
+    ],
+    "death": [
+      "actors/wretch.png"
+    ]
+  }
 }

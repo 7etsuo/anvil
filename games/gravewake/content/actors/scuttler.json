@@ -7,5 +7,19 @@
   "team": "enemy",
   "radius": 10,
   "contactDamage": 7,
-  "meleeRange": 48
+  "meleeRange": 48,
+  "animations": {
+    "idle": [
+      "actors/scuttler.png"
+    ],
+    "walk": [
+      "actors/scuttler.png"
+    ],
+    "attack": [
+      "actors/scuttler.png"
+    ],
+    "death": [
+      "actors/scuttler.png"
+    ]
+  }
 }

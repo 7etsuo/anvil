@@ -12,11 +12,27 @@ export class CanvasRenderFacade implements RenderFacade {
   private width = 800;
   private height = 600;
   private assets: AssetServer | null = null;
+  private camX = 0;
+  private camY = 0;
 
   constructor(private readonly mount?: HTMLElement | null) {}
 
   setAssetServer(assets: AssetServer): void {
     this.assets = assets;
+  }
+
+  /** World-space camera top-left (for top-down follow). */
+  setCamera(x: number, y: number): void {
+    this.camX = x;
+    this.camY = y;
+  }
+
+  getContext(): CanvasRenderingContext2D | null {
+    return this.ctx;
+  }
+
+  getCanvas(): HTMLCanvasElement | null {
+    return this.canvas;
   }
 
   async init(width: number, height: number): Promise<void> {
@@ -28,6 +44,7 @@ export class CanvasRenderFacade implements RenderFacade {
     canvas.height = height;
     canvas.style.display = "block";
     canvas.style.background = "#111";
+    canvas.style.imageRendering = "pixelated";
     const parent = this.mount ?? document.body;
     parent.appendChild(canvas);
     this.canvas = canvas;
@@ -60,12 +77,14 @@ export class CanvasRenderFacade implements RenderFacade {
   ): void {
     const ctx = this.ctx;
     if (!ctx) return;
+    const sx = x - this.camX;
+    const sy = y - this.camY;
     ctx.fillStyle = cssColor;
-    ctx.fillRect(x, y, w, h);
+    ctx.fillRect(sx, sy, w, h);
     if (label) {
       ctx.fillStyle = "#fff";
       ctx.font = "10px monospace";
-      ctx.fillText(label, x + 2, y + 12);
+      ctx.fillText(label, sx + 2, sy + 12);
     }
   }
 
@@ -76,40 +95,44 @@ export class CanvasRenderFacade implements RenderFacade {
     opts?: DrawSpriteOpts,
   ): void {
     const s = opts?.scale ?? 1;
-    const w = 16 * s;
-    const h = 16 * s;
     const ctx = this.ctx;
     if (!ctx) return;
+    const sx = x - this.camX;
+    const sy = y - this.camY;
 
     if (this.assets) {
       const tex = this.assets.getTexture(path);
       if (tex.kind === "texture" && tex.image) {
+        // Fit game sprites to a consistent on-screen size (source may be large AI art)
+        const iw = 40 * s;
+        const ih = 40 * s;
         ctx.save();
         ctx.globalAlpha = opts?.alpha ?? 1;
         if (opts?.flipX) {
-          ctx.translate(x + w, y);
+          ctx.translate(sx + iw, sy);
           ctx.scale(-1, 1);
-          ctx.drawImage(tex.image, 0, 0, w, h);
+          ctx.drawImage(tex.image, 0, 0, iw, ih);
         } else {
-          ctx.drawImage(tex.image, x, y, w, h);
+          ctx.drawImage(tex.image, sx, sy, iw, ih);
         }
         ctx.restore();
         return;
       }
       if (tex.kind === "greybox") {
-        this.drawQuad(x, y, w, h, tex.color, tex.label);
+        this.drawQuad(x, y, 32 * s, 32 * s, tex.color, tex.label);
         return;
       }
     }
 
-    this.drawQuad(x, y, w, h, "#666", path.split("/").pop());
+    this.drawQuad(x, y, 32 * s, 32 * s, "#666", path.split("/").pop());
   }
 
   drawText(text: string, x: number, y: number, opts?: DrawTextOpts): void {
     const ctx = this.ctx;
     if (!ctx) return;
+    // HUD texts are screen-space (no camera)
     ctx.fillStyle = opts?.color ?? "#eee";
-    ctx.font = `${opts?.size ?? 14}px monospace`;
+    ctx.font = `${opts?.size ?? 14}px system-ui, sans-serif`;
     ctx.textAlign = (opts?.align as CanvasTextAlign) ?? "left";
     ctx.fillText(text, x, y);
   }

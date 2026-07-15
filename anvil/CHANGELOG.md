@@ -1,15 +1,14 @@
 # Changelog
 
-## 0.1.0 — M7 genre-fps2
+## 0.1.0 — M8 net spike
 
 ### Added
-- `@anvil/genre-fps2`: grid map, DDA raycast, move/yaw, billboards, hitscan
-- `examples/hello-fps2` + `templates/fps2-starter`
-- Recipe `fps2.corridor`
-- Genres: card, topdown2d, vn, shmup, fps2
-- CLI: `build`, recipes, CI matrix for all `hello-*` examples
-- Error catalog tests; performance smoke
+- `@anvil/genre-net`: `Transport`, loopback pair, host-authoritative `NetRoom`, transform+hp replication
+- `examples/hello-net` + `packages/genre-net/SPIKE.md`
+- Recipe `meta.net-loopback`
+- Prior: genres card/topdown2d/vn/shmup/fps2, recipes, build, error tests, perf smoke
 
 ### Docs
-- AGENTS.md (root + design) match live commands through M7
+- S-NET extended with implementation pointers; AGENTS through M8
+
 

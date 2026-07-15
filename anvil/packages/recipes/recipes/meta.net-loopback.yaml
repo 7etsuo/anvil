@@ -1,0 +1,21 @@
+id: meta.net-loopback
+title: Document net spike loopback harness usage
+genre: none
+files:
+  - path: content/net/README.md
+    write: |
+      # Net spike (M8)
+
+      Use `@anvil/genre-net`:
+
+      ```ts
+      import { createLoopbackSession } from "@anvil/genre-net";
+
+      const s = createLoopbackSession();
+      s.host.setAction("move_right", true);
+      await s.stepBoth(10);
+      console.log(s.client.getEntity("host"));
+      s.close();
+      ```
+
+      Not production multiplayer. See packages/genre-net/SPIKE.md.

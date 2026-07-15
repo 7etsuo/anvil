@@ -4,7 +4,7 @@
 
 Anvil is a multi-genre agent-native game engine. Specs in `docs/design/` are source of truth. Code implements `20_FULL_TASK_BREAKDOWN.md`.
 
-**Status:** M1–M7 done. Next: M8 net spike.
+**Status:** M1–M8 done. Next: M9 first game (unpark).
 
 ## 2. Commands (live)
 
@@ -45,6 +45,7 @@ Equivalent: `node packages/cli/dist/index.js <cmd> …`
 | `examples/hello-vn` | vn |
 | `examples/hello-shmup` | shmup |
 | `examples/hello-fps2` | fps2 |
+| `examples/hello-net` | none + genre-net (spike) |
 
 ### Allowed genres for `anvil new`
 

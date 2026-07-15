@@ -54,6 +54,7 @@ jobs:
           - hello-vn
           - hello-shmup
           - hello-fps2
+          - hello-net
     steps:
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v4

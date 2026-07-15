@@ -5,7 +5,10 @@
   "slot": "chest",
   "stats": {
     "armor": 14,
-    "maxHp": 40
+    "maxHp": 40,
+    "resistPhysical": 0.08,
+    "resistFire": 0.06,
+    "resistPoison": 0.05
   },
   "flavor": "Rib-forged plate of the Bonekeep.",
   "visual": {

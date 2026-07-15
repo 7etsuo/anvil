@@ -5,7 +5,9 @@
   "slot": "chest",
   "stats": {
     "armor": 6,
-    "maxHp": 20
+    "maxHp": 20,
+    "resistFire": 0.08,
+    "resistPhysical": 0.03
   },
   "flavor": "Links blackened by parish fires.",
   "visual": {

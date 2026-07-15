@@ -1,0 +1,8 @@
+{
+  "id": "ruby_gem",
+  "name": "Ruby",
+  "rarity": "magic",
+  "maxStack": 20,
+  "stats": { "damage": 2 },
+  "flavor": "Socket for +damage. Hot to the touch."
+}

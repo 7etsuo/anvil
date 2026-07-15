@@ -36,6 +36,11 @@ import health_potion from "../content/items/health_potion.json";
 import grave_ring from "../content/items/grave_ring.json";
 import tyrant_plate from "../content/items/tyrant_plate.json";
 import warden_blade from "../content/items/warden_blade.json";
+import ruby_gem from "../content/items/ruby_gem.json";
+import sapphire_gem from "../content/items/sapphire_gem.json";
+import emerald_gem from "../content/items/emerald_gem.json";
+import topaz_gem from "../content/items/topaz_gem.json";
+import warden_cloak from "../content/items/warden_cloak.json";
 
 import wastes_pack from "../content/loot/wastes_pack.json";
 import crypt_pack from "../content/loot/crypt_pack.json";
@@ -81,6 +86,11 @@ export const embeddedItems: Record<string, ItemDef> = {
   grave_ring: grave_ring as ItemDef,
   tyrant_plate: tyrant_plate as ItemDef,
   warden_blade: warden_blade as ItemDef,
+  ruby_gem: ruby_gem as ItemDef,
+  sapphire_gem: sapphire_gem as ItemDef,
+  emerald_gem: emerald_gem as ItemDef,
+  topaz_gem: topaz_gem as ItemDef,
+  warden_cloak: warden_cloak as ItemDef,
 };
 
 export const embeddedLoot = {

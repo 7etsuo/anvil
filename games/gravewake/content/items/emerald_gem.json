@@ -1,0 +1,8 @@
+{
+  "id": "emerald_gem",
+  "name": "Emerald",
+  "rarity": "magic",
+  "maxStack": 20,
+  "stats": { "resistPoison": 0.12, "maxHp": 8 },
+  "flavor": "Socket for poison resist and life."
+}

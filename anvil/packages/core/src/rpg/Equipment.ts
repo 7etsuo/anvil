@@ -101,6 +101,15 @@ export class Equipment {
       } else if (def?.stats) {
         mods.push(def.stats);
       }
+      // Socketed gems (stack.data.sockets: gem def ids)
+      const sockets = stack.data?.sockets as Array<string | null> | undefined;
+      if (sockets?.length) {
+        for (const gemId of sockets) {
+          if (!gemId) continue;
+          const gem = lookup(gemId);
+          if (gem?.stats) mods.push(gem.stats);
+        }
+      }
     }
     return mods;
   }

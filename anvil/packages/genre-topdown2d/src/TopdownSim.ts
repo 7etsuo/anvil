@@ -68,6 +68,9 @@ export class TopdownSim {
   /** Per-actor animation controllers (multi-frame idle/walk/attack/death). */
   private anim = new Map<string, ActorAnimController>();
   private damageMitigator: DamageMitigator | null = null;
+  /** Resolve who an enemy should chase (threat/aggro). Falls back to player. */
+  private aggroTargetResolver: ((enemyId: string) => string | null) | null =
+    null;
   /** Base speed (before status/gear mul) keyed by entity id. */
   private baseSpeed = new Map<string, number>();
 
@@ -92,6 +95,16 @@ export class TopdownSim {
 
   setDamageMitigator(fn: DamageMitigator | null): void {
     this.damageMitigator = fn;
+  }
+
+  /**
+   * Threat / multi-target aggro. Return entity id this enemy should chase,
+   * or null to use the player.
+   */
+  setAggroTargetResolver(
+    fn: ((enemyId: string) => string | null) | null,
+  ): void {
+    this.aggroTargetResolver = fn;
   }
 
   /**
@@ -617,8 +630,6 @@ export class TopdownSim {
   private applyAi(rt: ActorRuntime, dtMs: number): void {
     const AGGRO = 260;
     const LEASH = 480;
-    const player = this.playerId ? this.actors.get(this.playerId) : null;
-    const pe = player && !player.dead ? this.world.get(player.entityId) : null;
     const me = this.world.get(rt.entityId);
     if (!me?.transform) {
       rt.vx = 0;
@@ -626,7 +637,21 @@ export class TopdownSim {
       return;
     }
 
-    if (rt.ai === "none" || !pe?.transform || !player) {
+    // Threat table can redirect chase off the player (or pick top tank)
+    let focusId =
+      this.aggroTargetResolver?.(rt.entityId) ?? this.playerId ?? null;
+    if (!focusId || !this.actors.get(focusId) || this.actors.get(focusId)?.dead) {
+      focusId = this.playerId;
+    }
+    const focusRt = focusId ? this.actors.get(focusId) : null;
+    const pe =
+      focusRt && !focusRt.dead ? this.world.get(focusRt.entityId) : null;
+    // Also keep player for aggro radius checks
+    const player = this.playerId ? this.actors.get(this.playerId) : null;
+    const playerE =
+      player && !player.dead ? this.world.get(player.entityId) : null;
+
+    if (rt.ai === "none" || !pe?.transform) {
       rt.vx = 0;
       rt.vy = 0;
       return;
@@ -635,10 +660,20 @@ export class TopdownSim {
     const dx = pe.transform.x - me.transform.x;
     const dy = pe.transform.y - me.transform.y;
     const dist = Math.hypot(dx, dy) || 1e-6;
+    const distToPlayer =
+      playerE?.transform
+        ? Math.hypot(
+            playerE.transform.x - me.transform.x,
+            playerE.transform.y - me.transform.y,
+          )
+        : dist;
     const homeDist = Math.hypot(me.transform.x - rt.homeX, me.transform.y - rt.homeY);
 
-    // Acquire / drop aggro
-    if (!rt.aggro && dist <= AGGRO) rt.aggro = true;
+    // Acquire / drop aggro (player proximity or existing threat focus)
+    if (!rt.aggro && distToPlayer <= AGGRO) rt.aggro = true;
+    if (!rt.aggro && focusId !== this.playerId && dist <= AGGRO * 1.2) {
+      rt.aggro = true;
+    }
     if (rt.aggro && homeDist > LEASH) {
       rt.aggro = false;
     }

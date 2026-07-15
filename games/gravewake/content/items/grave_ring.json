@@ -3,6 +3,11 @@
   "name": "Grave Ring",
   "rarity": "magic",
   "slot": "ring",
-  "stats": { "critChance": 0.06, "damage": 3 },
+  "stats": {
+    "critChance": 0.06,
+    "damage": 3,
+    "resistCold": 0.06,
+    "resistHoly": 0.04
+  },
   "flavor": "Cold as a sealed tomb."
 }

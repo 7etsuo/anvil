@@ -5,7 +5,8 @@
   "slot": "head",
   "stats": {
     "armor": 3,
-    "maxHp": 10
+    "maxHp": 10,
+    "resistPhysical": 0.04
   },
   "flavor": "Standard issue. Dented.",
   "visual": {

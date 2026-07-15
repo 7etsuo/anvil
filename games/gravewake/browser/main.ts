@@ -1596,7 +1596,7 @@ async function main(): Promise<void> {
     ctx.fillStyle = "#9a8a70";
     ctx.font = "11px system-ui";
     ctx.fillText(
-      `DMG ${stats.damage ?? "—"}  ·  ARM ${stats.armor ?? "—"}  ·  SPD ${Math.round(Number(stats.speed ?? 0))}  ·  CRIT ${Math.round((stats.critChance ?? 0) * 100)}%  ·  F interact  ·  I bag  ·  T skills  ·  C char`,
+      `DMG ${stats.damage ?? "—"}  ·  ARM ${stats.armor ?? "—"}  ·  SPD ${Math.round(Number(stats.speed ?? 0))}  ·  CRIT ${Math.round((stats.critChance ?? 0) * 100)}%  ·  F/I/T/C/K craft/X trade/Y socket`,
       VIEW_W / 2,
       VIEW_H - 12,
     );
@@ -1812,6 +1812,151 @@ async function main(): Promise<void> {
         ctx.textAlign = "center";
         ctx.fillText("Empty — slay the dead for loot", VIEW_W / 2, iy + 160);
         ctx.textAlign = "left";
+      }
+    }
+
+    // Loot compare toast
+    const lc = blob.lootCompare as { text: string; color: string; t: number } | null;
+    if (lc && lc.t > 0) {
+      ctx.fillStyle = "rgba(0,0,0,0.7)";
+      ctx.fillRect(VIEW_W / 2 - 180, 120, 360, 36);
+      ctx.strokeStyle = lc.color;
+      ctx.strokeRect(VIEW_W / 2 - 180, 120, 360, 36);
+      ctx.fillStyle = lc.color;
+      ctx.font = "bold 14px system-ui";
+      ctx.textAlign = "center";
+      ctx.fillText(lc.text, VIEW_W / 2, 144);
+      ctx.textAlign = "left";
+    }
+
+    // Craft panel (K)
+    if (blob.craftOpen) {
+      const cp = blob.craftPanel as {
+        recipes: Array<{
+          id: string;
+          name: string;
+          can: boolean;
+          inputs: Array<{ itemId: string; qty: number }>;
+          outputId: string;
+          cost?: Record<string, number>;
+        }>;
+      };
+      const iw = 480;
+      const ih = 360;
+      const ix = VIEW_W / 2 - iw / 2;
+      const iy = VIEW_H / 2 - ih / 2 - 20;
+      ctx.fillStyle = "rgba(0,0,0,0.6)";
+      ctx.fillRect(0, 0, VIEW_W, VIEW_H);
+      panel(ctx, ix, iy, iw, ih);
+      ctx.strokeStyle = "rgba(201,164,108,0.55)";
+      ctx.strokeRect(ix + 3, iy + 3, iw - 6, ih - 6);
+      ctx.fillStyle = "#c9a46c";
+      ctx.font = "bold 22px Cinzel, Georgia, serif";
+      ctx.textAlign = "center";
+      ctx.fillText("CRAFT / SOCKET", VIEW_W / 2, iy + 34);
+      ctx.fillStyle = "#9a8a70";
+      ctx.font = "12px system-ui";
+      ctx.fillText("1–3 craft  ·  4 or Y socket gem  ·  K closes", VIEW_W / 2, iy + 56);
+      ctx.textAlign = "left";
+      const recipes = cp?.recipes ?? [];
+      for (let i = 0; i < recipes.length; i++) {
+        const r = recipes[i]!;
+        const yy = iy + 80 + i * 70;
+        ctx.fillStyle = r.can ? "rgba(60,80,40,0.5)" : "rgba(20,18,16,0.55)";
+        ctx.fillRect(ix + 20, yy, iw - 40, 60);
+        ctx.strokeStyle = r.can ? "rgba(120,200,80,0.6)" : "rgba(80,70,60,0.4)";
+        ctx.strokeRect(ix + 20.5, yy + 0.5, iw - 41, 59);
+        ctx.fillStyle = r.can ? "#cf8" : "#888";
+        ctx.font = "bold 15px Cinzel, Georgia, serif";
+        ctx.fillText(`${i + 1}. ${r.name}`, ix + 36, yy + 24);
+        ctx.fillStyle = "#aaa";
+        ctx.font = "12px system-ui";
+        const ins = r.inputs.map((x) => `${x.qty}× ${x.itemId}`).join(" + ");
+        const cost = r.cost?.gold != null ? `  ·  ${r.cost.gold}g` : "";
+        ctx.fillText(`→ ${r.outputId}  (${ins})${cost}`, ix + 36, yy + 44);
+      }
+      ctx.fillStyle = "#c9a46c";
+      ctx.font = "13px system-ui";
+      ctx.fillText(
+        "Y: socket first gem into worn weapon/chest (gems drop in wastes)",
+        ix + 28,
+        iy + ih - 24,
+      );
+    }
+
+    // Vendor panel (X)
+    if (blob.vendorOpen) {
+      const vp = blob.vendorPanel as {
+        offers: Array<{
+          id: string;
+          name: string;
+          price: Record<string, number>;
+          stock?: number;
+        }>;
+        sellable: Array<{
+          uid: string;
+          name: string;
+          qty: number;
+          value: number;
+          rarity: string;
+        }>;
+      };
+      const iw = 500;
+      const ih = 420;
+      const ix = VIEW_W / 2 - iw / 2;
+      const iy = VIEW_H / 2 - ih / 2 - 20;
+      ctx.fillStyle = "rgba(0,0,0,0.6)";
+      ctx.fillRect(0, 0, VIEW_W, VIEW_H);
+      panel(ctx, ix, iy, iw, ih);
+      ctx.strokeStyle = "rgba(201,164,108,0.55)";
+      ctx.strokeRect(ix + 3, iy + 3, iw - 6, ih - 6);
+      ctx.fillStyle = "#c9a46c";
+      ctx.font = "bold 22px Cinzel, Georgia, serif";
+      ctx.textAlign = "center";
+      ctx.fillText("ASH SHRINE — TRADE", VIEW_W / 2, iy + 34);
+      ctx.fillStyle = "#9a8a70";
+      ctx.font = "12px system-ui";
+      ctx.fillText(
+        "SPC sell junk  ·  1 sell first bag item  ·  2–4 buy  ·  X closes",
+        VIEW_W / 2,
+        iy + 56,
+      );
+      ctx.textAlign = "left";
+      ctx.fillStyle = "#e8c878";
+      ctx.font = "bold 13px Cinzel, Georgia, serif";
+      ctx.fillText("Buy", ix + 28, iy + 84);
+      const offers = vp?.offers ?? [];
+      for (let i = 0; i < offers.length; i++) {
+        const o = offers[i]!;
+        const yy = iy + 100 + i * 28;
+        ctx.fillStyle = "#ddd";
+        ctx.font = "13px system-ui";
+        ctx.fillText(
+          `${i + 2}. ${o.name}  —  ${o.price.gold ?? "?"}g` +
+            (o.stock != null ? `  (×${o.stock})` : ""),
+          ix + 36,
+          yy,
+        );
+      }
+      ctx.fillStyle = "#e8c878";
+      ctx.font = "bold 13px Cinzel, Georgia, serif";
+      ctx.fillText("Your bag (sell values)", ix + 28, iy + 200);
+      const sellable = vp?.sellable ?? [];
+      for (let i = 0; i < Math.min(8, sellable.length); i++) {
+        const s = sellable[i]!;
+        const yy = iy + 220 + i * 22;
+        const col = RARITY_COLOR[s.rarity] ?? "#ccc";
+        ctx.fillStyle = col;
+        ctx.font = "12px system-ui";
+        ctx.fillText(
+          `${s.name}${s.qty > 1 ? ` ×${s.qty}` : ""}  →  ${s.value}g`,
+          ix + 36,
+          yy,
+        );
+      }
+      if (!sellable.length) {
+        ctx.fillStyle = "#666";
+        ctx.fillText("Nothing to sell", ix + 36, iy + 220);
       }
     }
 

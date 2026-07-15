@@ -1,0 +1,13 @@
+{
+  "id": "warden_cloak",
+  "name": "Warden Cloak",
+  "rarity": "magic",
+  "slot": "chest",
+  "stats": {
+    "armor": 4,
+    "resistFire": 0.1,
+    "resistCold": 0.05,
+    "speed": 8
+  },
+  "flavor": "Ash-grey cloak of the Lychgate watch."
+}

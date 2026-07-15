@@ -23,6 +23,7 @@ import type {
 import {
   AbilitySystem as Abilities,
   CharacterSheet as Sheet,
+  CraftingSystem,
   MinimapFog as FogGrid,
   SAMPLE_COMBAT_TREE,
   SkillTree,
@@ -43,8 +44,10 @@ import {
   playSpatial,
   rollEliteAffixes,
   saveRunToLocalStorage,
+  socketGem,
   tryPickupNearest,
 } from "@anvil/core";
+import type { CraftInventory, ItemStack } from "@anvil/core";
 import {
   PackSpawner,
   TopdownSim,
@@ -133,8 +136,16 @@ export class GravewakeGame {
   private showStats = false;
   /** Diablo-style skill tree panel (T / level-up). */
   private showSkills = false;
+  /** Craft / socket panel (K). */
+  private showCraft = false;
+  /** Vendor sell panel when at shrine (X). */
+  private showVendor = false;
+  /** Last loot compare lines for HUD toast */
+  private lootCompareToast: { text: string; color: string; t: number } | null =
+    null;
   /** Open skill panel after level-up until player spends or closes. */
   private pendingSkillChoice = false;
+  private crafting = new CraftingSystem();
   private spawner: PackSpawner | null = null;
   /** Last boss banner id for dungeon entry fanfare */
   private lastBossAnnounce = "";
@@ -243,7 +254,7 @@ export class GravewakeGame {
     this.vendor = new Vendor({
       id: "ash_shrine",
       name: "Ash Shrine",
-      sellRatio: 0.35,
+      sellRatio: 0.4,
       offers: [
         {
           id: "buy_potion",
@@ -252,8 +263,55 @@ export class GravewakeGame {
           price: { gold: 25 },
           stock: 99,
         },
+        {
+          id: "buy_ruby",
+          itemId: "ruby_gem",
+          qty: 1,
+          price: { gold: 40 },
+          stock: 20,
+        },
+        {
+          id: "buy_sapphire",
+          itemId: "sapphire_gem",
+          qty: 1,
+          price: { gold: 40 },
+          stock: 20,
+        },
       ],
     });
+    this.crafting.registerAll([
+      {
+        id: "hone_blade",
+        name: "Hone Blade",
+        inputs: [
+          { itemId: "rusty_sword", qty: 1 },
+          { itemId: "ruby_gem", qty: 1 },
+        ],
+        outputId: "bone_cleaver",
+        cost: { gold: 15 },
+        station: "forge",
+      },
+      {
+        id: "temper_mail",
+        name: "Temper Mail",
+        inputs: [
+          { itemId: "ash_mail", qty: 1 },
+          { itemId: "sapphire_gem", qty: 1 },
+        ],
+        outputId: "warden_cloak",
+        cost: { gold: 20 },
+        station: "forge",
+      },
+      {
+        id: "brew_vial",
+        name: "Brew Vial",
+        inputs: [{ itemId: "emerald_gem", qty: 1 }],
+        outputId: "health_potion",
+        outputQty: 2,
+        cost: { gold: 5 },
+        station: "alchemy",
+      },
+    ]);
     this.services.resources?.attach("player");
     this.wireProjectiles();
 
@@ -414,6 +472,21 @@ export class GravewakeGame {
     this.sheet.gold = this.wallet.get("gold");
   }
 
+  private entityNear(x: number, y: number, r: number): string | null {
+    let best: string | null = null;
+    let bestD = r;
+    for (const e of this.world.all()) {
+      if (!e.tags.includes("enemy") || !e.transform || !e.health) continue;
+      if (e.health.hp <= 0) continue;
+      const d = Math.hypot(e.transform.x - x, e.transform.y - y);
+      if (d < bestD) {
+        bestD = d;
+        best = e.id;
+      }
+    }
+    return best;
+  }
+
   getSheet(): CharacterSheet {
     return this.sheet;
   }
@@ -502,6 +575,259 @@ export class GravewakeGame {
 
   isSkillsOpen(): boolean {
     return this.showSkills;
+  }
+
+  isCraftOpen(): boolean {
+    return this.showCraft;
+  }
+
+  isVendorOpen(): boolean {
+    return this.showVendor;
+  }
+
+  private craftInv(): CraftInventory {
+    return {
+      countDef: (id) => {
+        let n = 0;
+        for (const s of this.sheet.inventory.all()) {
+          if (s.defId === id) n += s.qty;
+        }
+        return n;
+      },
+      removeDef: (id, qty) => {
+        let left = qty;
+        for (const s of [...this.sheet.inventory.all()]) {
+          if (s.defId !== id || left <= 0) continue;
+          // Don't consume equipped gear unless unique instance
+          const equipped = Object.values(this.sheet.equipment.all()).includes(
+            s.uid,
+          );
+          if (equipped) continue;
+          const take = Math.min(left, s.qty);
+          this.sheet.inventory.remove(s.uid, take);
+          left -= take;
+        }
+        return left <= 0;
+      },
+      addDef: (id, qty) => {
+        this.sheet.pickup(id, qty);
+        return true;
+      },
+    };
+  }
+
+  /** Gold value of an item for vendor sell. */
+  itemSellValue(stack: ItemStack): number {
+    const def = this.items[stack.defId];
+    if (!def || def.id === "health_potion") return 2;
+    if (!def.slot) {
+      // gems
+      if (def.id.includes("gem")) return 18;
+      return 3;
+    }
+    const power = itemPowerScore(
+      stack.rolledStats ?? def.stats,
+      stack.itemLevel ?? 1,
+    );
+    const rar =
+      def.rarity === "unique"
+        ? 3
+        : def.rarity === "rare"
+          ? 2.2
+          : def.rarity === "magic"
+            ? 1.5
+            : 1;
+    return Math.max(5, Math.floor(power * 2.2 * rar));
+  }
+
+  /** Sell one inventory stack (must not be equipped). */
+  sellItem(uid: string): boolean {
+    const stack = this.sheet.inventory.get(uid);
+    if (!stack) return false;
+    if (Object.values(this.sheet.equipment.all()).includes(uid)) {
+      this.services.events?.emit("ui:error", {});
+      return false;
+    }
+    const unit = this.itemSellValue({ ...stack, qty: 1 });
+    const gold = unit * Math.max(1, stack.qty);
+    this.sheet.inventory.remove(uid, stack.qty);
+    this.sheet.addGold(gold);
+    this.syncWalletFromSheet();
+    this.pushFx({
+      kind: "float",
+      x: this.sim?.getPlayerPos()?.x ?? 0,
+      y: this.sim?.getPlayerPos()?.y ?? 0,
+      text: `+${gold}g`,
+      color: "#fd4",
+      t: 1,
+    });
+    this.services.audio?.play("pickup", "sfx");
+    this.services.events?.emit("ui:confirm", {});
+    return true;
+  }
+
+  /** Sell all unequipped common gear + excess potions (Diablo "sell junk"). */
+  sellJunk(): number {
+    let n = 0;
+    for (const s of [...this.sheet.inventory.all()]) {
+      if (Object.values(this.sheet.equipment.all()).includes(s.uid)) continue;
+      const def = this.items[s.defId];
+      if (!def) continue;
+      if (def.rarity === "common" || def.id === "health_potion") {
+        // keep 5 potions
+        if (def.id === "health_potion" && s.qty <= 5) continue;
+        if (def.id === "health_potion") {
+          const sellQty = s.qty - 5;
+          for (let i = 0; i < sellQty; i++) {
+            if (this.sellItem(s.uid)) n++;
+            else break;
+          }
+          continue;
+        }
+        if (this.sellItem(s.uid)) n++;
+      }
+    }
+    if (n > 0) {
+      this.pushFx({
+        kind: "banner",
+        text: `Sold junk (${n})`,
+        t: 1.4,
+      });
+    }
+    return n;
+  }
+
+  craftRecipe(recipeId: string): boolean {
+    this.syncWalletFromSheet();
+    const r = this.crafting.craft(recipeId, this.craftInv(), this.wallet);
+    this.syncSheetFromWallet();
+    if (!r.ok) {
+      this.services.events?.emit("ui:error", {});
+      this.pushFx({
+        kind: "float",
+        x: this.sim?.getPlayerPos()?.x ?? 0,
+        y: this.sim?.getPlayerPos()?.y ?? 0,
+        text: r.reason,
+        color: "#e88",
+        t: 1,
+      });
+      return false;
+    }
+    this.services.audio?.play("equip_metal", "sfx");
+    this.pushFx({
+      kind: "banner",
+      text: `Crafted ${this.items[r.outputId]?.name ?? r.outputId}`,
+      t: 1.6,
+    });
+    this.autoEquipBest();
+    this.syncPlayerFromSheet();
+    return true;
+  }
+
+  /**
+   * Socket first free gem into first equippable gear with free socket slot.
+   * Keys: Y socket ruby into weapon, etc. — generic: socket next gem into worn weapon/chest.
+   */
+  socketNextGem(preferSlot?: "weapon" | "chest" | "head"): boolean {
+    const gemIds = ["ruby_gem", "sapphire_gem", "emerald_gem", "topaz_gem"];
+    const gemStack = this.sheet.inventory
+      .all()
+      .find((s) => gemIds.includes(s.defId));
+    if (!gemStack) {
+      this.services.events?.emit("ui:error", {});
+      return false;
+    }
+    const slots = preferSlot
+      ? [preferSlot]
+      : (["weapon", "chest", "head"] as const);
+    for (const slot of slots) {
+      const uid = this.sheet.equipment.get(slot as "weapon");
+      if (!uid) continue;
+      const gear = this.sheet.inventory.get(uid);
+      if (!gear) continue;
+      const res = socketGem(gear, 0, gemStack.defId, { maxSockets: 2 });
+      if (!res.ok) {
+        // try second socket
+        const res2 = socketGem(gear, 1, gemStack.defId, { maxSockets: 2 });
+        if (!res2.ok) continue;
+        this.sheet.inventory.remove(gemStack.uid, 1);
+        // update stack data — inventory holds reference; replace via remove/add is hard
+        // mutate in place if stack is same object
+        Object.assign(gear, res2.stack);
+        this.syncPlayerFromSheet();
+        this.pushFx({
+          kind: "banner",
+          text: `Socketed ${this.items[gemStack.defId]?.name}`,
+          t: 1.4,
+        });
+        this.services.audio?.play("equip_metal", "sfx");
+        return true;
+      }
+      this.sheet.inventory.remove(gemStack.uid, 1);
+      Object.assign(gear, res.stack);
+      this.syncPlayerFromSheet();
+      this.pushFx({
+        kind: "banner",
+        text: `Socketed ${this.items[gemStack.defId]?.name}`,
+        t: 1.4,
+      });
+      this.services.audio?.play("equip_metal", "sfx");
+      return true;
+    }
+    this.pushFx({
+      kind: "float",
+      x: this.sim?.getPlayerPos()?.x ?? 0,
+      y: this.sim?.getPlayerPos()?.y ?? 0,
+      text: "No socket",
+      color: "#e88",
+      t: 1,
+    });
+    return false;
+  }
+
+  /** Compare ground/new item to equipped same slot. */
+  private lootCompareMessage(stack: {
+    defId: string;
+    rolledStats?: Partial<Record<string, number>>;
+    itemLevel?: number;
+  }): { text: string; color: string; better: boolean } | null {
+    const def = this.items[stack.defId];
+    if (!def?.slot) return null;
+    const newScore = itemPowerScore(
+      stack.rolledStats ?? def.stats,
+      stack.itemLevel ?? 1,
+    );
+    const curUid = this.sheet.equipment.get(def.slot);
+    if (!curUid) {
+      return { text: "NEW slot ↑", color: "#6f6", better: true };
+    }
+    const cur = this.sheet.inventory.get(curUid);
+    if (!cur) return null;
+    const curDef = this.items[cur.defId];
+    const oldScore = itemPowerScore(
+      cur.rolledStats ?? curDef?.stats,
+      cur.itemLevel ?? 1,
+    );
+    const delta = newScore - oldScore;
+    if (delta > 0.5) {
+      return {
+        text: `↑ better +${delta.toFixed(0)} vs ${curDef?.name ?? "gear"}`,
+        color: "#6f6",
+        better: true,
+      };
+    }
+    if (delta < -0.5) {
+      return {
+        text: `↓ worse ${delta.toFixed(0)} vs equipped`,
+        color: "#e88",
+        better: false,
+      };
+    }
+    return {
+      text: `≈ similar to ${curDef?.name ?? "gear"}`,
+      color: "#aa8",
+      better: false,
+    };
   }
 
   /** Spend a skill point on a node (player choice). */
@@ -928,6 +1254,14 @@ export class GravewakeGame {
       aiActiveRadius: 560,
     });
     this.wireCombatStats(this.sim);
+    this.sim.setAggroTargetResolver((enemyId) => {
+      // Highest threat on this mob (usually the player)
+      const top = this.services.threat?.topId(enemyId);
+      if (top && this.world.get(top)?.health && (this.world.get(top)!.health!.hp > 0)) {
+        return top;
+      }
+      return this.sim?.getPlayerId() ?? "player";
+    });
 
     this.fog = new FogGrid({
       width: Math.max(1, Math.ceil(area.width / 32)),
@@ -1296,8 +1630,8 @@ export class GravewakeGame {
       if (near) this.cast("slash");
     }
 
-    // skills (blocked while skill panel open — number keys choose talents)
-    if (!this.showSkills) {
+    // skills (blocked while skill/craft/vendor panels open)
+    if (!this.showSkills && !this.showCraft && !this.showVendor) {
       if (input.isPressed("shoot") || input.isPressed("confirm"))
         this.cast("slash");
       if (input.isPressed("play_card_2") || input.isPressed("choice_2"))
@@ -1339,7 +1673,41 @@ export class GravewakeGame {
       if (this.showSkills) {
         this.showInv = false;
         this.showStats = false;
+        this.showCraft = false;
+        this.showVendor = false;
       }
+    }
+    // K = craft / sockets
+    input.defineAction("craft");
+    input.bindKey("craft", "KeyK");
+    if (input.isPressed("craft")) {
+      this.showCraft = !this.showCraft;
+      this.services.events?.emit("ui:click", {});
+      if (this.showCraft) {
+        this.showInv = false;
+        this.showStats = false;
+        this.showSkills = false;
+        this.showVendor = false;
+      }
+    }
+    // X = vendor panel (sell) when in town / at shrine
+    input.defineAction("vendor");
+    input.bindKey("vendor", "KeyX");
+    if (input.isPressed("vendor")) {
+      this.showVendor = !this.showVendor;
+      this.services.events?.emit("ui:click", {});
+      if (this.showVendor) {
+        this.showInv = false;
+        this.showStats = false;
+        this.showSkills = false;
+        this.showCraft = false;
+      }
+    }
+    // Y = socket gem into gear
+    input.defineAction("socket");
+    input.bindKey("socket", "KeyY");
+    if (input.isPressed("socket")) {
+      this.socketNextGem();
     }
     // Number keys 1–4 spend skill points while skill panel open
     if (this.showSkills) {
@@ -1352,8 +1720,70 @@ export class GravewakeGame {
         }
       }
     }
+    // Craft panel: 1–3 craft recipes
+    if (this.showCraft) {
+      const recipes = this.crafting.list();
+      for (let i = 0; i < Math.min(3, recipes.length); i++) {
+        if (
+          input.isPressed(`play_card_${i + 1}`) ||
+          input.isPressed(`choice_${i + 1}`)
+        ) {
+          this.craftRecipe(recipes[i]!.id);
+        }
+      }
+      if (input.isPressed("play_card_4") || input.isPressed("choice_4")) {
+        this.socketNextGem();
+      }
+    }
+    // Vendor: 1–9 sell bag items, 0 sell junk
+    if (this.showVendor) {
+      if (input.isPressed("choice_1") || input.isPressed("play_card_1")) {
+        // first sellable
+        const sellable = this.sheet.inventory
+          .all()
+          .filter(
+            (s) => !Object.values(this.sheet.equipment.all()).includes(s.uid),
+          );
+        if (sellable[0]) this.sellItem(sellable[0].uid);
+      }
+      // Space-adjacent: use confirm as sell junk when vendor open
+      if (input.isPressed("confirm") || input.isPressed("shoot")) {
+        this.sellJunk();
+      }
+      for (let i = 2; i <= 4; i++) {
+        if (
+          input.isPressed(`play_card_${i}`) ||
+          input.isPressed(`choice_${i}`)
+        ) {
+          const offer = this.vendor.listOffers()[i - 2];
+          if (offer) {
+            this.syncWalletFromSheet();
+            const br = this.vendor.buy(offer.id, this.wallet, {
+              level: this.sheet.level,
+              grant: (id, q) => {
+                this.sheet.pickup(id, q);
+                return true;
+              },
+            });
+            this.syncSheetFromWallet();
+            if (br.ok) {
+              this.services.audio?.play("ui_confirm", "ui");
+              this.pushFx({
+                kind: "banner",
+                text: `Bought ${this.items[br.itemId]?.name ?? br.itemId}`,
+                t: 1.2,
+              });
+            } else this.services.events?.emit("ui:error", {});
+          }
+        }
+      }
+    }
     if (input.isPressed("interact")) {
       this.tryInteract();
+    }
+    if (this.lootCompareToast) {
+      this.lootCompareToast.t -= dt;
+      if (this.lootCompareToast.t <= 0) this.lootCompareToast = null;
     }
 
     // Engine fog of war around player
@@ -1535,7 +1965,11 @@ export class GravewakeGame {
       }
 
       this.services.floatText?.damage(t.x, t.y, dealt, isCrit);
-      this.services.threat?.add("enemy", "player", dealt);
+      // Real entity id for threat table (AI focus)
+      const targetId = this.entityNear(t.x, t.y, 24);
+      if (targetId) {
+        this.services.threat?.add(targetId, "player", dealt);
+      }
       if (this.services.audio) {
         playSpatial(this.services.audio, isCrit ? "swing" : "hit", pos, {
           x: t.x,
@@ -1873,6 +2307,11 @@ export class GravewakeGame {
       });
       if (!ok) continue;
       this.world.destroy(e.id);
+      const cmp = this.lootCompareMessage({
+        defId: loot.defId!,
+        rolledStats: loot.rolledStats,
+        itemLevel: loot.itemLevel,
+      });
       this.autoEquipBest();
       this.syncPlayerFromSheet();
       const nm = this.items[loot.defId!]?.name ?? "Loot";
@@ -1882,9 +2321,19 @@ export class GravewakeGame {
         x: e.transform.x,
         y: e.transform.y,
         text: `${nm}${lv}`,
-        color: "#acf",
+        color: cmp?.better ? "#6f6" : "#acf",
         t: 1,
       });
+      if (cmp) {
+        this.lootCompareToast = { text: cmp.text, color: cmp.color, t: 2.2 };
+        this.services.floatText?.spawn({
+          x: e.transform.x,
+          y: e.transform.y - 16,
+          text: cmp.text,
+          style: "info",
+          color: cmp.color,
+        });
+      }
     }
   }
 
@@ -2264,8 +2713,44 @@ export class GravewakeGame {
       inventoryOpen: this.showInv,
       statsOpen: this.showStats,
       skillsOpen: this.showSkills,
+      craftOpen: this.showCraft,
+      vendorOpen: this.showVendor,
       pendingSkillChoice: this.pendingSkillChoice,
       skillPanel: this.skillPanelState(),
+      craftPanel: {
+        recipes: this.crafting.list().map((r) => ({
+          id: r.id,
+          name: r.name ?? r.id,
+          can: this.crafting.canCraft(r.id, this.craftInv(), this.wallet),
+          inputs: r.inputs,
+          outputId: r.outputId,
+          cost: r.cost,
+        })),
+      },
+      vendorPanel: {
+        offers: this.vendor.listOffers().map((o) => ({
+          id: o.id,
+          itemId: o.itemId,
+          name: this.items[o.itemId]?.name ?? o.itemId,
+          price: o.price,
+          stock: o.stock,
+        })),
+        sellable: this.sheet.inventory
+          .all()
+          .filter(
+            (s) => !Object.values(this.sheet.equipment.all()).includes(s.uid),
+          )
+          .slice(0, 12)
+          .map((s) => ({
+            uid: s.uid,
+            defId: s.defId,
+            name: this.items[s.defId]?.name ?? s.defId,
+            qty: s.qty,
+            value: this.itemSellValue(s),
+            rarity: this.items[s.defId]?.rarity ?? "common",
+          })),
+      },
+      lootCompare: this.lootCompareToast,
       shards: this.wallet.get("shards"),
       inventory: inv,
       equipped,

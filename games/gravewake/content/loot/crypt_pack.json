@@ -7,6 +7,11 @@
     { "item": "ash_mail", "weight": 12, "min": 1, "max": 1 },
     { "item": "iron_helm", "weight": 10, "min": 1, "max": 1 },
     { "item": "grave_ring", "weight": 6, "min": 1, "max": 1 },
-    { "item": "rusty_sword", "weight": 6, "min": 1, "max": 1 }
+    { "item": "rusty_sword", "weight": 6, "min": 1, "max": 1 },
+    { "item": "ruby_gem", "weight": 8, "min": 1, "max": 2 },
+    { "item": "sapphire_gem", "weight": 7, "min": 1, "max": 1 },
+    { "item": "emerald_gem", "weight": 6, "min": 1, "max": 1 },
+    { "item": "topaz_gem", "weight": 5, "min": 1, "max": 1 },
+    { "item": "warden_cloak", "weight": 5, "min": 1, "max": 1 }
   ]
 }

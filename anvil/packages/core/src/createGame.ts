@@ -145,7 +145,7 @@ export async function createGame(
     kernel.setSkipDefaultDraw(true);
   }
 
-  // Built-in empty main scene
+  // Built-in empty main scene (modules may overwrite factory before push)
   kernel.registerScene("main", () => ({
     update() {},
   }));
@@ -160,10 +160,9 @@ export async function createGame(
   }
 
   try {
-    if (!kernel.scenes.current()) {
-      // ensure entry scene registered — main always is
-      kernel.scenes.replace(game.entryScene);
-    }
+    // Always enter entryScene so module factories run (player + world exist
+    // before the browser title screen "click to begin").
+    kernel.scenes.replace(game.entryScene);
   } catch (e) {
     kernel.dispose();
     throw Object.assign(new Error(String(e)), {

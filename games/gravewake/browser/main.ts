@@ -349,6 +349,55 @@ async function main(): Promise<void> {
   applySize();
 
   const keysHeld = new Set<string>();
+  let clickSlash = false;
+  /** Hoisted before any listeners — avoids TDZ / missed start clicks. */
+  let started = false;
+  /** Cam focus mirror for diabloView helpers (kept in sync with handle.camera). */
+  let cam: Cam = { wx: 200, wy: 320 };
+
+  const syncCamFromEngine = () => {
+    cam = { wx: handle.camera.wx, wy: handle.camera.wy };
+  };
+
+  const ensureGame = (): boolean => {
+    if (getBrowserGravewake()) return true;
+    try {
+      // Scene may have failed to push; re-enter main
+      handle.scenes.replace("main");
+    } catch (err) {
+      console.error("ensureGame replace failed", err);
+    }
+    return !!getBrowserGravewake();
+  };
+
+  /** Leave title and start the sim immediately (do not wait for rAF). */
+  const beginPlay = () => {
+    if (started) return true;
+    if (!ensureGame()) {
+      console.error("Gravewake game module not ready");
+      return false;
+    }
+    started = true;
+    clickSlash = false;
+    const p0 = handle.world.get("player");
+    if (p0?.transform) {
+      handle.camera.snap(p0.transform.x, p0.transform.y);
+      syncCamFromEngine();
+    } else {
+      // Still no player — snap to default town spawn
+      handle.camera.snap(200, 320);
+      syncCamFromEngine();
+    }
+    // Kick audio + one tick so first frame is live
+    try {
+      handle.events.emit("audio:zone_music", { zone: "town" });
+      handle.tick(1 / 60);
+    } catch (err) {
+      console.warn("beginPlay tick", err);
+    }
+    return true;
+  };
+
   const syncMove = () => {
     handle.input.setDown("move_up", keysHeld.has("KeyW") || keysHeld.has("ArrowUp"));
     handle.input.setDown("move_down", keysHeld.has("KeyS") || keysHeld.has("ArrowDown"));
@@ -357,8 +406,16 @@ async function main(): Promise<void> {
     handle.input.setDown("move_forward", keysHeld.has("KeyW") || keysHeld.has("ArrowUp"));
     handle.input.setDown("move_back", keysHeld.has("KeyS") || keysHeld.has("ArrowDown"));
   };
+
   window.addEventListener("keydown", (e) => {
-    if (!started) startLatched = true;
+    if (!started) {
+      beginPlay();
+      // Don't treat the start key as a combat input on the same press
+      if (e.code === "Space" || e.code === "Enter") {
+        e.preventDefault();
+        return;
+      }
+    }
     keysHeld.add(e.code);
     handle.input.handleKey(e.code, true);
     syncMove();
@@ -371,29 +428,6 @@ async function main(): Promise<void> {
     handle.input.handleKey(e.code, false);
     syncMove();
   });
-
-  let clickSlash = false;
-  /** Survives keyup before next rAF — short Space/click was missing the start frame. */
-  let startLatched = false;
-  let started = false;
-  /** Cam focus mirror for diabloView helpers (kept in sync with handle.camera). */
-  let cam: Cam = { wx: 200, wy: 320 };
-
-  const syncCamFromEngine = () => {
-    cam = { wx: handle.camera.wx, wy: handle.camera.wy };
-  };
-
-  const beginPlay = () => {
-    if (started) return;
-    started = true;
-    startLatched = false;
-    clickSlash = false;
-    const p0 = handle.world.get("player");
-    if (p0?.transform) {
-      handle.camera.snap(p0.transform.x, p0.transform.y);
-      syncCamFromEngine();
-    }
-  };
 
   /** Screen → world click via engine ViewCamera. */
   const onWorldClick = (clientX: number, clientY: number, button: number) => {
@@ -411,27 +445,30 @@ async function main(): Promise<void> {
     }
   };
 
-  // Title start: latch on ANY key/pointer so brief taps always count
-  window.addEventListener(
-    "keydown",
-    (e) => {
-      if (!started) {
-        startLatched = true;
-        e.preventDefault();
-      }
-    },
-    true,
-  );
-  const latchStart = (e: Event) => {
-    if (!started) {
-      startLatched = true;
-      e.preventDefault();
-    }
+  // Title → play: any pointer on mount/canvas/window
+  const onPointerStart = (e: Event) => {
+    if (started) return;
+    beginPlay();
+    // Stop the same event from also being treated as a world click
+    e.stopPropagation?.();
   };
-  mount.addEventListener("pointerdown", latchStart);
+  mount.addEventListener("pointerdown", onPointerStart, true);
+  canvas?.addEventListener("pointerdown", onPointerStart, true);
+  window.addEventListener("pointerdown", onPointerStart, true);
+
   mount.addEventListener("mousedown", (e) => {
     if (!started) {
-      startLatched = true;
+      beginPlay();
+      return;
+    }
+    if (e.button === 0 || e.button === 2) {
+      e.preventDefault();
+      onWorldClick(e.clientX, e.clientY, e.button);
+    }
+  });
+  canvas?.addEventListener("mousedown", (e) => {
+    if (!started) {
+      beginPlay();
       return;
     }
     if (e.button === 0 || e.button === 2) {
@@ -440,10 +477,7 @@ async function main(): Promise<void> {
     }
   });
   mount.addEventListener("contextmenu", (e) => e.preventDefault());
-  // Also allow clicking the document body (if focus is wrong)
-  document.addEventListener("keydown", (e) => {
-    if (!started) startLatched = true;
-  });
+  canvas?.addEventListener("contextmenu", (e) => e.preventDefault());
 
   // Periodic run save while playing
   setInterval(() => {
@@ -679,7 +713,8 @@ async function main(): Promise<void> {
       );
       ctx.textAlign = "left";
 
-      if (startLatched || keysHeld.size || clickSlash) {
+      // Safety net: keys held while on title (e.g. held before focus)
+      if (keysHeld.size > 0) {
         beginPlay();
       }
       return;

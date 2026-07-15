@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.2.0 — Core RPG systems
+
+### Engine (`@anvil/core`)
+- **Inventory**, **Equipment**, **CharacterSheet**, **stats** (`finalStats`, armor)
+- **Ground loot** helpers (`spawnGroundLoot`, `tryPickupNearest`)
+- **ZoneGraph** multi-room travel + clear gates
+- **Save v2**: `character` + `zones` via `setCharacterSaveHooks` / `setZoneSaveHooks`
+- Spec: `docs/design/specs/S-RPG.md`
+
 ## 0.1.0 — M9 Gravewake unpark
 
 ### Added

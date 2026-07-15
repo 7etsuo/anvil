@@ -5,6 +5,7 @@ export {
   MemoryTransport,
   WebSocketTransport,
 } from "./MemoryTransport.js";
+export { NetServer, WsClientTransport } from "./NetServer.js";
 export type { NetMessage, NetEntitySnapshot } from "./messages.js";
 export { encodeMessage, decodeMessage } from "./messages.js";
 export { NetRoom } from "./NetRoom.js";

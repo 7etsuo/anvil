@@ -104,10 +104,10 @@ export type { AnvilPlugin, PluginApi } from "./plugins/PluginRegistry.js";
 export { MapBuilder } from "./map/MapBuilder.js";
 export type { BuiltMap, MapWall, MapSpawn } from "./map/MapBuilder.js";
 
-// Platform packaging
+// Platform packaging (manifest only — real Electron shell is @anvil/desktop)
 export {
   createPackageManifest,
-  electronMainTemplate,
+  serializeManifest,
 } from "./platform/packageGame.js";
 export type { GamePackageManifest } from "./platform/packageGame.js";
 

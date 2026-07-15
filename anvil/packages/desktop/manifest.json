@@ -1,0 +1,11 @@
+{
+  "id": "anvil-desktop",
+  "title": "Anvil Game",
+  "version": "0.1.0",
+  "webDist": "dist-web",
+  "window": {
+    "width": 1280,
+    "height": 720,
+    "fullscreen": false
+  }
+}

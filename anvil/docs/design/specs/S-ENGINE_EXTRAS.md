@@ -1,27 +1,44 @@
-# Spec: Engine extras (post-RPG completeness pass)
+# Spec: Engine systems (complete surface)
 
-All live under `@anvil/core` unless noted.
+Everything here is **implemented code**, not a design wish-list.
 
-| System | Path | Purpose |
-|--------|------|---------|
-| UI kit | `ui/UiKit.ts` | Panels, buttons, inventory grid, tooltips |
-| Particles | `fx/ParticleSystem.ts` | Bursts for combat/loot |
+## `@anvil/core`
+
+| System | Module | What it does |
+|--------|--------|----------------|
+| RPG | `rpg/*` | Inventory, equipment, stats, loot, zones, character save |
+| UI | `ui/UiKit.ts` | Canvas panels, buttons, inventory grid, tooltips |
+| Particles | `fx/ParticleSystem.ts` | Burst / update / draw |
 | Combat feel | `combat/CombatFeel.ts` | Hitstun, knockback, i-frames |
-| A* | `path/astar.ts` | Grid pathfinding + `wallsToGrid` |
-| AI | `ai/AiHelpers.ts` | Chase/leash + path follow |
-| Quests | `quest/QuestSystem.ts` | Steps, flags, counts, rewards hooks |
-| Audio bus | `audio/AudioSystem.ts` | master/music/sfx/ui volumes, music loop |
-| Input | `input/InputMap.ts` | Rebind, gamepad buttons/axes |
-| Content | `content/validateContent.ts` | Item/loot validators + roll |
-| Plugins | `plugins/PluginRegistry.ts` | Register/update/dispose plugins |
-| Map builder | `map/MapBuilder.ts` | Programmatic maps / editor seed |
-| Packaging | `platform/packageGame.ts` | Manifest + Electron main template |
-| Net hub | `@anvil/genre-net` `MemoryTransport` / `WebSocketTransport` | Multi-peer + WS shell |
-| Phaser | `@anvil/render-phaser` `PhaserRenderFacade` | Optional Phaser inject + canvas fallback |
+| Pathfinding | `path/astar.ts` | Grid A*, walls→grid |
+| AI | `ai/AiHelpers.ts` | Chase, leash, path follow |
+| Quests | `quest/QuestSystem.ts` | Steps, flags, counters |
+| Audio | `audio/AudioSystem.ts` | Cues, master/music/sfx/ui, music loop |
+| Input | `input/InputMap.ts` | Keys, rebind, gamepad |
+| Content | `content/validateContent.ts` | Item/loot validation + roll |
+| Plugins | `plugins/PluginRegistry.ts` | Register / update / dispose |
+| Map builder | `map/MapBuilder.ts` | Programmatic maps |
+| Package manifest | `platform/packageGame.ts` | JSON manifest for desktop |
 
-## Honest limits
+## `@anvil/render-phaser`
 
-- **Phaser** is optional inject, not a full scene editor.
-- **WebSocket** transport requires a real server; no lobby/matchmaking.
-- **UI kit** is canvas immediate-mode, not React/DOM.
-- **Electron template** is a string generator — not a full desktop app in-repo.
+**Real Phaser 3 dependency.** `PhaserRenderFacade` constructs a `Phaser.Game` and draws quads/sprites/text through Phaser Graphics/Images. Headless Node without DOM no-ops safely.
+
+## `@anvil/genre-net`
+
+| Piece | What |
+|-------|------|
+| `LoopbackTransport` | In-process 2-peer |
+| `MemoryHub` | In-process N-peer |
+| **`NetServer`** | **Real WebSocket relay server (Node `ws`)** |
+| **`WsClientTransport`** | **Connects to NetServer from Node or browser** |
+
+## `@anvil/desktop`
+
+**Real Electron main process** (`main.cjs`) that loads a game `dist-web/index.html`.
+
+```bash
+# build game web output first, then:
+cd packages/desktop && pnpm install
+ANVIL_GAME_DIST=/path/to/game/dist-web pnpm start
+```

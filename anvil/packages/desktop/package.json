@@ -1,0 +1,16 @@
+{
+  "name": "@anvil/desktop",
+  "version": "0.1.0",
+  "private": true,
+  "type": "commonjs",
+  "main": "main.cjs",
+  "description": "Real Electron shell for Anvil web game builds",
+  "scripts": {
+    "start": "electron .",
+    "start:gravewake": "ANVIL_GAME_DIST=../../../games/gravewake/dist-web electron ."
+  },
+  "dependencies": {},
+  "devDependencies": {
+    "electron": "^33.2.0"
+  }
+}

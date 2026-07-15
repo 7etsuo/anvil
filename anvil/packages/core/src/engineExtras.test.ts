@@ -16,10 +16,7 @@ import { InputMap } from "./input/InputMap.js";
 import { MapBuilder } from "./map/MapBuilder.js";
 import { astar, wallsToGrid } from "./path/astar.js";
 import { PluginRegistry } from "./plugins/PluginRegistry.js";
-import {
-  createPackageManifest,
-  electronMainTemplate,
-} from "./platform/packageGame.js";
+import { createPackageManifest, serializeManifest } from "./platform/packageGame.js";
 import { QuestSystem } from "./quest/QuestSystem.js";
 import { UiKit } from "./ui/UiKit.js";
 
@@ -195,10 +192,9 @@ describe("input rebind", () => {
 });
 
 describe("platform packaging", () => {
-  it("builds manifest and electron template", () => {
+  it("builds serializable manifest for @anvil/desktop", () => {
     const m = createPackageManifest({ id: "g", title: "G" });
     expect(m.webDist).toBe("dist-web");
-    const t = electronMainTemplate(m);
-    expect(t).toContain("BrowserWindow");
+    expect(serializeManifest(m)).toContain("\"id\": \"g\"");
   });
 });

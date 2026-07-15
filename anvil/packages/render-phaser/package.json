@@ -16,7 +16,8 @@
     "test": "vitest run --passWithNoTests"
   },
   "dependencies": {
-    "@anvil/core": "workspace:*"
+    "@anvil/core": "workspace:*",
+    "phaser": "^3.87.0"
   },
   "devDependencies": {
     "typescript": "^5.7.2",

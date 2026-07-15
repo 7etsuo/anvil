@@ -192,6 +192,25 @@ export class GravewakeGame {
     return this.areas[this.area]?.portals ?? [];
   }
 
+  /**
+   * Diablo-style click in world space.
+   * Enemy near click → path + auto engage; empty ground → move.
+   */
+  clickWorld(x: number, y: number): void {
+    if (!this.sim || this.sim.isLost()) return;
+    const enemy = this.sim.nearestEnemy(x, y, 56);
+    if (enemy) {
+      const e = this.world.get(enemy);
+      if (e?.transform) {
+        this.sim.setMoveTarget(e.transform.x, e.transform.y, {
+          autoEngage: true,
+        });
+        return;
+      }
+    }
+    this.sim.setMoveTarget(x, y, { autoEngage: false });
+  }
+
   private pushFx(ev: FxEvent): void {
     this.fx.push(ev);
     if (this.fx.length > 140) this.fx.splice(0, this.fx.length - 140);
@@ -404,6 +423,17 @@ export class GravewakeGame {
     this.fx = this.fx.filter((f) => f.t > 0);
 
     this.sim.update(dt, input);
+
+    // Auto-attack while click-chasing an enemy
+    const ppos = this.sim.getPlayerPos();
+    if (ppos && this.sim.isAutoEngage() && this.cd.slash <= 0) {
+      const near = this.sim.nearestEnemy(
+        ppos.x,
+        ppos.y,
+        this.progression.meleeRange * 0.95,
+      );
+      if (near) this.cast("slash");
+    }
 
     // skills
     if (input.isPressed("shoot") || input.isPressed("confirm")) this.cast("slash");

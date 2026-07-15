@@ -40,6 +40,8 @@ export interface GameHandle {
   readonly quests: Kernel["quests"];
   readonly plugins: Kernel["plugins"];
   readonly ui: Kernel["ui"];
+  readonly camera: Kernel["camera"];
+  readonly abilities: Kernel["abilities"];
   readonly kernel: Kernel;
   readonly game: GameYaml;
   readonly root: string;
@@ -176,6 +178,8 @@ export async function createGame(
     quests: kernel.quests,
     plugins: kernel.plugins,
     ui: kernel.ui,
+    camera: kernel.camera,
+    abilities: kernel.abilities,
     kernel,
     game,
     root,

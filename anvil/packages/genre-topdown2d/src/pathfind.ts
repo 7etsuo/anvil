@@ -13,6 +13,9 @@ export class NavGrid {
   readonly width: number;
   readonly height: number;
   private blocked: Uint8Array;
+  /** Simple path cache: key startCell-goalCell → path world points */
+  private pathCache = new Map<string, PathPoint[]>();
+  private pathCacheMax = 256;
 
   constructor(
     width: number,
@@ -70,9 +73,16 @@ export class NavGrid {
    * A* path in world space (cell centers). Empty if no path.
    * 8-connected.
    */
+  clearPathCache(): void {
+    this.pathCache.clear();
+  }
+
   findPath(sx: number, sy: number, tx: number, ty: number): PathPoint[] {
     const start = this.worldToCell(sx, sy);
     const goal = this.worldToCell(tx, ty);
+    const cacheKey = `${start.gx},${start.gy}>${goal.gx},${goal.gy}`;
+    const cached = this.pathCache.get(cacheKey);
+    if (cached) return cached.map((p) => ({ ...p }));
     // If goal blocked, walk to nearest free cell around it
     let ggx = goal.gx;
     let ggy = goal.gy;
@@ -140,7 +150,13 @@ export class NavGrid {
         cells.reverse();
         // snap last to exact target
         if (cells.length) cells[cells.length - 1] = { x: tx, y: ty };
-        return simplify(cells);
+        const path = simplify(cells);
+        if (this.pathCache.size >= this.pathCacheMax) {
+          const first = this.pathCache.keys().next().value;
+          if (first !== undefined) this.pathCache.delete(first);
+        }
+        this.pathCache.set(cacheKey, path);
+        return path.map((p) => ({ ...p }));
       }
       for (const [dx, dy] of dirs) {
         const nx = cx + dx!;

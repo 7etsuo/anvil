@@ -1,5 +1,7 @@
 import type {
+  AbilitySystem,
   CharacterSheet,
+  EventBus,
   InputMap,
   ItemDef,
   ParticleSystem,
@@ -7,10 +9,13 @@ import type {
   World,
 } from "@anvil/core";
 import {
+  AbilitySystem as Abilities,
   CharacterSheet as Sheet,
-  rollLootTable,
-  spawnGoldPile,
-  spawnGroundLoot,
+  dropFromTable,
+  emitHit,
+  emitKill,
+  LOOT_GOLD_RADIUS,
+  LOOT_ITEM_RADIUS,
   tryPickupNearest,
 } from "@anvil/core";
 import {
@@ -40,6 +45,8 @@ export type FxEvent =
 export interface GravewakeServices {
   particles?: ParticleSystem;
   quests?: QuestSystem;
+  events?: EventBus;
+  abilities?: AbilitySystem;
 }
 
 const BOSS_IDS = new Set([
@@ -78,6 +85,7 @@ export class GravewakeGame {
   private exitCooldownMs = 0;
   private blockedBannerCd = 0;
   private services: GravewakeServices;
+  private abilities: AbilitySystem;
   private showInv = false;
   private spawner: PackSpawner | null = null;
   private bossSlainOnce = false;
@@ -114,6 +122,45 @@ export class GravewakeGame {
     this.lootTables = lootTables;
     this.rng = rng;
     this.services = services;
+    this.abilities = services.abilities ?? new Abilities();
+    this.abilities.registerAll([
+      {
+        id: "slash",
+        name: "Slash",
+        cooldownMs: 260,
+        targeting: "aoe_around_self",
+        range: progression.meleeRange,
+        damageMul: 1,
+        vfx: "slash",
+      },
+      {
+        id: "whirl",
+        name: "Whirl",
+        cooldownMs: 800,
+        targeting: "aoe_around_self",
+        range: progression.meleeRange * 1.3,
+        damageMul: progression.whirlDamageMul ?? 0.78,
+        vfx: "whirl",
+      },
+      {
+        id: "smite",
+        name: "Smite",
+        cooldownMs: 620,
+        targeting: "nearest_enemy",
+        range: progression.smiteRange ?? 170,
+        damageMul: progression.smiteDamageMul ?? 1.4,
+        vfx: "smite",
+      },
+      {
+        id: "potion",
+        name: "Potion",
+        cooldownMs: 400,
+        targeting: "self",
+        cost: 1,
+        costResource: "health_potion",
+        vfx: "heal",
+      },
+    ]);
 
     this.sheet = new Sheet({
       itemDefs: items,
@@ -269,6 +316,7 @@ export class GravewakeGame {
     };
     this.sim = new TopdownSim(this.world, map, this.actors, this.rng, {
       autoWinOnClear: false,
+      aiActiveRadius: 560,
     });
 
     // Scale initial non-player spawns
@@ -417,6 +465,7 @@ export class GravewakeGame {
     for (const k of Object.keys(this.cd) as SkillId[]) {
       this.cd[k] = Math.max(0, this.cd[k]! - dtMs);
     }
+    this.abilities.update(dtMs);
     this.exitCooldownMs = Math.max(0, this.exitCooldownMs - dtMs);
     this.blockedBannerCd = Math.max(0, this.blockedBannerCd - dtMs);
     for (const f of this.fx) f.t -= dt;
@@ -518,6 +567,13 @@ export class GravewakeGame {
       life: 0.4,
     });
 
+    // Keep AbilitySystem cooldowns in sync for observe / multiplayer later
+    this.abilities.tryCast("player", skill, {
+      x: pos.x,
+      y: pos.y,
+      baseDamage: base,
+    });
+
     for (const t of result.targets) {
       this.pushFx({
         kind: "hit",
@@ -527,6 +583,17 @@ export class GravewakeGame {
         t: isCrit ? 1 : 0.7,
         crit: isCrit,
       });
+      if (this.services.events) {
+        emitHit(this.services.events, {
+          attackerId: "player",
+          targetId: "enemy",
+          damage: dmg,
+          x: t.x,
+          y: t.y,
+          crit: isCrit,
+          abilityId: skill,
+        });
+      }
       this.services.particles?.burst({
         x: t.x,
         y: t.y,
@@ -638,7 +705,7 @@ export class GravewakeGame {
       if (!loot) continue;
       const d = Math.hypot(e.transform.x - pos.x, e.transform.y - pos.y);
       if (loot.defId === "gold") {
-        if (d > 48) continue;
+        if (d > LOOT_GOLD_RADIUS) continue;
         this.sheet.addGold(loot.gold ?? 0);
         this.world.destroy(e.id);
         this.pushFx({
@@ -652,7 +719,7 @@ export class GravewakeGame {
         continue;
       }
       // magnetic gear pickup when standing on it
-      if (d > 22) continue;
+      if (d > LOOT_ITEM_RADIUS) continue;
       const ok = this.sheet.pickup(loot.defId!, loot.qty ?? 1);
       if (!ok) continue;
       this.world.destroy(e.id);
@@ -736,6 +803,15 @@ export class GravewakeGame {
       const leveled = this.sheet.addXp(xp, this.progression.xpToLevel);
       if (!isBoss) this.dropLoot(e.x, e.y, e.actorId);
       this.pushFx({ kind: "kill", x: e.x, y: e.y, gold: 0, t: 0.45 });
+      if (this.services.events) {
+        emitKill(this.services.events, {
+          killerId: "player",
+          targetId: e.id,
+          actorId: e.actorId,
+          x: e.x,
+          y: e.y,
+        });
+      }
       if (leveled) {
         this.pushFx({ kind: "levelup", t: 1.5 });
         this.syncPlayerFromSheet();
@@ -755,35 +831,35 @@ export class GravewakeGame {
           ? "boss_pack"
           : (area?.lootTable ?? "crypt_pack")
         : (area?.lootTable ?? "wastes_pack");
-    // bosses always use boss_pack when available
     const useId = BOSS_IDS.has(actorId)
       ? this.lootTables.boss_pack
         ? "boss_pack"
         : tableId
       : tableId;
     const table = this.lootTables[useId] ?? this.lootTables.wastes_pack;
-    if (!table) {
-      spawnGoldPile(this.world, x, y, 4 + Math.floor(this.rng() * 12));
-      return;
-    }
-    const roll = rollLootTable(table, this.rng);
-    if (!roll) return;
-    const jx = x + (this.rng() - 0.5) * 24;
-    const jy = y + (this.rng() - 0.5) * 24;
-    if (roll.item === "gold") {
-      const g =
-        roll.qty * (4 + Math.floor(this.rng() * 12)) *
-        (1 + Math.floor(this.threatTier()));
-      spawnGoldPile(this.world, jx, jy, g);
-      this.pushFx({ kind: "loot", x: jx, y: jy, name: `${g} gold`, t: 1.1 });
-      return;
-    }
-    spawnGroundLoot(this.world, jx, jy, {
-      defId: roll.item,
-      qty: roll.qty,
+    const drop = dropFromTable(this.world, x, y, table, {
+      rng: this.rng,
+      goldMul: 1 + Math.floor(this.threatTier()) * 0.25,
+      scatter: 24,
+      itemDefs: this.items,
     });
-    const name = this.items[roll.item]?.name ?? roll.item;
-    this.pushFx({ kind: "loot", x: jx, y: jy, name, t: 1.3 });
+    if (drop.kind === "gold" && drop.gold) {
+      this.pushFx({
+        kind: "loot",
+        x: drop.x,
+        y: drop.y,
+        name: `${drop.gold} gold`,
+        t: 1.1,
+      });
+    } else if (drop.kind === "item" && drop.name) {
+      this.pushFx({
+        kind: "loot",
+        x: drop.x,
+        y: drop.y,
+        name: drop.name,
+        t: 1.3,
+      });
+    }
   }
 
   private pointInPortal(px: number, py: number, portal: PortalDef): boolean {

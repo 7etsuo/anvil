@@ -46,7 +46,11 @@ export const browserGravewakeModule: GenreModule = {
             embeddedItems,
             embeddedLoot,
             ctx.random ?? Math.random,
-            { particles: ctx.particles, quests: ctx.quests },
+            {
+              particles: ctx.particles,
+              quests: ctx.quests,
+              events: ctx.events,
+            },
           );
           return {
             enter() {},

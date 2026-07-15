@@ -10,6 +10,8 @@ import {
   ModuleRegistry,
 } from "../modules/ModuleRegistry.js";
 import { PluginRegistry } from "../plugins/PluginRegistry.js";
+import { AbilitySystem } from "../ability/AbilitySystem.js";
+import { ViewCamera } from "../camera/ViewCamera.js";
 import { QuestSystem } from "../quest/QuestSystem.js";
 import type { CanvasRenderFacade } from "../render/CanvasRenderFacade.js";
 import type { RenderFacade } from "../render/RenderFacade.js";
@@ -21,7 +23,7 @@ import { World } from "../world/World.js";
 import { SeededRng } from "./SeededRng.js";
 
 /** Engine semver exposed on observe / GameHandle */
-export const ANVIL_VERSION = "0.5.1";
+export const ANVIL_VERSION = "0.6.0";
 
 export interface SystemEntry {
   name: string;
@@ -38,6 +40,10 @@ export class Kernel implements KernelInternals {
   readonly particles = new ParticleSystem();
   readonly quests = new QuestSystem();
   readonly ui = new UiKit();
+  /** First-class view camera (ortho/iso). Games may also keep their own. */
+  readonly camera = new ViewCamera();
+  /** Data-driven abilities with cooldowns. */
+  readonly abilities = new AbilitySystem();
   readonly assets: AssetServer;
   readonly scenes: SceneManager;
   readonly renderer: RenderFacade;
@@ -271,6 +277,12 @@ export class Kernel implements KernelInternals {
       particles: this.particles.particles.length,
       questsActive: this.quests.listActive().map((q) => q.defId),
       questsCompleted: this.quests.listCompleted().map((q) => q.defId),
+      abilities: this.abilities.list().map((a) => a.id),
+      camera: {
+        mode: this.camera.mode,
+        wx: this.camera.wx,
+        wy: this.camera.wy,
+      },
       systems: this.systems.map((s) => s.name),
       metrics: {
         lastTickMs: Math.round(this.lastTickMs * 1000) / 1000,

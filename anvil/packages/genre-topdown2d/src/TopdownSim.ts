@@ -25,6 +25,11 @@ export type TopdownSimOptions = {
    * Multi-area games (Gravewake) must set false so combat continues / zones transition.
    */
   autoWinOnClear?: boolean;
+  /**
+   * Only run AI for enemies within this distance of the player (performance).
+   * Default 520. Set 0 to always run all AI.
+   */
+  aiActiveRadius?: number;
 };
 
 export class TopdownSim {
@@ -45,6 +50,7 @@ export class TopdownSim {
   private playerPathI = 0;
   /** When true, auto-slash nearest enemy in melee while pathing. */
   private autoEngage = false;
+  private aiActiveRadius: number;
 
   constructor(
     world: World,
@@ -58,6 +64,8 @@ export class TopdownSim {
     this.mapId = map.id;
     this.actorDefs = actorDefs;
     this.autoWinOnClear = opts.autoWinOnClear !== false;
+    this.aiActiveRadius =
+      opts.aiActiveRadius === undefined ? 520 : opts.aiActiveRadius;
     this.nav = new NavGrid(map.width, map.height, map.walls, 28, 14);
     this.spawnAll();
   }
@@ -339,6 +347,22 @@ export class TopdownSim {
       if (rt.team === "player") {
         this.applyPlayerInput(rt, input);
       } else {
+        // AI culling: idle far enemies (big maps / many packs)
+        if (this.aiActiveRadius > 0 && this.playerId) {
+          const pe = this.world.get(this.playerId);
+          const me = this.world.get(rt.entityId);
+          if (pe?.transform && me?.transform) {
+            const d = Math.hypot(
+              pe.transform.x - me.transform.x,
+              pe.transform.y - me.transform.y,
+            );
+            if (d > this.aiActiveRadius && !rt.aggro) {
+              rt.vx = 0;
+              rt.vy = 0;
+              continue;
+            }
+          }
+        }
         this.applyAi(rt, dtMs);
       }
     }

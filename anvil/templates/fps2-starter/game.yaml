@@ -1,0 +1,8 @@
+id: fps2-starter
+title: Hello FPS2
+genre: fps2
+modules:
+  - genre-fps2
+entryScene: main
+seed: 1
+schemaVersion: 1

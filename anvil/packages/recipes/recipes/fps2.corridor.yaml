@@ -1,0 +1,26 @@
+id: fps2.corridor
+title: FPS2 corridor map with one enemy
+genre: fps2
+files:
+  - path: content/maps/corridor.json
+    write: |
+      {
+        "id": "corridor",
+        "cells": [
+          [1, 1, 1, 1, 1, 1, 1, 1],
+          [1, 0, 0, 0, 0, 0, 0, 1],
+          [1, 0, 0, 0, 0, 0, 0, 1],
+          [1, 0, 0, 0, 0, 0, 0, 1],
+          [1, 1, 1, 1, 1, 1, 1, 1]
+        ],
+        "playerStart": { "x": 1.5, "y": 2.5, "angle": 0 },
+        "enemies": [{ "id": "grunt", "x": 5.5, "y": 2.5, "hp": 2 }]
+      }
+  - path: content/levels/lv1.json
+    write: |
+      {
+        "id": "lv1",
+        "map": "corridor",
+        "weaponDamage": 1,
+        "weaponMaxDist": 20
+      }

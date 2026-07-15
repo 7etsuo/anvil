@@ -1,0 +1,13 @@
+{
+  "id": "lv1",
+  "map": "corridor",
+  "moveSpeed": 4,
+  "turnSpeed": 2.5,
+  "fov": 1.047,
+  "screenCols": 80,
+  "weaponDamage": 1,
+  "weaponMaxDist": 20,
+  "aimConeRad": 0.2,
+  "fireCooldownMs": 50,
+  "playerRadius": 0.2
+}

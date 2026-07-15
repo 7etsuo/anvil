@@ -77,7 +77,7 @@ function printHelp(): void {
   console.log(`anvil ${VERSION}
 Commands:
   version
-  new <name> [--genre none|card|topdown2d|vn|shmup] [--root <dir>]
+  new <name> [--genre none|card|topdown2d|vn|shmup|fps2] [--root <dir>]
   validate [path] [--json]
   test [path] [--json] [--seed N] [--strict-assets]
   observe [--root path] [--json] [--shot]
@@ -117,7 +117,14 @@ async function cmdNew(args: string[]): Promise<void> {
   const name = args.find((a) => !a.startsWith("-") && a !== "none");
   if (!name) usageError("anvil new <name> required");
   const genre = getFlag(args, "--genre") ?? "none";
-  const supported = ["none", "card", "topdown2d", "vn", "shmup"] as const;
+  const supported = [
+    "none",
+    "card",
+    "topdown2d",
+    "vn",
+    "shmup",
+    "fps2",
+  ] as const;
   if (!(supported as readonly string[]).includes(genre)) {
     usageError(
       `Genre '${genre}' not available yet (supported: ${supported.join(", ")})`,
@@ -132,6 +139,7 @@ async function cmdNew(args: string[]): Promise<void> {
     topdown2d: "topdown-starter",
     vn: "vn-starter",
     shmup: "shmup-starter",
+    fps2: "fps2-starter",
   };
   const templateName = genreTemplate[genre];
   if (templateName) {

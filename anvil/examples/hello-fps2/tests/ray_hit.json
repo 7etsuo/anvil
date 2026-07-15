@@ -1,0 +1,19 @@
+{
+  "id": "ray_hit",
+  "seed": 1,
+  "maxTicks": 5,
+  "steps": [
+    {
+      "tick": 1,
+      "assert": { "path": "genre.fps2.centerRay.dist", "gt": 0 }
+    },
+    {
+      "tick": 1,
+      "assert": { "path": "genre.fps2.columnCount", "eq": 80 }
+    },
+    {
+      "tick": 1,
+      "assert": { "path": "genre.fps2.mapId", "eq": "corridor" }
+    }
+  ]
+}

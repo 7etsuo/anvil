@@ -38,6 +38,9 @@ export async function loadModulesForGame(
     } else if (id === "genre-shmup") {
       const m = await import("@anvil/genre-shmup");
       out.push(m.shmupModule);
+    } else if (id === "genre-fps2") {
+      const m = await import("@anvil/genre-fps2");
+      out.push(m.fps2Module);
     }
   }
   return out;

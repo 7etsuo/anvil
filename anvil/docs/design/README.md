@@ -72,4 +72,4 @@ See `00_INDEX.md`.
 
 ## Next
 
-M1–M6 complete. Execute **`T-M7-001`** (`genre-fps2`) in `20_FULL_TASK_BREAKDOWN.md`.
+M1–M7 complete. Execute **`T-M8-001`** (net spike) in `20_FULL_TASK_BREAKDOWN.md`.

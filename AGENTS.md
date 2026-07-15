@@ -6,7 +6,7 @@ Thin dispatcher for coding agents ([agents.md](https://agents.md/) format).
 
 | Path | Status | Work allowed |
 |------|--------|--------------|
-| `anvil/` | **Active** — game engine (M1–M6 done) | Yes |
+| `anvil/` | **Active** — game engine (M1–M7 done) | Yes |
 | `games/gravewake/` | **Parked** — future ARPG | **No** until Anvil M9 unpark |
 | `games/*` | Future titles | Only when unparked |
 
@@ -40,7 +40,7 @@ pnpm anvil build examples/hello-empty
 pnpm anvil new demo --genre topdown2d
 ```
 
-Supported genres: `none`, `card`, `topdown2d`, `vn`, `shmup`.
+Supported genres: `none`, `card`, `topdown2d`, `vn`, `shmup`, `fps2`.
 
 ## Hard rules
 

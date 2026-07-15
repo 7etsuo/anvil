@@ -14,6 +14,7 @@ Everything here is **implemented code**, not a design wish-list.
 | AI | `ai/AiHelpers.ts` | Chase, leash, path follow |
 | Quests | `quest/QuestSystem.ts` | Steps, flags, counters |
 | Audio | `audio/AudioSystem.ts` | Cues, master/music/sfx/ui, music loop |
+| Audio catalog | `audio/AudioCatalog.ts` | Bundled CC0 library: list/filter, suggested cues |
 | Input | `input/InputMap.ts` | Keys, rebind, gamepad |
 | Content | `content/validateContent.ts` | Item/loot validation + roll |
 | Plugins | `plugins/PluginRegistry.ts` | Register / update / dispose |

@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.5.4 — Bundled CC0 audio library
+
+- **`anvil/assets/audio/`**: 400+ free CC0 SFX + music, foldered for agents (`sfx/ui`, `combat`, `inventory`, `world`, `metal`, `wood`, `foley`, `music/`)
+- **`catalog.json`** + `LICENSES.md` + agent README
+- **`AudioCatalog`**: `listBundledAudio`, `getSuggestedAudioCues`, `getGameReadyAudioCues`, `loadBundledAudioCatalog`
+- **`AudioSystem`**: `addCues`, `listCues`, `getCuePath`, `hasCue`
+
 ## 0.5.3 — Net ops + desktop polish
 
 - Colyseus: Redis presence/driver (optional), `/metrics`, richer `/health`, SIGTERM shutdown

@@ -77,6 +77,36 @@ anvil assets missing
 
 No `anvil imagine` command.
 
-## 8. Research note
+## 8. Bundled CC0 audio library
+
+Engine ships a ready-to-pick library at **`anvil/assets/audio/`** (music + SFX, all **CC0**).
+
+| Path | Contents |
+|------|----------|
+| `music/` | Town, battle, dungeon ambience, chiptunes, action themes |
+| `sfx/ui/` | Clicks, confirms, menus (Kenney UI) |
+| `sfx/combat/` | Hits, swings, spells, explosions |
+| `sfx/inventory/` | Pickup / equip materials |
+| `sfx/world/` | Doors, keys |
+| `sfx/metal/`, `sfx/wood/`, `sfx/foley/`, `sfx/misc/` | Foley packs |
+| `catalog.json` | Full index + `suggestedCues` semantic map |
+| `LICENSES.md` | Provenance |
+
+**Agent API** (`@anvil/core`):
+
+- `listBundledAudio({ kind, prefix, tag, query, limit })`
+- `getSuggestedAudioCues()` / `getGameReadyAudioCues("audio")`
+- `loadBundledAudioCatalog()` / `writeBundledAudioCatalog()`
+
+**Install into a game:**
+
+```bash
+ln -sfn ../../../anvil/assets/audio assets/audio
+```
+
+Then cue paths look like `audio/sfx/ui/click_001.ogg`. Play via `AudioSystem` or events
+`audio:play` / `audio:music`. See `anvil/assets/audio/README.md`.
+
+## 9. Research note
 
 GameDevBench: graphics tasks fail more than pure logic — **greybox + separate art pass** is intentional (arXiv:2602.11103).

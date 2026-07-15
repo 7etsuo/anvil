@@ -217,5 +217,23 @@ export {
 } from "./platform/packageGame.js";
 export type { GamePackageManifest } from "./platform/packageGame.js";
 
-// Audio channel type
+// Audio catalog (bundled CC0 library)
 export type { AudioChannel, AudioCues } from "./audio/AudioSystem.js";
+export {
+  resolveBundledAudioRoot,
+  loadBundledAudioCatalog,
+  buildCatalogFromDisk,
+  writeBundledAudioCatalog,
+  clearBundledAudioCatalogCache,
+  listBundledAudio,
+  getSuggestedAudioCues,
+  cuesForAssetRoot,
+  getGameReadyAudioCues,
+} from "./audio/AudioCatalog.js";
+export type {
+  BundledAudioCatalog,
+  BundledAudioEntry,
+  BundledAudioKind,
+  BundledAudioChannel,
+  ListBundledAudioFilter,
+} from "./audio/AudioCatalog.js";

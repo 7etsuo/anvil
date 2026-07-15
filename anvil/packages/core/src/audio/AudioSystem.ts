@@ -57,6 +57,27 @@ export class AudioSystem {
     this.cues = cues;
   }
 
+  /** Merge cues without dropping existing mappings. */
+  addCues(cues: AudioCues): void {
+    this.cues = { ...this.cues, ...cues };
+  }
+
+  getCues(): AudioCues {
+    return { ...this.cues };
+  }
+
+  listCues(): string[] {
+    return Object.keys(this.cues).sort();
+  }
+
+  getCuePath(cue: string): string | undefined {
+    return this.cues[cue];
+  }
+
+  hasCue(cue: string): boolean {
+    return cue in this.cues;
+  }
+
   setVolume(channel: AudioChannel, volume: number): void {
     this.volumes[channel] = Math.max(0, Math.min(1, volume));
     if (this.musicEl) {

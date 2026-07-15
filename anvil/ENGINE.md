@@ -39,6 +39,22 @@ handle.quests; handle.plugins; handle.ui; handle.cinema;
 handle.tick(1/60);
 ```
 
+## Bundled audio (CC0)
+
+Ready-to-pick library: **`anvil/assets/audio/`** (~400 SFX + music).  
+Browse `catalog.json` or:
+
+```ts
+import { listBundledAudio, getGameReadyAudioCues } from "@anvil/core";
+
+listBundledAudio({ prefix: "sfx/combat", limit: 20 });
+handle.audio.setCues(getGameReadyAudioCues("audio")); // after ln -s pack → assets/audio
+handle.audio.play("hit");
+handle.audio.playMusic("music_battle");
+```
+
+See `assets/audio/README.md` and `docs/design/09_ASSETS_AND_MEDIA.md` §8.
+
 ## Packages
 
 | Package | Role |

@@ -303,14 +303,24 @@ export class GravewakeGame {
 
     const [lo, hi] = range;
     const count = lo + Math.floor(this.rng() * (hi - lo + 1));
+    // Spawn as small packs (Diablo camp feel), not uniform soup
     let placed = 0;
     let guard = 0;
-    while (placed < count && guard++ < count * 30) {
-      const pt = this.randomOpenPoint(area, 120);
-      if (!pt) break;
-      const actor = packTable[Math.floor(this.rng() * packTable.length)]!;
-      out.push({ actor, x: pt.x, y: pt.y, team: "enemy" });
-      placed++;
+    while (placed < count && guard++ < count * 40) {
+      const camp = this.randomOpenPoint(area, 180);
+      if (!camp) break;
+      const packN = Math.min(3, count - placed);
+      for (let i = 0; i < packN; i++) {
+        const ang = this.rng() * Math.PI * 2;
+        const rad = 12 + this.rng() * 40;
+        const x = camp.x + Math.cos(ang) * rad;
+        const y = camp.y + Math.sin(ang) * rad;
+        if (this.hitsWall(area, x, y, 14)) continue;
+        const actor = packTable[Math.floor(this.rng() * packTable.length)]!;
+        out.push({ actor, x, y, team: "enemy" });
+        placed++;
+        if (placed >= count) break;
+      }
     }
     return out;
   }
@@ -334,47 +344,35 @@ export class GravewakeGame {
     if (!this.sim) return false;
     const table = area.respawn?.packTable ?? area.packTable;
     if (!table?.length) return false;
-    // Prefer spawn near player but not on top — ring around camera
+    // Reinforce off-screen — never drop on top of the player
     const p = this.sim.getPlayerPos();
     let pt: { x: number; y: number } | null = null;
     if (p) {
-      for (let i = 0; i < 24; i++) {
+      for (let i = 0; i < 32; i++) {
         const ang = this.rng() * Math.PI * 2;
-        const dist = 220 + this.rng() * 380;
+        // far ring: feels like roaming packs, not cheat spawns
+        const dist = 420 + this.rng() * 520;
         const x = p.x + Math.cos(ang) * dist;
         const y = p.y + Math.sin(ang) * dist;
-        if (x < 60 || y < 60 || x > area.width - 60 || y > area.height - 60)
+        if (x < 80 || y < 80 || x > area.width - 80 || y > area.height - 80)
           continue;
-        if (this.hitsWall(area, x, y, 16)) continue;
+        if (this.hitsWall(area, x, y, 18)) continue;
         pt = { x, y };
         break;
       }
     }
-    if (!pt) pt = this.randomOpenPoint(area, 160);
+    if (!pt) pt = this.randomOpenPoint(area, 360);
     if (!pt) return false;
     const actorId = table[Math.floor(this.rng() * table.length)]!;
     const def = this.actors[actorId];
     if (!def) return false;
     const scale = this.scaleForThreat();
-    // rare elite
-    const elite = this.rng() < 0.08;
-    const id = this.sim.spawnActorPublic(def, pt.x, pt.y, "enemy", {
-      hpMul: scale.hpMul * (elite ? 2.2 : 1),
-      dmgMul: scale.dmgMul * (elite ? 1.5 : 1),
-      speedMul: scale.speedMul * (elite ? 1.1 : 1),
+    const elite = this.rng() < 0.05;
+    this.sim.spawnActorPublic(def, pt.x, pt.y, "enemy", {
+      hpMul: scale.hpMul * (elite ? 2.0 : 1),
+      dmgMul: scale.dmgMul * (elite ? 1.4 : 1),
+      speedMul: Math.min(1.15, scale.speedMul),
     });
-    if (elite) {
-      const e = this.world.get(id);
-      if (e) e.data.elite = true;
-      this.pushFx({
-        kind: "float",
-        x: pt.x,
-        y: pt.y - 24,
-        text: "Elite!",
-        color: "#f84",
-        t: 1.2,
-      });
-    }
     return true;
   }
 
@@ -423,19 +421,9 @@ export class GravewakeGame {
     this.autoPickupGold();
     this.grantXpForKills();
 
-    // timed packs
+    // slow reinforcements only (not endless wave spam)
     if (this.spawner) {
-      const placed = this.spawner.update(dtMs);
-      if (placed > 0 && this.rng() < 0.35) {
-        this.pushFx({
-          kind: "float",
-          x: this.sim.getPlayerPos()?.x ?? 0,
-          y: (this.sim.getPlayerPos()?.y ?? 0) - 40,
-          text: "The dead stir…",
-          color: "#c88",
-          t: 1.0,
-        });
-      }
+      this.spawner.update(dtMs);
     }
     // corpse cleanup every few seconds worth of frames
     if (this.killed.size > 40) {

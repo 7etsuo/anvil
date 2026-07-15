@@ -142,6 +142,11 @@ export class TopdownSim {
       attackAnimMs: 0,
       dead: false,
       immovable: false,
+      homeX: x,
+      homeY: y,
+      aggro: team === "player",
+      wanderMs: 0,
+      wanderAng: Math.random() * Math.PI * 2,
     };
     this.actors.set(id, rt);
     if (team === "player") this.playerId = id;
@@ -288,7 +293,7 @@ export class TopdownSim {
       if (rt.team === "player") {
         this.applyPlayerInput(rt, input);
       } else {
-        this.applyAi(rt);
+        this.applyAi(rt, dtMs);
       }
     }
 
@@ -403,11 +408,23 @@ export class TopdownSim {
     }
   }
 
-  private applyAi(rt: ActorRuntime): void {
+  /**
+   * Diablo-like AI: aggro radius, leash home, idle wander, soft separation.
+   * No more whole-map death-ball of perfectly-synced chasers.
+   */
+  private applyAi(rt: ActorRuntime, dtMs: number): void {
+    const AGGRO = 260;
+    const LEASH = 480;
     const player = this.playerId ? this.actors.get(this.playerId) : null;
     const pe = player && !player.dead ? this.world.get(player.entityId) : null;
     const me = this.world.get(rt.entityId);
-    if (!pe?.transform || !me?.transform || !player) {
+    if (!me?.transform) {
+      rt.vx = 0;
+      rt.vy = 0;
+      return;
+    }
+
+    if (rt.ai === "none" || !pe?.transform || !player) {
       rt.vx = 0;
       rt.vy = 0;
       return;
@@ -416,45 +433,95 @@ export class TopdownSim {
     const dx = pe.transform.x - me.transform.x;
     const dy = pe.transform.y - me.transform.y;
     const dist = Math.hypot(dx, dy) || 1e-6;
-    const nx = dx / dist;
-    const ny = dy / dist;
+    const homeDist = Math.hypot(me.transform.x - rt.homeX, me.transform.y - rt.homeY);
 
-    if (rt.ai === "none") {
-      rt.vx = 0;
-      rt.vy = 0;
-      return;
+    // Acquire / drop aggro
+    if (!rt.aggro && dist <= AGGRO) rt.aggro = true;
+    if (rt.aggro && homeDist > LEASH) {
+      rt.aggro = false;
     }
 
-    if (rt.ai === "chase_melee") {
-      if (dist > rt.meleeRange) {
-        rt.vx = nx * rt.speed;
-        rt.vy = ny * rt.speed;
+    let wishX = 0;
+    let wishY = 0;
+
+    if (!rt.aggro) {
+      // Return home if far, else idle wander near home
+      if (homeDist > 28) {
+        wishX = (rt.homeX - me.transform.x) / homeDist;
+        wishY = (rt.homeY - me.transform.y) / homeDist;
       } else {
-        rt.vx = 0;
-        rt.vy = 0;
+        rt.wanderMs -= dtMs;
+        if (rt.wanderMs <= 0) {
+          rt.wanderMs = 600 + Math.random() * 1400;
+          rt.wanderAng += (Math.random() - 0.5) * 1.8;
+        }
+        wishX = Math.cos(rt.wanderAng) * 0.35;
+        wishY = Math.sin(rt.wanderAng) * 0.35;
+      }
+    } else if (rt.ai === "chase_melee") {
+      if (dist > rt.meleeRange * 0.85) {
+        wishX = dx / dist;
+        wishY = dy / dist;
+      } else {
+        // strafe slightly so they don't freeze as a stack
+        wishX = -dy / dist * 0.25;
+        wishY = dx / dist * 0.25;
         rt.attackAnimMs = Math.max(rt.attackAnimMs, 120);
       }
-      return;
-    }
-
-    if (rt.ai === "keep_distance_ranged") {
+    } else if (rt.ai === "keep_distance_ranged") {
       const lo = rt.preferredRange - rt.preferredRangeBand;
       const hi = rt.preferredRange + rt.preferredRangeBand;
       if (dist < lo) {
-        rt.vx = -nx * rt.speed;
-        rt.vy = -ny * rt.speed;
+        wishX = -dx / dist;
+        wishY = -dy / dist;
       } else if (dist > hi) {
-        rt.vx = nx * rt.speed;
-        rt.vy = ny * rt.speed;
+        wishX = dx / dist;
+        wishY = dy / dist;
       } else {
-        rt.vx = 0;
-        rt.vy = 0;
+        // orbit + shoot
+        wishX = -dy / dist * 0.4;
+        wishY = dx / dist * 0.4;
         if (rt.projectileTimerMs <= 0) {
-          this.spawnProjectile(rt, nx, ny);
+          this.spawnProjectile(rt, dx / dist, dy / dist);
           rt.projectileTimerMs = rt.projectileCooldownMs;
           rt.attackAnimMs = 200;
         }
       }
+    }
+
+    // Separation from nearby living enemies (prevents blob)
+    let sepX = 0;
+    let sepY = 0;
+    let n = 0;
+    for (const other of this.actors.values()) {
+      if (other.dead || other.entityId === rt.entityId || other.team !== "enemy")
+        continue;
+      const oe = this.world.get(other.entityId);
+      if (!oe?.transform) continue;
+      const sdx = me.transform.x - oe.transform.x;
+      const sdy = me.transform.y - oe.transform.y;
+      const sd = Math.hypot(sdx, sdy);
+      const minD = rt.radius + other.radius + 18;
+      if (sd > 0 && sd < minD) {
+        const push = (minD - sd) / minD;
+        sepX += (sdx / sd) * push;
+        sepY += (sdy / sd) * push;
+        n++;
+      }
+    }
+    if (n > 0) {
+      wishX += sepX * 1.4;
+      wishY += sepY * 1.4;
+    }
+
+    const wlen = Math.hypot(wishX, wishY);
+    if (wlen > 1e-4) {
+      const spd = rt.aggro ? rt.speed : rt.speed * 0.45;
+      rt.vx = (wishX / wlen) * spd;
+      rt.vy = (wishY / wlen) * spd;
+    } else {
+      rt.vx = 0;
+      rt.vy = 0;
     }
   }
 

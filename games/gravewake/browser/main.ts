@@ -11,7 +11,10 @@ import { browserGravewakeModule, getBrowserGravewake } from "./browserModule.js"
 import { embeddedAreas } from "./contentEmbed.js";
 import type { FxEvent } from "../src/GravewakeGame.js";
 
-const SCALE = 1.25;
+/** World→screen scale. Lower = more Diablo zoom-out, less chunky tiles. */
+const SCALE = 1.05;
+/** Floor grain size in world units — larger = less “Nintendo tile” grid. */
+const FLOOR_TILE_WORLD = 180;
 /** Full-window logical resolution (updated on resize). */
 let VIEW_W = 1280;
 let VIEW_H = 720;
@@ -499,7 +502,7 @@ async function main(): Promise<void> {
       ctx.fillStyle = "#666";
       ctx.font = "12px system-ui";
       ctx.fillText(
-        "Open Ashen Wastes  ·  Dungeons on the map  ·  Endless packs  ·  Hunt forever",
+        "Explore the Wastes  ·  Enter dungeons  ·  Clear packs  ·  Hunt forever",
         VIEW_W / 2,
         VIEW_H / 2 + 112,
       );
@@ -605,68 +608,115 @@ async function main(): Promise<void> {
       lastPlayerY = player.transform.y;
     }
 
-    // --- WORLD FLOOR ---
-    ctx.save();
-    ctx.translate(-viewCamX, -viewCamY);
-    const pat = ctx.createPattern(floor, "repeat");
-    if (pat && area) {
-      ctx.fillStyle = pat;
-      ctx.fillRect(0, 0, area.width * SCALE, area.height * SCALE);
-    }
+    // --- WORLD FLOOR (screen fill, world-locked pattern — fixes sliding "double floor") ---
     if (area) {
-      // zone mood wash
-      if (blob.area === "crypt") {
-        ctx.fillStyle = "rgba(10,8,30,0.35)";
-      } else if (blob.area === "parish") {
-        ctx.fillStyle = "rgba(40,15,8,0.22)";
-      } else {
-        ctx.fillStyle = "rgba(0,0,0,0.15)";
-      }
-      ctx.fillRect(0, 0, area.width * SCALE, area.height * SCALE);
-    }
-    ctx.restore();
+      // base undercolor so empty never flashes
+      ctx.fillStyle =
+        blob.areaKind === "dungeon"
+          ? "#0a090c"
+          : blob.area === "town"
+            ? "#12100e"
+            : "#0e0c0a";
+      ctx.fillRect(0, 0, VIEW_W, VIEW_H);
 
-    // player torch + ambient zone lighting
+      const pat = ctx.createPattern(floor, "repeat");
+      if (pat && typeof (pat as CanvasPattern).setTransform === "function") {
+        // Map texture pixels so FLOOR_TILE_WORLD units ≈ one tile
+        const tilePx = FLOOR_TILE_WORLD * SCALE;
+        const sx = tilePx / floor.naturalWidth;
+        const sy = tilePx / floor.naturalHeight;
+        const m = new DOMMatrix()
+          .translate(-viewCamX, -viewCamY)
+          .scale(sx, sy);
+        (pat as CanvasPattern).setTransform(m);
+        ctx.fillStyle = pat;
+        ctx.globalAlpha = 0.92;
+        ctx.fillRect(0, 0, VIEW_W, VIEW_H);
+        ctx.globalAlpha = 1;
+      } else if (pat) {
+        // fallback: draw only viewport tiles in world space
+        ctx.save();
+        ctx.translate(-viewCamX, -viewCamY);
+        ctx.fillStyle = pat;
+        ctx.fillRect(
+          viewCamX,
+          viewCamY,
+          VIEW_W,
+          VIEW_H,
+        );
+        ctx.restore();
+      }
+
+      // single subtle mood wash (not a second tiled layer)
+      const wash =
+        blob.areaKind === "dungeon"
+          ? "rgba(20,12,40,0.28)"
+          : blob.area === "wastes"
+            ? "rgba(30,18,10,0.18)"
+            : "rgba(0,0,0,0.08)";
+      ctx.fillStyle = wash;
+      ctx.fillRect(0, 0, VIEW_W, VIEW_H);
+    }
+
+    // player torch + ambient
     if (player?.transform) {
       const lx = player.transform.x * SCALE - viewCamX;
       const ly = player.transform.y * SCALE - viewCamY;
       const dark =
-        blob.areaKind === "dungeon" ? 0.78 : blob.area === "wastes" ? 0.58 : 0.45;
-      const lightR = blob.areaKind === "dungeon" ? 240 : 340;
-      // warm core
-      const core = ctx.createRadialGradient(lx, ly, 8, lx, ly, 90);
-      core.addColorStop(0, "rgba(255,210,140,0.16)");
+        blob.areaKind === "dungeon" ? 0.7 : blob.area === "wastes" ? 0.5 : 0.38;
+      const lightR = blob.areaKind === "dungeon" ? 280 : 380;
+      const core = ctx.createRadialGradient(lx, ly, 10, lx, ly, 110);
+      core.addColorStop(0, "rgba(255,200,130,0.14)");
       core.addColorStop(1, "rgba(0,0,0,0)");
       ctx.fillStyle = core;
       ctx.fillRect(0, 0, VIEW_W, VIEW_H);
-      const light = ctx.createRadialGradient(lx, ly, 30, lx, ly, lightR);
-      light.addColorStop(0, "rgba(255,200,120,0.06)");
-      light.addColorStop(0.4, "rgba(0,0,0,0)");
+      const light = ctx.createRadialGradient(lx, ly, 40, lx, ly, lightR);
+      light.addColorStop(0, "rgba(0,0,0,0)");
+      light.addColorStop(0.55, "rgba(0,0,0,0.12)");
       light.addColorStop(1, `rgba(0,0,0,${dark})`);
       ctx.fillStyle = light;
       ctx.fillRect(0, 0, VIEW_W, VIEW_H);
     }
 
-    // walls
+    // walls — solid mass with soft edge (not tiny Nintendo brick spam)
     if (area) {
       for (const w of area.walls) {
         const x = w.x * SCALE - viewCamX;
         const y = w.y * SCALE - viewCamY;
         const ww = w.w * SCALE;
         const hh = w.h * SCALE;
-        ctx.save();
-        ctx.beginPath();
-        ctx.rect(x, y, ww, hh);
-        ctx.clip();
+        // skip off-screen
+        if (x + ww < -40 || y + hh < -40 || x > VIEW_W + 40 || y > VIEW_H + 40)
+          continue;
+
+        // soft ground shadow under wall
+        ctx.fillStyle = "rgba(0,0,0,0.45)";
+        ctx.fillRect(x + 4, y + 4, ww, hh);
+
+        // rock fill (world-locked pattern at large grain)
         const wp = ctx.createPattern(wallTex, "repeat");
-        ctx.fillStyle = wp ?? "#3a3228";
+        if (wp && typeof wp.setTransform === "function") {
+          const m = new DOMMatrix()
+            .translate(x, y)
+            .scale((96 * SCALE) / wallTex.naturalWidth);
+          wp.setTransform(m);
+          ctx.fillStyle = wp;
+        } else {
+          ctx.fillStyle = "#2a2622";
+        }
         ctx.fillRect(x, y, ww, hh);
-        ctx.restore();
-        ctx.strokeStyle = "rgba(0,0,0,0.65)";
-        ctx.lineWidth = 2;
+
+        // top highlight / bottom occlusion (depth)
+        const edge = Math.min(6, Math.min(ww, hh) * 0.15);
+        ctx.fillStyle = "rgba(255,240,200,0.06)";
+        ctx.fillRect(x, y, ww, edge);
+        ctx.fillStyle = "rgba(0,0,0,0.45)";
+        ctx.fillRect(x, y + hh - edge, ww, edge);
+        ctx.fillStyle = "rgba(0,0,0,0.25)";
+        ctx.fillRect(x + ww - edge, y, edge, hh);
+        ctx.strokeStyle = "rgba(0,0,0,0.7)";
+        ctx.lineWidth = 1.5;
         ctx.strokeRect(x + 0.5, y + 0.5, ww - 1, hh - 1);
-        ctx.strokeStyle = "rgba(220,190,140,0.1)";
-        ctx.strokeRect(x + 2, y + 2, Math.max(0, ww - 4), Math.max(0, hh - 4));
       }
 
       // town ash shrine (vendor)

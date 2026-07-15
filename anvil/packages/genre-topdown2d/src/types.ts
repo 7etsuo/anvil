@@ -74,6 +74,14 @@ export interface ActorRuntime {
   attackAnimMs: number;
   dead: boolean;
   immovable: boolean;
+  /** Spawn / leash anchor (world) */
+  homeX: number;
+  homeY: number;
+  /** Only chase after player enters aggro radius */
+  aggro: boolean;
+  /** Idle wander phase (ms) */
+  wanderMs: number;
+  wanderAng: number;
 }
 
 export const DEFAULT_RADIUS = 12;

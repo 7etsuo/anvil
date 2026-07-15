@@ -217,11 +217,11 @@
     }
   ],
   "respawn": {
-    "intervalMs": 4300,
-    "maxLiving": 28,
+    "intervalMs": 22000,
+    "maxLiving": 8,
     "packSize": [
-      2,
-      6
+      1,
+      2
     ],
     "packTable": [
       "raider",
@@ -234,8 +234,8 @@
       "crypt_archer"
     ],
     "initialPack": [
-      8,
-      18
+      5,
+      8
     ]
   },
   "threat": 3,

@@ -5,8 +5,10 @@
   "walls": [
     { "x": 0, "y": 0, "w": 960, "h": 28 },
     { "x": 0, "y": 612, "w": 960, "h": 28 },
-    { "x": 0, "y": 0, "w": 28, "h": 640 },
-    { "x": 932, "y": 0, "w": 28, "h": 640 },
+    { "x": 0, "y": 0, "w": 28, "h": 220 },
+    { "x": 0, "y": 380, "w": 28, "h": 260 },
+    { "x": 932, "y": 0, "w": 28, "h": 220 },
+    { "x": 932, "y": 400, "w": 28, "h": 240 },
     { "x": 180, "y": 120, "w": 120, "h": 28 },
     { "x": 400, "y": 280, "w": 28, "h": 160 },
     { "x": 520, "y": 100, "w": 160, "h": 28 },
@@ -14,7 +16,7 @@
     { "x": 280, "y": 420, "w": 200, "h": 28 }
   ],
   "spawns": [
-    { "actor": "gravewarden", "x": 80, "y": 240, "team": "player" },
+    { "actor": "gravewarden", "x": 90, "y": 300, "team": "player" },
     { "actor": "scuttler", "x": 280, "y": 180, "team": "enemy" },
     { "actor": "scuttler", "x": 340, "y": 220, "team": "enemy" },
     { "actor": "scuttler", "x": 300, "y": 320, "team": "enemy" },
@@ -25,25 +27,21 @@
     { "actor": "scuttler", "x": 760, "y": 280, "team": "enemy" },
     { "actor": "wretch", "x": 820, "y": 360, "team": "enemy" }
   ],
-  "portals": [
+  "exits": [
     {
-      "x": 28,
-      "y": 180,
-      "w": 40,
-      "h": 100,
+      "edge": "west",
       "to": "town",
-      "spawnX": 580,
-      "spawnY": 240
+      "spawnX": 620,
+      "spawnY": 240,
+      "label": "Ashen Lychgate"
     },
     {
-      "x": 860,
-      "y": 220,
-      "w": 60,
-      "h": 140,
+      "edge": "east",
       "to": "crypt",
       "spawnX": 90,
       "spawnY": 300,
-      "requireClear": true
+      "requireClear": true,
+      "label": "Bellcrypt"
     }
   ]
 }

@@ -1,0 +1,32 @@
+name: ci
+
+on:
+  push:
+    paths:
+      - "anvil/**"
+  pull_request:
+    paths:
+      - "anvil/**"
+
+defaults:
+  run:
+    working-directory: anvil
+
+jobs:
+  build-test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: "pnpm"
+          cache-dependency-path: anvil/pnpm-lock.yaml
+      - run: pnpm install
+      - run: pnpm -r run build
+      - run: pnpm test
+      - run: pnpm validate:examples
+      - run: pnpm test:examples

@@ -1,0 +1,7 @@
+id: hello-empty
+title: Hello Empty
+genre: none
+modules: []
+entryScene: main
+seed: 1
+schemaVersion: 1

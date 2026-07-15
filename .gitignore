@@ -1,0 +1,24 @@
+# Dependencies
+node_modules/
+.pnpm-store/
+
+# Build
+dist/
+*.tsbuildinfo
+coverage/
+
+# Runtime / local
+artifacts/
+saves/
+*.log
+.env
+.env.*
+.DS_Store
+
+# Editor
+.idea/
+.vscode/
+*.swp
+
+# Vite
+examples/**/dist/

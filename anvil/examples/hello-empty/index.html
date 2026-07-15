@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Anvil — hello-empty</title>
+    <style>
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        margin: 0;
+        background: #0d0d12;
+        color: #c8c8d0;
+        font-family: ui-monospace, monospace;
+      }
+      #hud {
+        padding: 8px 12px;
+        font-size: 12px;
+      }
+      #mount {
+        display: flex;
+        justify-content: center;
+        padding: 8px;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="hud">Anvil hello-empty — WASD unused (empty scene). Tick: <span id="tick">0</span></div>
+    <div id="mount"></div>
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>

@@ -1,0 +1,9 @@
+{
+  "id": "anim_smoke",
+  "seed": 1,
+  "maxTicks": 60,
+  "steps": [
+    { "tick": 0, "assert": { "path": "scene", "eq": "main" } },
+    { "tick": 10, "assert": { "path": "tick", "gte": 1 } }
+  ]
+}

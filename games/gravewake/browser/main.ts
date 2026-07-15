@@ -1509,10 +1509,9 @@ async function main(): Promise<void> {
     ctx.font = "10px system-ui";
     ctx.fillText(`STA ${Math.ceil(stamina)}  ·  pots ${blob.potions ?? 0}`, VIEW_W / 2, stY - 4);
 
-    // Engine float combat text
-    const cam = handle.camera;
+    // Engine float combat text (do NOT name this `cam` — shadows outer cam → TDZ crash)
     for (const ft of handle.floatText.all()) {
-      const sp = cam.project(ft.x, ft.y);
+      const sp = handle.camera.project(ft.x, ft.y);
       const a = Math.max(0, ft.life / ft.maxLife);
       ctx.globalAlpha = a;
       ctx.fillStyle = ft.color ?? (ft.style === "crit" ? "#ffdd44" : "#ff6666");

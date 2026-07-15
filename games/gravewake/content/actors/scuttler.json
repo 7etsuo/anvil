@@ -1,0 +1,11 @@
+{
+  "id": "scuttler",
+  "name": "Scuttler",
+  "hp": 28,
+  "speed": 110,
+  "ai": "chase_melee",
+  "team": "enemy",
+  "radius": 10,
+  "contactDamage": 7,
+  "meleeRange": 48
+}

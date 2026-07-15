@@ -119,6 +119,43 @@ export class TopdownSim {
     return this.lost;
   }
 
+  /**
+   * Player melee strike (game layer may call on shoot/confirm).
+   * Damages nearest living enemy within range; returns true if a hit landed.
+   */
+  playerMelee(range: number, damage: number): boolean {
+    if (!this.playerId || this.won || this.lost) return false;
+    const pr = this.actors.get(this.playerId);
+    const pe = this.world.get(this.playerId);
+    if (!pr || pr.dead || !pe?.transform) return false;
+    let best: ActorRuntime | null = null;
+    let bestD = range;
+    for (const rt of this.actors.values()) {
+      if (rt.dead || rt.team !== "enemy") continue;
+      const e = this.world.get(rt.entityId);
+      if (!e?.transform) continue;
+      const d = Math.hypot(
+        e.transform.x - pe.transform.x,
+        e.transform.y - pe.transform.y,
+      );
+      if (d <= bestD) {
+        bestD = d;
+        best = rt;
+      }
+    }
+    if (!best) return false;
+    this.applyDamage(best, damage);
+    pr.attackAnimMs = 150;
+    return true;
+  }
+
+  /** Count of living enemies (for multi-area games). */
+  livingEnemyCount(): number {
+    return [...this.actors.values()].filter(
+      (a) => a.team === "enemy" && !a.dead,
+    ).length;
+  }
+
   /** Restart map from defs (confirm on death). */
   restart(): void {
     for (const id of [...this.actors.keys()]) {

@@ -7,8 +7,8 @@ Thin dispatcher for coding agents ([agents.md](https://agents.md/) format).
 | Path | Status | Work allowed |
 |------|--------|--------------|
 | `anvil/` | **Active** — game engine (M1–M8 done) | Yes |
-| `games/gravewake/` | **Parked** — future ARPG | **No** until Anvil M9 unpark |
-| `games/*` | Future titles | Only when unparked |
+| `games/gravewake/` | **Unparked M9** — greybox ARPG on Anvil | Yes (Anvil APIs only) |
+| `games/*` | Future titles | When unparked |
 
 Framework and games stay separate. Never put game content inside `anvil/`.
 
@@ -45,7 +45,7 @@ Supported genres: `none`, `card`, `topdown2d`, `vn`, `shmup`, `fps2`.
 ## Hard rules
 
 - Specs under `anvil/docs/design/` are source of truth for the **engine**.  
-- Do **not** implement `games/gravewake` yet.  
+- Gravewake lives under `games/gravewake/`; use Anvil APIs only (no raw Phaser).  
 - Do not add image-generation APIs to Anvil.  
 - Do not import Phaser outside `@anvil/render-phaser`.  
 - One milestone at a time; mark tasks in `20`.  

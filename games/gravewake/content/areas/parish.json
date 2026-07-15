@@ -1,0 +1,39 @@
+{
+  "id": "parish",
+  "width": 480,
+  "height": 320,
+  "walls": [
+    { "x": 0, "y": 0, "w": 480, "h": 16 },
+    { "x": 0, "y": 304, "w": 480, "h": 16 },
+    { "x": 0, "y": 0, "w": 16, "h": 320 },
+    { "x": 464, "y": 0, "w": 16, "h": 320 },
+    { "x": 200, "y": 80, "w": 24, "h": 100 }
+  ],
+  "spawns": [
+    { "actor": "gravewarden", "x": 48, "y": 160, "team": "player" },
+    { "actor": "scuttler", "x": 220, "y": 100, "team": "enemy" },
+    { "actor": "scuttler", "x": 280, "y": 200, "team": "enemy" },
+    { "actor": "wretch", "x": 360, "y": 140, "team": "enemy" }
+  ],
+  "portals": [
+    {
+      "x": 16,
+      "y": 120,
+      "w": 28,
+      "h": 80,
+      "to": "town",
+      "spawnX": 300,
+      "spawnY": 140
+    },
+    {
+      "x": 420,
+      "y": 120,
+      "w": 40,
+      "h": 80,
+      "to": "crypt",
+      "spawnX": 48,
+      "spawnY": 140,
+      "requireClear": true
+    }
+  ]
+}

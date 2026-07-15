@@ -30,6 +30,25 @@ importers:
         specifier: ^2.1.8
         version: 2.1.9(@types/node@22.20.1)
 
+  ../games/gravewake:
+    dependencies:
+      '@anvil/core':
+        specifier: workspace:*
+        version: link:../../anvil/packages/core
+      '@anvil/genre-topdown2d':
+        specifier: workspace:*
+        version: link:../../anvil/packages/genre-topdown2d
+      '@anvil/schema':
+        specifier: workspace:*
+        version: link:../../anvil/packages/schema
+    devDependencies:
+      '@types/node':
+        specifier: ^22.10.0
+        version: 22.20.1
+      typescript:
+        specifier: ^5.7.2
+        version: 5.9.3
+
   examples/hello-card: {}
 
   examples/hello-empty:

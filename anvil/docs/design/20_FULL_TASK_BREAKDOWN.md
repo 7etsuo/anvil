@@ -158,11 +158,11 @@ Format inspired by GitHub Spec Kit `tasks` phase + SDD (arXiv:2602.00180).
 
 ## M9 — First real game (post-engine)
 
-| ID | Task | Depends | Spec |
-|----|------|---------|------|
-| T-M9-001 | Unpark game decision (Gravewake or other) | M6+ | games/gravewake/PARKED |
-| T-M9-002 | Implement game **only** on Anvil APIs under `games/` | T-M9-001 | games/gravewake docs |
-| T-M9-003 | Full content + tests + assets | T-M9-002 | — |
+| ID | Task | Depends | Spec | Status |
+|----|------|---------|------|--------|
+| T-M9-001 | Unpark game decision (Gravewake or other) | M6+ | games/gravewake/PARKED | **[x]** Gravewake |
+| T-M9-002 | Implement game **only** on Anvil APIs under `games/` | T-M9-001 | games/gravewake docs | **[x]** |
+| T-M9-003 | Full content + tests + assets | T-M9-002 | — | **[x]** greybox slice |
 
 ---
 

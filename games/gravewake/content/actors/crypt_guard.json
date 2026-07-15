@@ -1,0 +1,11 @@
+{
+  "id": "crypt_guard",
+  "name": "Crypt Guard",
+  "hp": 80,
+  "speed": 85,
+  "ai": "chase_melee",
+  "team": "enemy",
+  "radius": 14,
+  "contactDamage": 12,
+  "meleeRange": 40
+}

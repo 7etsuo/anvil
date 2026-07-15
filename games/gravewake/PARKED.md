@@ -1,8 +1,5 @@
-# Gravewake — PARKED
+# Gravewake — was PARKED
 
-**Do not implement** until Anvil reaches M6+ (agent-ready engine).
+**Status:** **UNPARKED for M9** — see [UNPARKED.md](./UNPARKED.md).
 
-This game lives under `games/gravewake/` so it is **not** mixed into the Anvil framework (`anvil/`).
-
-Design docs: `docs/`  
-Engine (when ready): [`../../anvil/docs/design/README.md`](../../anvil/docs/design/README.md)
+Design docs remain under `docs/`. Implementation is the greybox vertical slice in this package (`content/`, `src/`, `tests/`).

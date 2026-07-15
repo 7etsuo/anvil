@@ -1,0 +1,27 @@
+{
+  "id": "start_town",
+  "seed": 1,
+  "maxTicks": 5,
+  "steps": [
+    {
+      "tick": 0,
+      "assert": { "path": "genre.gravewake.area", "eq": "town" }
+    },
+    {
+      "tick": 0,
+      "assert": { "path": "genre.gravewake.areaName", "eq": "Ashen Lychgate" }
+    },
+    {
+      "tick": 0,
+      "assert": { "path": "genre.gravewake.level", "eq": 1 }
+    },
+    {
+      "tick": 0,
+      "assert": { "path": "genre.gravewake.gold", "eq": 25 }
+    },
+    {
+      "tick": 0,
+      "assert": { "path": "genre.gravewake.victory", "eq": false }
+    }
+  ]
+}

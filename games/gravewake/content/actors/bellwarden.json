@@ -1,0 +1,11 @@
+{
+  "id": "bellwarden",
+  "name": "The Bellwarden",
+  "hp": 60,
+  "speed": 70,
+  "ai": "chase_melee",
+  "team": "enemy",
+  "radius": 18,
+  "contactDamage": 18,
+  "meleeRange": 48
+}

@@ -27,7 +27,8 @@ Agent-native multi-genre game engine / SDK.
 | **M6 code** | **Done** (AGENTS, CI matrix, errors, build, perf) |
 | **M7 code** | **Done** (genre-fps2, hello-fps2, starter) |
 | **M8 code** | **Done** (genre-net loopback spike) |
-| Next | **M9** first real game (unpark) |
+| **M9 code** | **Done** (Gravewake greybox vertical slice) |
+| Next | Polish / content / art packs (post-milestone) |
 
 ## Quick start (dev)
 

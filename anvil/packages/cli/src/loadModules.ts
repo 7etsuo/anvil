@@ -1,5 +1,6 @@
 import fs from "node:fs";
 import path from "node:path";
+import { pathToFileURL } from "node:url";
 import {
   type GameYaml,
   GameYamlSchema,
@@ -17,15 +18,29 @@ export function readGameYaml(root: string): GameYaml {
 
 export async function loadModulesForRoot(root: string): Promise<GenreModule[]> {
   const game = readGameYaml(root);
-  return loadModulesForGame(game);
+  return loadModulesForGame(game, root);
 }
 
 export async function loadModulesForGame(
   game: GameYaml,
+  root = process.cwd(),
 ): Promise<GenreModule[]> {
   const ids = normalizeModules(game.genre, game.modules);
   const out: GenreModule[] = [];
   for (const id of ids) {
+    if (id.startsWith("./") || id.startsWith("../")) {
+      const abs = path.resolve(root, id);
+      const mod = await import(pathToFileURL(abs).href);
+      const gmod: GenreModule | undefined =
+        mod.default ?? mod.gravewakeModule ?? mod.module;
+      if (!gmod || typeof gmod.register !== "function") {
+        throw new Error(
+          `Relative module ${id} must export default GenreModule (or gravewakeModule)`,
+        );
+      }
+      out.push(gmod);
+      continue;
+    }
     if (id === "genre-card") {
       const m = await import("@anvil/genre-card");
       out.push(m.cardModule);

@@ -1,0 +1,10 @@
+{
+  "id": "gravewarden",
+  "name": "Gravewarden",
+  "hp": 100,
+  "speed": 160,
+  "ai": "none",
+  "team": "player",
+  "radius": 12,
+  "contactDamage": 0
+}

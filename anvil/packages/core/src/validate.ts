@@ -71,12 +71,14 @@ export async function validateProject(root: string): Promise<ValidationResult> {
   const game = parsed.data;
   const modules = normalizeModules(game.genre, game.modules);
   for (const m of modules) {
+    // Relative game modules (M9): ./src/foo.js — resolved from game root
+    if (m.startsWith("./") || m.startsWith("../")) continue;
     const check = ModuleId.safeParse(m);
     if (!check.success) {
       errors.push(
         err("MODULE_UNKNOWN", `Unknown module: ${m}`, {
           path: "game.yaml/modules",
-          hint: "Allowed: genre-card, genre-topdown2d, genre-vn, genre-shmup, genre-fps2, genre-net",
+          hint: "Allowed: genre-card, genre-topdown2d, genre-vn, genre-shmup, genre-fps2, genre-net, or ./relative.js",
         }),
       );
     }

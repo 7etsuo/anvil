@@ -4,7 +4,7 @@
 
 Anvil is a multi-genre agent-native game engine. Specs in `docs/design/` are source of truth. Code implements `20_FULL_TASK_BREAKDOWN.md`.
 
-**Status:** M1–M8 done. Next: M9 first game (unpark).
+**Status:** M1–M9 done (engine + Gravewake greybox).
 
 ## 2. Commands (live)
 

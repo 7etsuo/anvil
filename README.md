@@ -25,6 +25,6 @@ pnpm dev:hello
 
 | Game | Path | Status |
 |------|------|--------|
-| Gravewake | [`games/gravewake/`](./games/gravewake/) | Parked until Anvil M6+ |
+| Gravewake | [`games/gravewake/`](./games/gravewake/) | **M9 unparked** — greybox vertical slice |
 
 See [`AGENTS.md`](./AGENTS.md) for agent workflow.

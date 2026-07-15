@@ -1,0 +1,21 @@
+{
+  "name": "gravewake",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "description": "Gravewake — Diablo-like ARPG on Anvil (M9 vertical slice)",
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "test": "node ../../anvil/packages/cli/dist/index.js test .",
+    "validate": "node ../../anvil/packages/cli/dist/index.js validate ."
+  },
+  "dependencies": {
+    "@anvil/core": "workspace:*",
+    "@anvil/genre-topdown2d": "workspace:*",
+    "@anvil/schema": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.0",
+    "typescript": "^5.7.2"
+  }
+}

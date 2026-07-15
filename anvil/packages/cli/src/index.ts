@@ -3,6 +3,8 @@ import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import {
+  AGENT_TOOL_CATALOG,
+  ANVIL_VERSION,
   createGame,
   listMissingAssets,
   observe,
@@ -12,7 +14,7 @@ import {
 import { listRecipes, showRecipe } from "@anvil/recipes";
 import { loadModulesForRoot } from "./loadModules.js";
 
-const VERSION = "0.1.0";
+const VERSION = ANVIL_VERSION;
 
 async function main(): Promise<void> {
   const args = process.argv.slice(2);
@@ -57,6 +59,12 @@ async function main(): Promise<void> {
       case "build":
         await cmdBuild(args.slice(1));
         break;
+      case "tools":
+        cmdTools(args.slice(1));
+        break;
+      case "doctor":
+        await cmdDoctor(args.slice(1));
+        break;
       default:
         usageError(`Unknown command: ${cmd}`);
     }
@@ -85,6 +93,8 @@ Commands:
   build [path] [--out dir]
   assets missing [path] [--json]
   recipe list | recipe show <id>
+  tools [--json]
+  doctor [path] [--json]
 `);
 }
 
@@ -310,6 +320,84 @@ async function cmdAssetsMissing(args: string[]): Promise<void> {
   }
   handle.dispose();
   process.exit(0);
+}
+
+/** Self-describing ACI for coding agents (SWE-agent: small explicit tool surface). */
+function cmdTools(args: string[]): void {
+  const payload = {
+    ok: true,
+    anvilVersion: VERSION,
+    tools: AGENT_TOOL_CATALOG,
+    agentLoop: [
+      "validate",
+      "edit content JSON",
+      "test",
+      "on fail: observe (use summary + diff)",
+      "fix",
+      "re-test",
+    ],
+    notes: [
+      "Prefer structured AgentAction via agentStep() over raw KeyW.",
+      "Keep prompts on observe.summary / observeDiff — not full dumps.",
+      "Do not import phaser from game content; use Anvil APIs.",
+    ],
+  };
+  console.log(JSON.stringify(payload, null, hasFlag(args, "--json") ? 0 : 2));
+}
+
+/** One-shot health check for agents. */
+async function cmdDoctor(args: string[]): Promise<void> {
+  const root = projectRoot(args);
+  const v = await validateProject(root);
+  let testOk: boolean | null = null;
+  let testSummary: unknown = null;
+  if (v.ok) {
+    try {
+      const modules = await loadModulesForRoot(root);
+      const report = await runTests(root, {
+        modules,
+        seed: getFlag(args, "--seed")
+          ? Number(getFlag(args, "--seed"))
+          : undefined,
+      });
+      testOk = report.ok;
+      testSummary = {
+        ok: report.ok,
+        passed: report.results.filter((r) => r.pass).length,
+        failed: report.results.filter((r) => !r.pass).length,
+        total: report.results.length,
+        failures: report.results
+          .filter((r) => !r.pass)
+          .map((r) => ({
+            id: r.id,
+            code: r.error?.code,
+            message: r.error?.message,
+            path: r.error?.path,
+          })),
+      };
+    } catch (e) {
+      testOk = false;
+      testSummary = {
+        ok: false,
+        error: e instanceof Error ? e.message : String(e),
+      };
+    }
+  }
+  const out = {
+    ok: v.ok && testOk === true,
+    anvilVersion: VERSION,
+    root,
+    validate: v,
+    test: testSummary,
+    next:
+      !v.ok
+        ? "Fix validate errors, then re-run doctor"
+        : testOk
+          ? "Healthy — iterate with content edits + anvil test"
+          : "Run anvil observe --root <path> --json and read summary",
+  };
+  console.log(JSON.stringify(out, null, 2));
+  process.exit(out.ok ? 0 : 1);
 }
 
 /**

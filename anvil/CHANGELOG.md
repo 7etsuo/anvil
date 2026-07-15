@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.5.0 — Agent-native ACI
+
+### Engine
+- `agentStep` / `AgentAction` (no raw key codes)
+- `observe.summary`, `allowedActions`, `observeDiff`
+- `ReplayRecorder` / `playReplay` for deterministic tapes
+- `AGENT_TOOL_CATALOG`; CLI `anvil tools`, `anvil doctor`
+- Spec: `docs/design/specs/S-AGENT.md`
+
 ## 0.4.0 — Colyseus multiplayer
 
 ### Engine

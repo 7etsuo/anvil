@@ -1,13 +1,13 @@
 {
   "xpPerKill": {
-    "scuttler": 12,
-    "wretch": 15,
-    "crypt_guard": 40,
-    "bellwarden": 100
+    "scuttler": 18,
+    "wretch": 22,
+    "crypt_guard": 55,
+    "bellwarden": 200
   },
-  "xpToLevel": [0, 30, 80, 150, 250, 400],
-  "meleeDamage": 12,
-  "meleeRange": 72,
-  "startGold": 25,
-  "potionHeal": 40
+  "xpToLevel": [0, 40, 100, 180, 280, 420],
+  "meleeDamage": 22,
+  "meleeRange": 78,
+  "startGold": 40,
+  "potionHeal": 55
 }

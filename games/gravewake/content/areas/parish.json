@@ -1,38 +1,48 @@
 {
   "id": "parish",
-  "width": 480,
-  "height": 320,
+  "width": 960,
+  "height": 640,
   "walls": [
-    { "x": 0, "y": 0, "w": 480, "h": 16 },
-    { "x": 0, "y": 304, "w": 480, "h": 16 },
-    { "x": 0, "y": 0, "w": 16, "h": 320 },
-    { "x": 464, "y": 0, "w": 16, "h": 320 },
-    { "x": 200, "y": 80, "w": 24, "h": 100 }
+    { "x": 0, "y": 0, "w": 960, "h": 28 },
+    { "x": 0, "y": 612, "w": 960, "h": 28 },
+    { "x": 0, "y": 0, "w": 28, "h": 640 },
+    { "x": 932, "y": 0, "w": 28, "h": 640 },
+    { "x": 180, "y": 120, "w": 120, "h": 28 },
+    { "x": 400, "y": 280, "w": 28, "h": 160 },
+    { "x": 520, "y": 100, "w": 160, "h": 28 },
+    { "x": 700, "y": 300, "w": 28, "h": 140 },
+    { "x": 280, "y": 420, "w": 200, "h": 28 }
   ],
   "spawns": [
-    { "actor": "gravewarden", "x": 48, "y": 160, "team": "player" },
-    { "actor": "scuttler", "x": 220, "y": 100, "team": "enemy" },
-    { "actor": "scuttler", "x": 280, "y": 200, "team": "enemy" },
-    { "actor": "wretch", "x": 360, "y": 140, "team": "enemy" }
+    { "actor": "gravewarden", "x": 80, "y": 240, "team": "player" },
+    { "actor": "scuttler", "x": 280, "y": 180, "team": "enemy" },
+    { "actor": "scuttler", "x": 340, "y": 220, "team": "enemy" },
+    { "actor": "scuttler", "x": 300, "y": 320, "team": "enemy" },
+    { "actor": "scuttler", "x": 480, "y": 200, "team": "enemy" },
+    { "actor": "wretch", "x": 560, "y": 360, "team": "enemy" },
+    { "actor": "wretch", "x": 620, "y": 180, "team": "enemy" },
+    { "actor": "scuttler", "x": 700, "y": 400, "team": "enemy" },
+    { "actor": "scuttler", "x": 760, "y": 280, "team": "enemy" },
+    { "actor": "wretch", "x": 820, "y": 360, "team": "enemy" }
   ],
   "portals": [
     {
-      "x": 16,
-      "y": 120,
-      "w": 28,
-      "h": 80,
+      "x": 28,
+      "y": 180,
+      "w": 40,
+      "h": 100,
       "to": "town",
-      "spawnX": 300,
-      "spawnY": 140
+      "spawnX": 580,
+      "spawnY": 240
     },
     {
-      "x": 420,
-      "y": 120,
-      "w": 40,
-      "h": 80,
+      "x": 860,
+      "y": 220,
+      "w": 60,
+      "h": 140,
       "to": "crypt",
-      "spawnX": 48,
-      "spawnY": 140,
+      "spawnX": 90,
+      "spawnY": 300,
       "requireClear": true
     }
   ]

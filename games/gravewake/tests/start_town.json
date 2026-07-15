@@ -17,7 +17,7 @@
     },
     {
       "tick": 0,
-      "assert": { "path": "genre.gravewake.gold", "eq": 25 }
+      "assert": { "path": "genre.gravewake.gold", "eq": 40 }
     },
     {
       "tick": 0,

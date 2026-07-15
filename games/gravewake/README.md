@@ -1,52 +1,48 @@
 # Gravewake
 
-**Playable** top-down Diablo-like ARPG on **Anvil** (browser + keyboard).
+Endless Diablo-like ARPG on **Anvil** — open **Ashen Wastes**, dungeon delves, timed packs, scaling threat.
 
-Uses the full engine stack: `CharacterSheet`, loot tables, equip, multi-skill combat,
-quests, particles, randomized multi-type packs, zone graph.
-
-**Ashen Lychgate** → **Cinder Parish** → **Bellcrypt** → **Bellwarden**.
-
-## Play (browser)
+## Play
 
 ```bash
-# from repo
 cd anvil && pnpm install && pnpm -r run build
-
 cd ../games/gravewake
-pnpm install
-pnpm run build      # headless module for tests
-pnpm run play       # Vite — http://127.0.0.1:5180/
+pnpm install && pnpm run build
+pnpm run play   # http://127.0.0.1:5180/
 ```
+
+### World
+
+| Zone | Role |
+|------|------|
+| **Ashen Lychgate** | Safe hub |
+| **Ashen Wastes** | Large overworld (3200×2400), continuous packs, 4 portals |
+| **Bellcrypt** | Mid dungeon + Bellwarden |
+| **Howling Catacombs** | Harder dungeon + Death Knight |
+| **Bonekeep** | Endgame dungeon + Bone Tyrant |
+
+Boss kills are **milestones**, not the end of the game. Packs keep spawning; threat scales with level, kills, and zone.
 
 ### Controls
 
 | Key | Action |
 |-----|--------|
 | **WASD** | Move |
-| **Space** / **LMB** | Slash (cleave melee) |
-| **2** | Whirl (wide AoE) |
-| **3** | Smite (single-target, longer range) |
-| **1** | Health potion |
-| **F** | Pick up nearest loot |
+| **Space / LMB** | Slash |
+| **2** | Whirl |
+| **3** | Smite |
+| **1** | Potion |
+| **F** | Loot |
 | **I** | Inventory |
-| Walk to map edges | Change zone (east exit locked until parish clear) |
+| Walk into **portals** / map edges | Travel |
 
-### What ships in this slice
+### Systems (Anvil)
 
-- **Random packs** in Parish / Crypt (Fallen, Scuttler, Shade, Wretch, Raider, Crypt Guard)
-- **Loot drops** (gold auto-pickup, gear + potions via **F**)
-- **Auto-equip** better weapons / armor
-- **Quest** Parish Purge (enter → slay 8 → crypt → Bellwarden)
-- **Diablo HUD** — life/potion orbs, skill bar, XP, gear strip, inventory panel
+CharacterSheet, loot tables, equip, multi-skill combat, quests, particles, **PackSpawner** (timed respawns), scaled `spawnActorPublic`.
 
-### Goal
-
-Leave town east → clear Cinder Parish → enter Bellcrypt → defeat the **Bellwarden**.
-
-## Headless / agents
+### Tests
 
 ```bash
-pnpm test       # JSON scenario tests
-pnpm validate   # content tree (Zod)
+pnpm test
+pnpm validate
 ```

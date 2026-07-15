@@ -37,25 +37,45 @@ const ASSET_URLS: Record<string, string> = {
   "env/wall.png": "/assets/env/wall.png",
 };
 
-/** Visual aliases: new mob types reuse sheets with tints. */
+/** Visual aliases: mob types reuse art sheets with identity tints. */
 const ACTOR_SHEET: Record<string, string> = {
   fallen: "scuttler",
-  raider: "crypt_guard",
-  shade: "wretch",
+  thrall: "scuttler",
+  bone_hound: "scuttler",
+  plague_scuttler: "scuttler",
   scuttler: "scuttler",
+  shade: "wretch",
   wretch: "wretch",
+  void_shade: "wretch",
+  ash_ghoul: "wretch",
+  crypt_archer: "wretch",
+  raider: "crypt_guard",
+  hell_raider: "crypt_guard",
   crypt_guard: "crypt_guard",
+  bone_brute: "crypt_guard",
+  death_knight: "bellwarden",
+  bone_tyrant: "bellwarden",
   bellwarden: "bellwarden",
   gravewarden: "gravewarden",
 };
 
 const ACTOR_TINT: Record<string, string | null> = {
   fallen: "rgba(180,90,40,0.35)",
-  raider: "rgba(120,40,40,0.3)",
-  shade: "rgba(60,40,120,0.45)",
+  thrall: "rgba(100,80,60,0.4)",
+  bone_hound: "rgba(220,220,230,0.35)",
+  plague_scuttler: "rgba(60,180,40,0.4)",
   scuttler: null,
+  shade: "rgba(60,40,120,0.45)",
   wretch: null,
+  void_shade: "rgba(40,20,90,0.55)",
+  ash_ghoul: "rgba(160,80,40,0.4)",
+  crypt_archer: "rgba(90,110,160,0.4)",
+  raider: "rgba(120,40,40,0.3)",
+  hell_raider: "rgba(200,40,20,0.45)",
   crypt_guard: null,
+  bone_brute: "rgba(180,180,200,0.35)",
+  death_knight: "rgba(40,0,60,0.4)",
+  bone_tyrant: "rgba(200,160,40,0.35)",
   bellwarden: "rgba(80,60,20,0.2)",
   gravewarden: null,
 };
@@ -401,12 +421,15 @@ async function main(): Promise<void> {
   }
 
   function spriteSize(e: { tags: string[]; data: Record<string, unknown> }): number {
-    if (e.tags.includes("bellwarden") || e.data.actorId === "bellwarden") return 132;
-    if (e.tags.includes("crypt_guard") || e.data.actorId === "crypt_guard") return 96;
-    if (e.tags.includes("raider") || e.data.actorId === "raider") return 96;
+    const id = String(e.data.actorId ?? "");
+    if (id === "bone_tyrant") return 148;
+    if (id === "bellwarden" || id === "death_knight") return 132;
+    if (id === "crypt_guard" || id === "bone_brute" || id === "hell_raider" || id === "raider")
+      return 100;
     if (e.tags.includes("player") || e.tags.includes("gravewarden")) return 104;
-    if (e.tags.includes("fallen") || e.data.actorId === "fallen") return 68;
-    if (e.tags.includes("shade") || e.data.actorId === "shade") return 82;
+    if (id === "fallen" || id === "bone_hound") return 68;
+    if (id === "void_shade" || id === "shade" || id === "crypt_archer") return 84;
+    if (e.data.elite) return 92;
     return 78;
   }
 
@@ -468,13 +491,17 @@ async function main(): Promise<void> {
       ctx.fillStyle = "#888";
       ctx.font = "13px system-ui";
       ctx.fillText(
-        "WASD move  ·  Space / LMB Slash  ·  2 Whirl  ·  3 Smite  ·  1 Potion  ·  F Loot  ·  I Inventory",
+        "WASD move  ·  Space Slash  ·  2 Whirl  ·  3 Smite  ·  1 Potion  ·  F Loot  ·  I Inventory",
         VIEW_W / 2,
         VIEW_H / 2 + 86,
       );
       ctx.fillStyle = "#666";
       ctx.font = "12px system-ui";
-      ctx.fillText("Clear randomized packs · Equip loot · Silence the Bellwarden", VIEW_W / 2, VIEW_H / 2 + 112);
+      ctx.fillText(
+        "Open Ashen Wastes  ·  Dungeons on the map  ·  Endless packs  ·  Hunt forever",
+        VIEW_W / 2,
+        VIEW_H / 2 + 112,
+      );
       ctx.textAlign = "left";
 
       if (keysHeld.size || clickSlash) {
@@ -633,29 +660,51 @@ async function main(): Promise<void> {
         ctx.strokeRect(x + 2, y + 2, Math.max(0, ww - 4), Math.max(0, hh - 4));
       }
 
-      // exit glows
-      for (const ex of area.exits ?? []) {
-        let exX = 0;
-        let exY = 0;
-        let exW = 40;
-        let exH = 80;
-        if (ex.edge === "east") {
-          exX = area.width * SCALE - 18 - viewCamX;
-          exY = area.height * SCALE * 0.35 - viewCamY;
-          exW = 18;
-          exH = area.height * SCALE * 0.3;
-        } else if (ex.edge === "west") {
-          exX = 0 - viewCamX;
-          exY = area.height * SCALE * 0.35 - viewCamY;
-          exW = 18;
-          exH = area.height * SCALE * 0.3;
+      // dungeon / hub portals (rect markers)
+      const portals = (blob.portals as Array<{
+        x: number;
+        y: number;
+        w: number;
+        h: number;
+        label?: string;
+        kind?: string;
+      }>) ?? area.portals ?? [];
+      for (const pr of portals) {
+        const px = pr.x * SCALE - viewCamX;
+        const py = pr.y * SCALE - viewCamY;
+        const pw = pr.w * SCALE;
+        const ph = pr.h * SCALE;
+        const pulse = 0.35 + Math.sin(now / 320) * 0.2;
+        let col = `rgba(201,164,108,${pulse})`;
+        if (pr.kind === "dungeon") col = `rgba(100,140,255,${pulse})`;
+        if (pr.kind === "boss") col = `rgba(220,80,40,${pulse + 0.1})`;
+        if (pr.kind === "hub") col = `rgba(120,200,120,${pulse})`;
+        // runic ring
+        ctx.strokeStyle = col;
+        ctx.lineWidth = 3;
+        ctx.strokeRect(px, py, pw, ph);
+        ctx.fillStyle = col.replace(/[\d.]+\)$/, "0.15)");
+        ctx.fillRect(px, py, pw, ph);
+        // inner glow
+        const g = ctx.createRadialGradient(
+          px + pw / 2,
+          py + ph / 2,
+          4,
+          px + pw / 2,
+          py + ph / 2,
+          Math.max(pw, ph),
+        );
+        g.addColorStop(0, col);
+        g.addColorStop(1, "rgba(0,0,0,0)");
+        ctx.fillStyle = g;
+        ctx.fillRect(px - 10, py - 10, pw + 20, ph + 20);
+        if (pr.label) {
+          ctx.font = "bold 13px Cinzel, Georgia, serif";
+          ctx.textAlign = "center";
+          ctx.fillStyle = "#e8dcc0";
+          ctx.fillText(pr.label, px + pw / 2, py - 8);
+          ctx.textAlign = "left";
         }
-        const blocked = ex.requireClear && (blob.livingEnemies as number) > 0;
-        const pulse = 0.25 + Math.sin(now / 400) * 0.12;
-        ctx.fillStyle = blocked
-          ? `rgba(180,40,40,${pulse})`
-          : `rgba(201,164,108,${pulse})`;
-        ctx.fillRect(exX, exY, exW, exH);
       }
     }
 
@@ -807,14 +856,34 @@ async function main(): Promise<void> {
         hg.addColorStop(1, "#601010");
         ctx.fillStyle = hg;
         ctx.fillRect(bx, by, 64 * pct, 7);
-        // name plate for elites
         const aid = String(e.data.actorId ?? "");
-        if (aid === "bellwarden" || aid === "raider" || aid === "crypt_guard") {
+        const elite = e.data.elite === true;
+        const showName =
+          elite ||
+          aid === "bellwarden" ||
+          aid === "death_knight" ||
+          aid === "bone_tyrant" ||
+          aid === "bone_brute" ||
+          aid === "hell_raider";
+        if (showName) {
+          const labels: Record<string, string> = {
+            bellwarden: "Bellwarden",
+            death_knight: "Death Knight",
+            bone_tyrant: "Bone Tyrant",
+            bone_brute: "Bone Brute",
+            hell_raider: "Hell Raider",
+            raider: "Ash Raider",
+            crypt_guard: "Crypt Guard",
+          };
           ctx.font = "bold 10px Cinzel, Georgia, serif";
           ctx.textAlign = "center";
-          ctx.fillStyle = aid === "bellwarden" ? "#c9a46c" : "#ccc";
+          ctx.fillStyle = elite
+            ? "#f84"
+            : aid === "bone_tyrant" || aid === "bellwarden"
+              ? "#c9a46c"
+              : "#ccc";
           ctx.fillText(
-            aid === "bellwarden" ? "Bellwarden" : aid === "raider" ? "Ash Raider" : "Crypt Guard",
+            (elite ? "Elite " : "") + (labels[aid] ?? aid.replace(/_/g, " ")),
             sx,
             by - 6,
           );
@@ -1139,24 +1208,71 @@ async function main(): Promise<void> {
     ctx.strokeStyle = "rgba(201,164,108,0.35)";
     ctx.strokeRect(26.5, 90.5, 289, 7);
 
-    // quest
-    panel(ctx, VIEW_W - 280, 12, 266, 72);
+    // quest + threat
+    panel(ctx, VIEW_W - 300, 12, 286, 88);
     ctx.fillStyle = "#c9a46c";
     ctx.font = "bold 11px Cinzel, Georgia, serif";
-    ctx.fillText("QUEST — Parish Purge", VIEW_W - 268, 32);
+    ctx.fillText("QUEST — Wake of Ashes", VIEW_W - 288, 32);
     ctx.fillStyle = "#ddd";
     ctx.font = "13px system-ui";
     const questText =
       (blob.quest as string | null) ??
       (blob.area === "town"
-        ? "Leave east into Cinder Parish"
-        : "Silence the Bellwarden");
-    // wrap-ish
+        ? "Exit east into the Ashen Wastes"
+        : "Hunt · delve · survive");
     const q = String(questText);
-    ctx.fillText(q.length > 34 ? q.slice(0, 34) + "…" : q, VIEW_W - 268, 54);
-    ctx.fillStyle = "#888";
-    ctx.font = "11px system-ui";
-    ctx.fillText("Random packs · multi-type mobs", VIEW_W - 268, 72);
+    ctx.fillText(q.length > 36 ? q.slice(0, 36) + "…" : q, VIEW_W - 288, 54);
+    ctx.fillStyle = "#9ab";
+    ctx.font = "12px system-ui";
+    ctx.fillText(
+      `Threat ${blob.threat ?? 0}  ·  Bosses ${blob.bossesKilled ?? 0}  ·  ${blob.areaKind ?? ""}`,
+      VIEW_W - 288,
+      76,
+    );
+
+    // mini-map
+    const mapW = Number(blob.mapW ?? 0);
+    const mapH = Number(blob.mapH ?? 0);
+    if (mapW > 0 && mapH > 0 && player?.transform) {
+      const mmW = 140;
+      const mmH = 100;
+      const mmX = VIEW_W - 16 - mmW;
+      const mmY = 110;
+      panel(ctx, mmX, mmY, mmW, mmH);
+      ctx.fillStyle = "rgba(30,24,18,0.9)";
+      ctx.fillRect(mmX + 4, mmY + 4, mmW - 8, mmH - 8);
+      const sxm = (mmW - 8) / mapW;
+      const sym = (mmH - 8) / mapH;
+      // portals on mini
+      for (const pr of (blob.portals as Array<{ x: number; y: number; w: number; h: number; kind?: string }>) ?? []) {
+        ctx.fillStyle =
+          pr.kind === "boss"
+            ? "#e64"
+            : pr.kind === "dungeon"
+              ? "#68f"
+              : "#6c6";
+        ctx.fillRect(
+          mmX + 4 + pr.x * sxm,
+          mmY + 4 + pr.y * sym,
+          Math.max(3, pr.w * sxm),
+          Math.max(3, pr.h * sym),
+        );
+      }
+      // player
+      ctx.fillStyle = "#fc6";
+      ctx.beginPath();
+      ctx.arc(
+        mmX + 4 + player.transform.x * sxm,
+        mmY + 4 + player.transform.y * sym,
+        3,
+        0,
+        Math.PI * 2,
+      );
+      ctx.fill();
+      ctx.fillStyle = "#888";
+      ctx.font = "9px system-ui";
+      ctx.fillText("MAP", mmX + 8, mmY + mmH - 6);
+    }
 
     if (blob.exitHint) {
       ctx.fillStyle = "#e88";
@@ -1230,28 +1346,8 @@ async function main(): Promise<void> {
       }
     }
 
-    if (blob.victory) {
-      ctx.fillStyle = "rgba(0,0,0,0.82)";
-      ctx.fillRect(0, 0, VIEW_W, VIEW_H);
-      ctx.textAlign = "center";
-      ctx.fillStyle = "#c9a46c";
-      ctx.font = "bold 48px Cinzel, Georgia, serif";
-      ctx.shadowColor = "rgba(201,164,108,0.5)";
-      ctx.shadowBlur = 20;
-      ctx.fillText("BELLWARDEN FALLEN", VIEW_W / 2, VIEW_H / 2 - 20);
-      ctx.shadowBlur = 0;
-      ctx.fillStyle = "#ccc";
-      ctx.font = "18px Georgia, serif";
-      ctx.fillText(
-        `Gold ${blob.gold}  ·  Kills ${blob.kills}  ·  Level ${blob.level}  ·  The bells are still.`,
-        VIEW_W / 2,
-        VIEW_H / 2 + 28,
-      );
-      ctx.fillStyle = "#888";
-      ctx.font = "14px system-ui";
-      ctx.fillText("You have purged the parish.", VIEW_W / 2, VIEW_H / 2 + 60);
-      ctx.textAlign = "left";
-    } else if (blob.lost) {
+    // endless — never freeze on boss kill; banners come from FX
+    if (blob.lost) {
       ctx.fillStyle = "rgba(30,0,0,0.78)";
       ctx.fillRect(0, 0, VIEW_W, VIEW_H);
       ctx.textAlign = "center";

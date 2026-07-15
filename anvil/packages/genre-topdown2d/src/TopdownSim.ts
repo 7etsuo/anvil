@@ -63,14 +63,27 @@ export class TopdownSim {
     }
   }
 
-  /** Spawn an extra actor at runtime (packs, summons). */
+  /** Optional runtime scale for difficulty tiers / elites. */
   spawnActorPublic(
     def: ActorDef,
     x: number,
     y: number,
     team: TeamId = "enemy",
+    scale?: { hpMul?: number; dmgMul?: number; speedMul?: number },
   ): string {
-    return this.spawnActor(def, x, y, team);
+    return this.spawnActor(def, x, y, team, scale);
+  }
+
+  /** Remove dead enemy corpses (keeps world lean for endless maps). */
+  purgeDeadEnemies(): number {
+    let n = 0;
+    for (const [id, rt] of [...this.actors.entries()]) {
+      if (!rt.dead || rt.team === "player") continue;
+      this.actors.delete(id);
+      this.world.destroy(id);
+      n++;
+    }
+    return n;
   }
 
   private spawnActor(
@@ -78,37 +91,44 @@ export class TopdownSim {
     x: number,
     y: number,
     team: TeamId,
+    scale?: { hpMul?: number; dmgMul?: number; speedMul?: number },
   ): string {
+    const hpMul = scale?.hpMul ?? 1;
+    const dmgMul = scale?.dmgMul ?? 1;
+    const speedMul = scale?.speedMul ?? 1;
     const radius = def.radius ?? DEFAULT_RADIUS;
     const frames =
       def.animations?.idle ??
       def.animations?.walk ??
       [`actors/${def.id}.png`];
+    const maxHp = Math.max(1, Math.floor(def.hp * hpMul));
     const id = this.world.spawn({
       id: team === "player" ? "player" : undefined,
       tags: [team, "actor", def.id],
       transform: { x, y },
-      health: { hp: def.hp, max: def.hp },
+      health: { hp: maxHp, max: maxHp },
       collider: { kind: "circle", r: radius },
       sprite: { frames: [...frames], fps: 8, loop: true, frame: 0 },
       data: { actorId: def.id, team },
     });
 
+    const baseContact = def.contactDamage ?? (team === "enemy" ? 5 : 0);
+    const baseProj = def.projectileDamage ?? 4;
     const rt: ActorRuntime = {
       entityId: id,
       actorId: def.id,
       team,
       ai: def.ai ?? (team === "player" ? "none" : "chase_melee"),
-      speed: def.speed,
+      speed: def.speed * speedMul,
       radius,
       vx: 0,
       vy: 0,
-      contactDamage: def.contactDamage ?? (team === "enemy" ? 5 : 0),
+      contactDamage: Math.max(0, Math.floor(baseContact * dmgMul)),
       // Stop when colliders nearly touch so contact damage can fire
       meleeRange: def.meleeRange ?? radius * 2,
       preferredRange: def.preferredRange ?? 120,
       preferredRangeBand: def.preferredRangeBand ?? 30,
-      projectileDamage: def.projectileDamage ?? 4,
+      projectileDamage: Math.max(0, Math.floor(baseProj * dmgMul)),
       projectileSpeed: def.projectileSpeed ?? 180,
       projectileCooldownMs: def.projectileCooldownMs ?? 900,
       projectileLifetimeMs: def.projectileLifetimeMs ?? 2000,

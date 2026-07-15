@@ -1,4 +1,6 @@
-export type AreaId = "town" | "parish" | "crypt";
+export type AreaId = string;
+
+export type AreaKind = "hub" | "overworld" | "dungeon";
 
 export interface EdgeExit {
   edge: "north" | "south" | "east" | "west";
@@ -9,8 +11,37 @@ export interface EdgeExit {
   label?: string;
 }
 
+export interface PortalDef {
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+  to: AreaId;
+  spawnX: number;
+  spawnY: number;
+  /** Shown over portal */
+  label?: string;
+  requireClear?: boolean;
+  /** Hub / overworld marker color hint */
+  kind?: "dungeon" | "hub" | "boss";
+}
+
+export interface RespawnDef {
+  /** Ms between spawn waves */
+  intervalMs: number;
+  /** Cap of living enemies in this zone */
+  maxLiving: number;
+  /** Enemies per wave [min,max] */
+  packSize: [number, number];
+  packTable: string[];
+  /** Initial fill on enter [min,max] */
+  initialPack?: [number, number];
+}
+
 export interface AreaMapDef {
   id: AreaId;
+  name: string;
+  kind: AreaKind;
   width: number;
   height: number;
   walls: Array<{ x: number; y: number; w: number; h: number }>;
@@ -20,22 +51,19 @@ export interface AreaMapDef {
     y: number;
     team?: "player" | "enemy" | "neutral";
   }>;
-  portals?: Array<{
-    x: number;
-    y: number;
-    w: number;
-    h: number;
-    to: AreaId;
-    spawnX: number;
-    spawnY: number;
-    requireClear?: boolean;
-  }>;
+  portals?: PortalDef[];
   exits?: EdgeExit[];
   background?: string;
-  /** Random enemy pool for this zone */
+  /** Static one-shot pack (legacy / bosses in spawns) */
   packTable?: string[];
-  /** [min, max] random pack size */
   packCount?: [number, number];
+  /** Continuous respawn for open world / dungeons */
+  respawn?: RespawnDef;
+  /** Base difficulty tier for this zone (0=safe, 1=wastes, 2=crypt, …) */
+  threat?: number;
+  lootTable?: string;
+  /** If true, re-roll random layout density on enter */
+  endless?: boolean;
 }
 
 export interface ProgressionDef {
@@ -48,6 +76,10 @@ export interface ProgressionDef {
   whirlDamageMul?: number;
   smiteDamageMul?: number;
   smiteRange?: number;
+  /** Global difficulty scale per player level above 1 */
+  threatPerLevel?: number;
+  /** Extra threat every N kills */
+  threatPerKills?: number;
 }
 
 export type SkillId = "slash" | "whirl" | "smite" | "potion";

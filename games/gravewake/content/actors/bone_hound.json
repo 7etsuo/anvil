@@ -1,0 +1,12 @@
+{
+  "id": "bone_hound",
+  "name": "Bone Hound",
+  "hp": 24,
+  "speed": 155,
+  "ai": "chase_melee",
+  "team": "enemy",
+  "radius": 9,
+  "contactDamage": 8,
+  "meleeRange": 34,
+  "animations": { "idle": ["actors/scuttler.png"], "walk": ["actors/scuttler.png"] }
+}

@@ -1,0 +1,12 @@
+{
+  "id": "bone_tyrant",
+  "name": "Bone Tyrant",
+  "hp": 420,
+  "speed": 65,
+  "ai": "chase_melee",
+  "team": "enemy",
+  "radius": 20,
+  "contactDamage": 24,
+  "meleeRange": 52,
+  "animations": { "idle": ["actors/bellwarden.png"], "walk": ["actors/bellwarden.png"] }
+}

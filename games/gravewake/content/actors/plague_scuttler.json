@@ -1,0 +1,12 @@
+{
+  "id": "plague_scuttler",
+  "name": "Plague Scuttler",
+  "hp": 36,
+  "speed": 125,
+  "ai": "chase_melee",
+  "team": "enemy",
+  "radius": 10,
+  "contactDamage": 9,
+  "meleeRange": 36,
+  "animations": { "idle": ["actors/scuttler.png"], "walk": ["actors/scuttler.png"] }
+}

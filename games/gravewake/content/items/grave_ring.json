@@ -1,0 +1,8 @@
+{
+  "id": "grave_ring",
+  "name": "Grave Ring",
+  "rarity": "magic",
+  "slot": "ring",
+  "stats": { "critChance": 0.06, "damage": 3 },
+  "flavor": "Cold as a sealed tomb."
+}

@@ -539,7 +539,18 @@ async function main(): Promise<void> {
   }): { img: HTMLImageElement | null; flipX: boolean; tint: string | null } {
     const baseId = actorBase(e);
     const sheet = ACTOR_SHEET[baseId] ?? baseId;
-    const tint = ACTOR_TINT[baseId] ?? null;
+    // Elite affix tint (Diablo champion) overrides soft identity wash
+    let eliteTint: string | null = null;
+    if (e.data.elite === true) {
+      const raw = String(e.data.eliteTint ?? "#ff8822");
+      eliteTint = raw.startsWith("#")
+        ? raw.length === 7
+          ? raw + "59"
+          : raw
+        : raw;
+    }
+    const baseTint = ACTOR_TINT[baseId];
+    const tint = eliteTint ?? baseTint;
     const dir =
       dirFromString(e.data.dir) ??
       dirFromFacing(Number(e.data.facing ?? Math.PI / 2));
@@ -1109,11 +1120,13 @@ async function main(): Promise<void> {
         ctx.fillRect(bx, by, 64 * pct, 7);
         const aid = String(e.data.actorId ?? "");
         const elite = e.data.elite === true;
-        const showName =
-          elite ||
+        const isBoss =
           aid === "bellwarden" ||
           aid === "death_knight" ||
-          aid === "bone_tyrant" ||
+          aid === "bone_tyrant";
+        const showName =
+          elite ||
+          isBoss ||
           aid === "bone_brute" ||
           aid === "hell_raider";
         if (showName) {
@@ -1126,24 +1139,101 @@ async function main(): Promise<void> {
             raider: "Ash Raider",
             crypt_guard: "Crypt Guard",
           };
-          ctx.font = "bold 10px Cinzel, Georgia, serif";
+          const affixes = (e.data.eliteAffixes as string[] | undefined) ?? [];
+          const affixStr =
+            affixes.length > 0
+              ? affixes.map((a) => a.replace(/_/g, " ")).join(" · ")
+              : "";
+          const title =
+            (elite ? "★ " : isBoss ? "☠ " : "") +
+            (labels[aid] ?? aid.replace(/_/g, " "));
+          // Diablo nameplate plate
+          ctx.font = "bold 11px Cinzel, Georgia, serif";
+          const tw = ctx.measureText(title).width;
+          const plateW = Math.max(70, tw + 16);
+          const plateX = sx - plateW / 2;
+          const plateY = by - 22;
+          ctx.fillStyle = "rgba(0,0,0,0.75)";
+          ctx.fillRect(plateX, plateY, plateW, affixStr ? 28 : 16);
+          ctx.strokeStyle = elite
+            ? "rgba(255,140,40,0.85)"
+            : isBoss
+              ? "rgba(201,164,108,0.9)"
+              : "rgba(180,180,180,0.4)";
+          ctx.lineWidth = 1.5;
+          ctx.strokeRect(plateX + 0.5, plateY + 0.5, plateW - 1, affixStr ? 27 : 15);
           ctx.textAlign = "center";
           ctx.fillStyle = elite
-            ? "#f84"
-            : aid === "bone_tyrant" || aid === "bellwarden"
-              ? "#c9a46c"
-              : "#ccc";
-          ctx.fillText(
-            (elite ? "Elite " : "") + (labels[aid] ?? aid.replace(/_/g, " ")),
-            sx,
-            by - 6,
-          );
+            ? "#ffaa44"
+            : isBoss
+              ? "#e8c878"
+              : "#ddd";
+          ctx.fillText(title, sx, plateY + 12);
+          if (affixStr) {
+            ctx.font = "9px system-ui";
+            ctx.fillStyle = "#f84";
+            ctx.fillText(affixStr, sx, plateY + 24);
+          }
           ctx.textAlign = "left";
         }
       }
     }
 
-    // projectiles
+    // Engine projectile system (holy smite bolts etc.)
+    for (const p of handle.projectiles.all()) {
+      const { x: sx, y: sy } = wp(p.x, p.y);
+      const holy = p.damageType === "holy";
+      const g = ctx.createRadialGradient(sx, sy, 1, sx, sy, 14);
+      g.addColorStop(
+        0,
+        holy ? "rgba(200,230,255,0.98)" : "rgba(180,140,255,0.95)",
+      );
+      g.addColorStop(
+        1,
+        holy ? "rgba(80,120,220,0)" : "rgba(80,40,160,0)",
+      );
+      ctx.fillStyle = g;
+      ctx.beginPath();
+      ctx.arc(sx, sy, 12, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = holy ? "#eef6ff" : "#e0d0ff";
+      ctx.beginPath();
+      ctx.arc(sx, sy, 3.5, 0, Math.PI * 2);
+      ctx.fill();
+    }
+
+    // World interactables (chests / shrines) markers
+    for (const it of (blob.interactables as Array<{
+      id: string;
+      kind: string;
+      used: boolean;
+      x: number;
+      y: number;
+    }>) ?? []) {
+      if (it.used && it.kind === "chest") continue;
+      const { x: sx, y: sy } = wp(it.x, it.y);
+      ctx.save();
+      if (it.kind === "chest") {
+        ctx.fillStyle = "rgba(180,140,40,0.9)";
+        ctx.fillRect(sx - 10, sy - 12, 20, 14);
+        ctx.fillStyle = "#fc6";
+        ctx.fillRect(sx - 10, sy - 14, 20, 4);
+      } else if (it.kind === "shrine") {
+        ctx.strokeStyle = "rgba(120,180,255,0.85)";
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.moveTo(sx, sy - 22);
+        ctx.lineTo(sx + 8, sy - 4);
+        ctx.lineTo(sx - 8, sy - 4);
+        ctx.closePath();
+        ctx.stroke();
+        ctx.fillStyle = "rgba(100,160,255,0.35)";
+        ctx.fill();
+      }
+      ctx.restore();
+    }
+
+    // legacy tag projectiles
     for (const e of handle.world.query("transform")) {
       if (!e.tags.includes("projectile") || !e.transform) continue;
       const { x: sx, y: sy } = wp(e.transform.x, e.transform.y);
@@ -1153,10 +1243,6 @@ async function main(): Promise<void> {
       ctx.fillStyle = g;
       ctx.beginPath();
       ctx.arc(sx, sy, 10, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.fillStyle = "#e0d0ff";
-      ctx.beginPath();
-      ctx.arc(sx, sy, 3, 0, Math.PI * 2);
       ctx.fill();
     }
 
@@ -1476,7 +1562,7 @@ async function main(): Promise<void> {
     ctx.fillStyle = "#9a8a70";
     ctx.font = "11px system-ui";
     ctx.fillText(
-      `DMG ${stats.damage ?? "—"}  ·  ARM ${stats.armor ?? "—"}  ·  CRIT ${Math.round((stats.critChance ?? 0) * 100)}%  ·  F loot  ·  I bag`,
+      `DMG ${stats.damage ?? "—"}  ·  ARM ${stats.armor ?? "—"}  ·  CRIT ${Math.round((stats.critChance ?? 0) * 100)}%  ·  F interact  ·  I bag  ·  T skills  ·  C char`,
       VIEW_W / 2,
       VIEW_H - 12,
     );
@@ -1490,12 +1576,12 @@ async function main(): Promise<void> {
     ctx.fillStyle = "#d8d0c0";
     ctx.font = "13px system-ui";
     ctx.fillText(
-      `Lv ${blob.level}   XP ${blob.xp}   Gold ${blob.gold}`,
+      `Lv ${blob.level}   XP ${blob.xp}   Gold ${blob.gold}   Shards ${blob.shards ?? 0}`,
       26,
       58,
     );
     ctx.fillText(
-      `Kills ${blob.kills}   Foes ${blob.livingEnemies}`,
+      `Kills ${blob.kills}   Foes ${blob.livingEnemies}   T skills${blob.pendingSkillChoice ? " !" : ""}`,
       26,
       78,
     );
@@ -1533,19 +1619,37 @@ async function main(): Promise<void> {
       76,
     );
 
-    // mini-map
+    // mini-map (fog of war from engine MinimapFog sample)
     const mapW = Number(blob.mapW ?? 0);
     const mapH = Number(blob.mapH ?? 0);
     if (mapW > 0 && mapH > 0 && player?.transform) {
-      const mmW = 140;
-      const mmH = 100;
+      const mmW = 148;
+      const mmH = 118;
       const mmX = VIEW_W - 16 - mmW;
       const mmY = 110;
       panel(ctx, mmX, mmY, mmW, mmH);
-      ctx.fillStyle = "rgba(30,24,18,0.9)";
+      ctx.fillStyle = "rgba(8,6,4,0.95)";
       ctx.fillRect(mmX + 4, mmY + 4, mmW - 8, mmH - 8);
-      const sxm = (mmW - 8) / mapW;
-      const sym = (mmH - 8) / mapH;
+      const fog = blob.fog as number[][] | null;
+      const innerW = mmW - 8;
+      const innerH = mmH - 20;
+      if (fog && fog.length > 0) {
+        const rows = fog.length;
+        const cols = fog[0]!.length;
+        const cw = innerW / cols;
+        const ch = innerH / rows;
+        for (let y = 0; y < rows; y++) {
+          for (let x = 0; x < cols; x++) {
+            const cell = fog[y]![x] ?? 0;
+            if (cell === 0) ctx.fillStyle = "#0a0806";
+            else if (cell === 1) ctx.fillStyle = "#2a2418";
+            else ctx.fillStyle = "#4a4030";
+            ctx.fillRect(mmX + 4 + x * cw, mmY + 4 + y * ch, cw + 0.5, ch + 0.5);
+          }
+        }
+      }
+      const sxm = innerW / mapW;
+      const sym = innerH / mapH;
       // portals on mini
       for (const pr of (blob.portals as Array<{ x: number; y: number; w: number; h: number; kind?: string }>) ?? []) {
         ctx.fillStyle =
@@ -1561,20 +1665,43 @@ async function main(): Promise<void> {
           Math.max(3, pr.h * sym),
         );
       }
+      // enemies as red pips (approx)
+      for (const e of handle.world.query("transform")) {
+        if (!e.tags.includes("enemy") || !e.transform || !e.health) continue;
+        if (e.health.hp <= 0) continue;
+        const elite = e.data.elite === true;
+        ctx.fillStyle = elite ? "#f84" : "#c44";
+        ctx.fillRect(
+          mmX + 4 + e.transform.x * sxm - 1.5,
+          mmY + 4 + e.transform.y * sym - 1.5,
+          elite ? 4 : 3,
+          elite ? 4 : 3,
+        );
+      }
       // player
       ctx.fillStyle = "#fc6";
       ctx.beginPath();
       ctx.arc(
         mmX + 4 + player.transform.x * sxm,
         mmY + 4 + player.transform.y * sym,
-        3,
+        3.5,
         0,
         Math.PI * 2,
       );
       ctx.fill();
+      ctx.strokeStyle = "#fff";
+      ctx.lineWidth = 1;
+      ctx.stroke();
+      ctx.fillStyle = "#c9a46c";
+      ctx.font = "bold 9px Cinzel, Georgia, serif";
+      ctx.fillText("MAP", mmX + 8, mmY + mmH - 6);
       ctx.fillStyle = "#888";
       ctx.font = "9px system-ui";
-      ctx.fillText("MAP", mmX + 8, mmY + mmH - 6);
+      ctx.fillText(
+        `shards ${blob.shards ?? 0}`,
+        mmX + mmW - 58,
+        mmY + mmH - 6,
+      );
     }
 
     if (blob.exitHint) {
@@ -1651,6 +1778,79 @@ async function main(): Promise<void> {
         ctx.textAlign = "center";
         ctx.fillText("Empty — slay the dead for loot", VIEW_W / 2, iy + 160);
         ctx.textAlign = "left";
+      }
+    }
+
+    // Skill tree panel (T / level-up)
+    if (blob.skillsOpen) {
+      const panelData = blob.skillPanel as {
+        points: number;
+        pending: boolean;
+        nodes: Array<{
+          id: string;
+          name: string;
+          rank: number;
+          maxRank: number;
+          canUnlock: boolean;
+          reqLevel: number;
+          description: string;
+          requires: string[];
+        }>;
+      };
+      const iw = 460;
+      const ih = 400;
+      const ix = VIEW_W / 2 - iw / 2;
+      const iy = VIEW_H / 2 - ih / 2 - 20;
+      ctx.fillStyle = "rgba(0,0,0,0.6)";
+      ctx.fillRect(0, 0, VIEW_W, VIEW_H);
+      panel(ctx, ix, iy, iw, ih);
+      ctx.strokeStyle = "rgba(201,164,108,0.65)";
+      ctx.lineWidth = 2;
+      ctx.strokeRect(ix + 3, iy + 3, iw - 6, ih - 6);
+      ctx.fillStyle = "#c9a46c";
+      ctx.font = "bold 22px Cinzel, Georgia, serif";
+      ctx.textAlign = "center";
+      ctx.fillText("SKILLS", VIEW_W / 2, iy + 36);
+      ctx.fillStyle = panelData?.pending ? "#ffcc66" : "#9a8a70";
+      ctx.font = "13px system-ui";
+      ctx.fillText(
+        panelData?.pending
+          ? `Level up! ${panelData.points} point(s) — press 1–4 to learn · T closes`
+          : `Points ${panelData?.points ?? 0}  ·  T closes  ·  1–4 unlock`,
+        VIEW_W / 2,
+        iy + 58,
+      );
+      ctx.textAlign = "left";
+      const nodes = panelData?.nodes ?? [];
+      for (let i = 0; i < nodes.length; i++) {
+        const n = nodes[i]!;
+        const yy = iy + 88 + i * 68;
+        const can = n.canUnlock;
+        ctx.fillStyle = can
+          ? "rgba(80,60,20,0.55)"
+          : "rgba(20,18,16,0.55)";
+        ctx.fillRect(ix + 20, yy, iw - 40, 58);
+        ctx.strokeStyle = can
+          ? "rgba(255,180,60,0.7)"
+          : n.rank > 0
+            ? "rgba(201,164,108,0.4)"
+            : "rgba(80,70,60,0.4)";
+        ctx.strokeRect(ix + 20.5, yy + 0.5, iw - 41, 57);
+        ctx.fillStyle = can ? "#ffcc66" : n.rank > 0 ? "#c9a46c" : "#777";
+        ctx.font = "bold 15px Cinzel, Georgia, serif";
+        ctx.fillText(
+          `${i + 1}. ${n.name}  [${n.rank}/${n.maxRank}]`,
+          ix + 36,
+          yy + 24,
+        );
+        ctx.fillStyle = "#aaa";
+        ctx.font = "12px system-ui";
+        ctx.fillText(
+          `${n.description}  ·  req Lv ${n.reqLevel}` +
+            (n.requires.length ? `  ·  needs ${n.requires.join(", ")}` : ""),
+          ix + 36,
+          yy + 44,
+        );
       }
     }
 

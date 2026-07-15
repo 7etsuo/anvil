@@ -72,4 +72,4 @@ See `00_INDEX.md`.
 
 ## Next
 
-M1–M7 complete. Execute **`T-M8-001`** (net spike) in `20_FULL_TASK_BREAKDOWN.md`.
+M1–M8 complete. Next: **`T-M9-001`** (unpark first game) in `20_FULL_TASK_BREAKDOWN.md`.

@@ -3,6 +3,8 @@
 **Milestone:** M8  
 **Not a production MMO.**
 
+**Implementation:** `@anvil/genre-net` · harness notes `packages/genre-net/SPIKE.md` · demo `examples/hello-net`
+
 ## 1. Goals
 
 - 2 peers share a topdown or empty room  
@@ -19,23 +21,27 @@ interface Transport {
 }
 ```
 
+`LoopbackTransport.pair()` links two in-process peers (sync delivery for deterministic tests).
+
 ## 3. Messages (JSON v1)
 
 | type | payload |
 |------|---------|
 | `hello` | `{ peerId }` |
 | `state` | `{ tick, entities: [{ id, x, y, hp }] }` |
-| `input` | `{ tick, actions: string[] }` |
+| `input` | `{ tick, actions: string[], peerId }` |
 
 ## 4. Authority
 
-- Host authoritative for hp  
+- Host authoritative for hp and positions  
 - Clients send input; host simulates; broadcast state  
 
 ## 5. Out of scope
 
-Shards, matchmaking, anti-cheat, persistence, lag compensation advanced, MMO scale.
+Shards, matchmaking, anti-cheat, persistence, lag compensation advanced, MMO scale, real WebSocket/WebRTC (implement `Transport` later).
 
 ## 6. Acceptance
 
 Loopback 2 logical peers: move one, other observe sees position update within N ticks.
+
+Covered by `packages/genre-net/src/NetRoom.test.ts` and `examples/hello-net`.

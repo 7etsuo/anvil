@@ -50,6 +50,8 @@ importers:
 
   examples/hello-fps2: {}
 
+  examples/hello-net: {}
+
   examples/hello-shmup: {}
 
   examples/hello-topdown: {}
@@ -67,6 +69,9 @@ importers:
       '@anvil/genre-fps2':
         specifier: workspace:*
         version: link:../genre-fps2
+      '@anvil/genre-net':
+        specifier: workspace:*
+        version: link:../genre-net
       '@anvil/genre-shmup':
         specifier: workspace:*
         version: link:../genre-shmup
@@ -126,6 +131,22 @@ importers:
         version: 2.1.9(@types/node@22.20.1)
 
   packages/genre-fps2:
+    dependencies:
+      '@anvil/core':
+        specifier: workspace:*
+        version: link:../core
+      '@anvil/schema':
+        specifier: workspace:*
+        version: link:../schema
+    devDependencies:
+      typescript:
+        specifier: ^5.7.2
+        version: 5.9.3
+      vitest:
+        specifier: ^2.1.8
+        version: 2.1.9(@types/node@22.20.1)
+
+  packages/genre-net:
     dependencies:
       '@anvil/core':
         specifier: workspace:*

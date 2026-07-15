@@ -1,0 +1,8 @@
+id: hello-net
+title: Hello Net Spike
+genre: none
+modules:
+  - genre-net
+entryScene: main
+seed: 1
+schemaVersion: 1

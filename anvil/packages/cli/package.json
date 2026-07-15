@@ -19,6 +19,7 @@
     "@anvil/genre-vn": "workspace:*",
     "@anvil/genre-shmup": "workspace:*",
     "@anvil/genre-fps2": "workspace:*",
+    "@anvil/genre-net": "workspace:*",
     "@anvil/recipes": "workspace:*",
     "yaml": "^2.6.1"
   },

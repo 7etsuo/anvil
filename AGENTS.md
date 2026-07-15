@@ -6,7 +6,7 @@ Thin dispatcher for coding agents ([agents.md](https://agents.md/) format).
 
 | Path | Status | Work allowed |
 |------|--------|--------------|
-| `anvil/` | **Active** — game engine (M1–M7 done) | Yes |
+| `anvil/` | **Active** — game engine (M1–M8 done) | Yes |
 | `games/gravewake/` | **Parked** — future ARPG | **No** until Anvil M9 unpark |
 | `games/*` | Future titles | Only when unparked |
 

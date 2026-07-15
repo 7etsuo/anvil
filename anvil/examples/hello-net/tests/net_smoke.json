@@ -1,0 +1,27 @@
+{
+  "id": "net_smoke",
+  "seed": 1,
+  "maxTicks": 30,
+  "steps": [
+    {
+      "tick": 0,
+      "assert": { "path": "genre.net.spike", "eq": true }
+    },
+    {
+      "tick": 5,
+      "assert": { "path": "genre.net.host.peerId", "eq": "host" }
+    },
+    {
+      "tick": 5,
+      "assert": { "path": "genre.net.client.peerId", "eq": "client" }
+    },
+    {
+      "tick": 10,
+      "assert": { "path": "genre.net.host.entities", "exists": true }
+    },
+    {
+      "tick": 15,
+      "assert": { "path": "genre.net.host.tick", "gte": 1 }
+    }
+  ]
+}

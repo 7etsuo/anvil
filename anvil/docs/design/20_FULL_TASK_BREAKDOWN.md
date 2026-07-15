@@ -146,13 +146,13 @@ Format inspired by GitHub Spec Kit `tasks` phase + SDD (arXiv:2602.00180).
 
 ## M8 — Net spike
 
-| ID | Task | Depends | Spec |
-|----|------|---------|------|
-| T-M8-001 | Confirm/extend existing `specs/S-NET.md` for loopback harness | M6 | S-NET |
-| T-M8-002 | Transport interface + loopback mock | T-M8-001 | S-NET |
-| T-M8-003 | Replicate transform+health for 2 peers | T-M8-002 | S-NET |
-| T-M8-004 | Demo or documented spike only | T-M8-003 | 13 |
-| T-M8-005 | M8 acceptance (spike, not production MMO) | T-M8-004 | 14 |
+| ID | Task | Depends | Spec | Status |
+|----|------|---------|------|--------|
+| T-M8-001 | Confirm/extend existing `specs/S-NET.md` for loopback harness | M6 | S-NET | **[x]** |
+| T-M8-002 | Transport interface + loopback mock | T-M8-001 | S-NET | **[x]** |
+| T-M8-003 | Replicate transform+health for 2 peers | T-M8-002 | S-NET | **[x]** |
+| T-M8-004 | Demo or documented spike only | T-M8-003 | 13 | **[x]** |
+| T-M8-005 | M8 acceptance (spike, not production MMO) | T-M8-004 | 14 | **[x]** |
 
 ---
 

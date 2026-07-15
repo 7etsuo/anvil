@@ -18,6 +18,14 @@ import {
 
 export type Rng = () => number;
 
+export type TopdownSimOptions = {
+  /**
+   * When true (default for simple demos), clearing all enemies freezes the sim as "won".
+   * Multi-area games (Gravewake) must set false so combat continues / zones transition.
+   */
+  autoWinOnClear?: boolean;
+};
+
 export class TopdownSim {
   readonly map: MapDef;
   private actors = new Map<string, ActorRuntime>();
@@ -28,17 +36,20 @@ export class TopdownSim {
   private won = false;
   private lost = false;
   private mapId: string;
+  private autoWinOnClear: boolean;
 
   constructor(
     world: World,
     map: MapDef,
     actorDefs: Record<string, ActorDef>,
     _rng: Rng = Math.random,
+    opts: TopdownSimOptions = {},
   ) {
     this.world = world;
     this.map = map;
     this.mapId = map.id;
     this.actorDefs = actorDefs;
+    this.autoWinOnClear = opts.autoWinOnClear !== false;
     this.spawnAll();
   }
 
@@ -156,11 +167,18 @@ export class TopdownSim {
       }
     }
     if (nearest && nearest.d < range * 1.5) {
-      pe.data.facing = Math.atan2(
-        nearest.y - pe.transform.y,
-        nearest.x - pe.transform.x,
-      );
-      pr.flipX = nearest.x < pe.transform.x;
+      const dx = nearest.x - pe.transform.x;
+      const dy = nearest.y - pe.transform.y;
+      pe.data.facing = Math.atan2(dy, dx);
+      pe.data.dir =
+        Math.abs(dx) >= Math.abs(dy)
+          ? dx >= 0
+            ? "right"
+            : "left"
+          : dy >= 0
+            ? "down"
+            : "up";
+      pr.flipX = dx < 0;
     }
     pr.attackAnimMs = 220;
     return { hits: targets.length, targets };
@@ -504,11 +522,11 @@ export class TopdownSim {
       this.lost = true;
       return;
     }
+    if (!this.autoWinOnClear) return;
     const enemies = [...this.actors.values()].filter(
       (a) => a.team === "enemy" && !a.dead,
     );
     if (enemies.length === 0 && this.actors.size > 0) {
-      // only win if there was at least one enemy spawn
       const hadEnemy = this.map.spawns.some((s) => {
         const def = this.actorDefs[s.actor];
         const team = s.team ?? def?.team ?? "enemy";
@@ -528,11 +546,12 @@ export class TopdownSim {
     rt.animState = state;
     const speed = Math.hypot(rt.vx, rt.vy);
     if (speed > EPSILON_SPEED) {
-      rt.flipX = rt.vx < 0;
-      // facing angle: 0 = right, PI/2 = down (screen coords)
+      // facing: 0 right, +PI/2 down (canvas y+)
       e.data.facing = Math.atan2(rt.vy, rt.vx);
+      // flip only when using a right-facing sheet drawn leftward
+      rt.flipX = rt.vx > 0 ? false : rt.vx < 0 ? true : rt.flipX;
     } else if (e.data.facing === undefined) {
-      e.data.facing = Math.PI / 2; // default face down
+      e.data.facing = Math.PI / 2;
     }
     e.data.animState = state;
     e.data.flipX = rt.flipX;
@@ -541,6 +560,14 @@ export class TopdownSim {
     e.data.speed = speed;
     e.data.attacking = rt.attackAnimMs > 0;
     e.data.actorId = rt.actorId;
+    e.data.dir =
+      Math.abs(rt.vx) >= Math.abs(rt.vy)
+        ? rt.vx >= 0
+          ? "right"
+          : "left"
+        : rt.vy >= 0
+          ? "down"
+          : "up";
   }
 
   observeBlob(): Record<string, unknown> {

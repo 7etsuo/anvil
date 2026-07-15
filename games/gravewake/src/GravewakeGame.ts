@@ -7,10 +7,12 @@ export type FxEvent =
   | { kind: "hit"; x: number; y: number; dmg: number; t: number }
   | { kind: "kill"; x: number; y: number; gold: number; t: number }
   | { kind: "levelup"; t: number }
-  | { kind: "shake"; mag: number; t: number };
+  | { kind: "shake"; mag: number; t: number }
+  | { kind: "banner"; text: string; t: number };
 
 /**
- * Gravewake vertical-slice controller on Anvil topdown sim.
+ * Gravewake controller on Anvil topdown sim.
+ * Zone changes use map edges (not arcade portals).
  */
 export class GravewakeGame {
   private world: World;
@@ -27,10 +29,12 @@ export class GravewakeGame {
   private killed = new Set<string>();
   private meleeCdMs = 0;
   private rng: () => number;
-  private portalCooldownMs = 0;
-  /** Live FX queue for the browser renderer */
+  private exitCooldownMs = 0;
+  private blockedBannerCd = 0;
   fx: FxEvent[] = [];
   kills = 0;
+  /** HUD: why you can't leave yet */
+  exitHint = "";
 
   constructor(
     world: World,
@@ -70,7 +74,8 @@ export class GravewakeGame {
     if (!area) throw new Error(`Unknown area: ${id}`);
     this.area = id;
     this.killed.clear();
-    this.portalCooldownMs = 600;
+    this.exitCooldownMs = 800;
+    this.exitHint = "";
 
     for (const e of this.world.all()) this.world.destroy(e.id);
 
@@ -82,7 +87,10 @@ export class GravewakeGame {
       spawns: area.spawns,
       background: area.background,
     };
-    this.sim = new TopdownSim(this.world, map, this.actors, this.rng);
+    // CRITICAL: do not freeze the sim when a pack is cleared
+    this.sim = new TopdownSim(this.world, map, this.actors, this.rng, {
+      autoWinOnClear: false,
+    });
 
     if (spawn) {
       const p = this.world.get("player");
@@ -91,6 +99,13 @@ export class GravewakeGame {
         p.transform.y = spawn.y;
       }
     }
+
+    const names: Record<AreaId, string> = {
+      town: "Ashen Lychgate",
+      parish: "Cinder Parish",
+      crypt: "Bellcrypt",
+    };
+    this.pushFx({ kind: "banner", text: names[id], t: 2.2 });
   }
 
   update(dt: number, input: InputMap): void {
@@ -99,15 +114,14 @@ export class GravewakeGame {
 
     const dtMs = dt * 1000;
     this.meleeCdMs = Math.max(0, this.meleeCdMs - dtMs);
-    this.portalCooldownMs = Math.max(0, this.portalCooldownMs - dtMs);
+    this.exitCooldownMs = Math.max(0, this.exitCooldownMs - dtMs);
+    this.blockedBannerCd = Math.max(0, this.blockedBannerCd - dtMs);
 
-    // Age FX
     for (const f of this.fx) f.t -= dt;
     this.fx = this.fx.filter((f) => f.t > 0);
 
     this.sim.update(dt, input);
 
-    // Rite Slash — Space / click
     if (
       this.meleeCdMs <= 0 &&
       (input.isPressed("shoot") || input.isPressed("confirm"))
@@ -118,17 +132,9 @@ export class GravewakeGame {
         this.progression.meleeDamage,
       );
       this.meleeCdMs = 380;
-      if (pos) {
-        this.pushFx({ kind: "slash", x: pos.x, y: pos.y, t: 0.18 });
-      }
+      if (pos) this.pushFx({ kind: "slash", x: pos.x, y: pos.y, t: 0.18 });
       for (const t of result.targets) {
-        this.pushFx({
-          kind: "hit",
-          x: t.x,
-          y: t.y,
-          dmg: t.dmg,
-          t: 0.7,
-        });
+        this.pushFx({ kind: "hit", x: t.x, y: t.y, dmg: t.dmg, t: 0.7 });
       }
       if (result.hits > 0) {
         this.pushFx({ kind: "shake", mag: 4 + result.hits * 2, t: 0.12 });
@@ -140,7 +146,7 @@ export class GravewakeGame {
     }
 
     this.grantXpForKills();
-    if (this.portalCooldownMs <= 0) this.checkPortals();
+    if (this.exitCooldownMs <= 0) this.checkExits();
     this.checkVictory();
   }
 
@@ -173,22 +179,17 @@ export class GravewakeGame {
       this.killed.add(e.id);
       this.kills += 1;
       const xp = this.progression.xpPerKill[e.actorId] ?? 10;
-      const goldGain = Math.max(3, Math.floor(xp / 2) + Math.floor(this.rng() * 6));
+      const goldGain = Math.max(
+        3,
+        Math.floor(xp / 2) + Math.floor(this.rng() * 6),
+      );
       this.xp += xp;
       this.gold += goldGain;
-      this.pushFx({
-        kind: "kill",
-        x: e.x,
-        y: e.y,
-        gold: goldGain,
-        t: 1.0,
-      });
+      this.pushFx({ kind: "kill", x: e.x, y: e.y, gold: goldGain, t: 1.0 });
       this.pushFx({ kind: "shake", mag: 3, t: 0.1 });
       const before = this.level;
       this.levelUp();
-      if (this.level > before) {
-        this.pushFx({ kind: "levelup", t: 1.4 });
-      }
+      if (this.level > before) this.pushFx({ kind: "levelup", t: 1.4 });
     }
   }
 
@@ -203,7 +204,6 @@ export class GravewakeGame {
         p.health.max += 10;
         p.health.hp = p.health.max;
       }
-      // small damage bump via progression side effect
       this.progression = {
         ...this.progression,
         meleeDamage: this.progression.meleeDamage + 2,
@@ -211,22 +211,61 @@ export class GravewakeGame {
     }
   }
 
-  private checkPortals(): void {
+  /** Diablo-style: walk off the map edge into the next zone. */
+  private checkExits(): void {
     const area = this.areas[this.area];
-    if (!area?.portals?.length || !this.sim) return;
+    if (!this.sim || !area) return;
     const p = this.world.get("player");
     if (!p?.transform) return;
     const px = p.transform.x;
     const py = p.transform.y;
+    const margin = 22;
+    const living = this.sim.livingEnemyCount();
 
-    for (const portal of area.portals) {
+    const exits = area.exits ?? [];
+    for (const ex of exits) {
+      let hit = false;
+      if (ex.edge === "east" && px >= area.width - margin) hit = true;
+      if (ex.edge === "west" && px <= margin) hit = true;
+      if (ex.edge === "south" && py >= area.height - margin) hit = true;
+      if (ex.edge === "north" && py <= margin) hit = true;
+      if (!hit) continue;
+
+      if (ex.requireClear && living > 0) {
+        this.exitHint = `Slay the remaining ${living} before you leave`;
+        if (this.blockedBannerCd <= 0) {
+          this.pushFx({
+            kind: "banner",
+            text: this.exitHint,
+            t: 1.6,
+          });
+          this.blockedBannerCd = 2000;
+        }
+        // nudge back so you don't stick in the wall
+        if (ex.edge === "east") p.transform.x = area.width - margin - 4;
+        if (ex.edge === "west") p.transform.x = margin + 4;
+        if (ex.edge === "south") p.transform.y = area.height - margin - 4;
+        if (ex.edge === "north") p.transform.y = margin + 4;
+        continue;
+      }
+
+      this.exitHint = "";
+      this.enterArea(ex.to, { x: ex.spawnX, y: ex.spawnY });
+      return;
+    }
+
+    // legacy portal rects if any content still has them
+    for (const portal of area.portals ?? []) {
       const inBox =
         px >= portal.x &&
         px <= portal.x + portal.w &&
         py >= portal.y &&
         py <= portal.y + portal.h;
       if (!inBox) continue;
-      if (portal.requireClear && this.sim.livingEnemyCount() > 0) continue;
+      if (portal.requireClear && living > 0) {
+        this.exitHint = `Slay the remaining ${living} before you leave`;
+        continue;
+      }
       this.enterArea(portal.to, { x: portal.spawnX, y: portal.spawnY });
       return;
     }
@@ -259,6 +298,7 @@ export class GravewakeGame {
       livingEnemies: this.sim?.livingEnemyCount() ?? 0,
       kills: this.kills,
       meleeCdMs: this.meleeCdMs,
+      exitHint: this.exitHint,
       topdown: simBlob,
     };
   }

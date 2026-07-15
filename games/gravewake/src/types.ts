@@ -1,15 +1,15 @@
 export type AreaId = "town" | "parish" | "crypt";
 
-export interface PortalDef {
-  x: number;
-  y: number;
-  w: number;
-  h: number;
+/** Map-edge transition (Diablo-style zone change, not glowing portal UI). */
+export interface EdgeExit {
+  edge: "north" | "south" | "east" | "west";
   to: AreaId;
   spawnX: number;
   spawnY: number;
-  /** Require living enemies == 0 before use */
+  /** Must clear living enemies first */
   requireClear?: boolean;
+  /** Optional label for HUD only */
+  label?: string;
 }
 
 export interface AreaMapDef {
@@ -23,7 +23,18 @@ export interface AreaMapDef {
     y: number;
     team?: "player" | "enemy" | "neutral";
   }>;
-  portals?: PortalDef[];
+  /** @deprecated use exits */
+  portals?: Array<{
+    x: number;
+    y: number;
+    w: number;
+    h: number;
+    to: AreaId;
+    spawnX: number;
+    spawnY: number;
+    requireClear?: boolean;
+  }>;
+  exits?: EdgeExit[];
   background?: string;
 }
 

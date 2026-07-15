@@ -36,16 +36,24 @@ const ASSET_URLS: Record<string, string> = {
   "env/wall.png": "/assets/env/wall.png",
 };
 
-/** 0=right, 1=down, 2=left, 3=up from facing angle (y+ down). */
+/** 0=right, 1=down, 2=left, 3=up (canvas y+ is down). */
 function dirFromFacing(facing: number): 0 | 1 | 2 | 3 {
-  // normalize
   let a = facing;
   while (a <= -Math.PI) a += Math.PI * 2;
   while (a > Math.PI) a -= Math.PI * 2;
-  if (a > -Math.PI * 0.25 && a <= Math.PI * 0.25) return 0; // right
-  if (a > Math.PI * 0.25 && a <= Math.PI * 0.75) return 1; // down
-  if (a > Math.PI * 0.75 || a <= -Math.PI * 0.75) return 2; // left
+  // Prefer cardinal by dominant axis via angle sectors
+  if (a >= -Math.PI / 4 && a < Math.PI / 4) return 0; // right
+  if (a >= Math.PI / 4 && a < (3 * Math.PI) / 4) return 1; // down
+  if (a >= (3 * Math.PI) / 4 || a < (-3 * Math.PI) / 4) return 2; // left
   return 3; // up
+}
+
+function dirFromString(d: unknown): 0 | 1 | 2 | 3 | null {
+  if (d === "right") return 0;
+  if (d === "down") return 1;
+  if (d === "left") return 2;
+  if (d === "up") return 3;
+  return null;
 }
 
 type Particle = {
@@ -302,27 +310,39 @@ async function main(): Promise<void> {
     data: Record<string, unknown>;
   }): { img: HTMLImageElement | null; flipX: boolean } {
     const base = actorBase(e);
-    const facing = Number(e.data.facing ?? Math.PI / 2);
-    const dir = dirFromFacing(facing);
-    // Prefer directional sheets; left = flip of right
+    // Prefer sim's dominant-axis dir (more stable than continuous angle)
+    const dir =
+      dirFromString(e.data.dir) ??
+      dirFromFacing(Number(e.data.facing ?? Math.PI / 2));
+
+    // Art sheets face: down, up, right. Left = flip RIGHT sheet.
+    // If go-right looked left before, the right sheet faces left → flip when moving RIGHT.
     if (dir === 3) {
-      const up = images.get(`actors/${base}_up.png`) ?? images.get(`actors/${base}_down.png`);
-      if (up) return { img: up, flipX: false };
+      const up =
+        images.get(`actors/${base}_up.png`) ??
+        images.get(`actors/${base}_down.png`) ??
+        images.get(`actors/${base}.png`);
+      return { img: up ?? null, flipX: false };
     }
     if (dir === 1) {
-      const down = images.get(`actors/${base}_down.png`) ?? images.get(`actors/${base}.png`);
-      if (down) return { img: down, flipX: false };
+      const down =
+        images.get(`actors/${base}_down.png`) ??
+        images.get(`actors/${base}.png`);
+      return { img: down ?? null, flipX: false };
     }
     if (dir === 0) {
-      const right = images.get(`actors/${base}_right.png`) ?? images.get(`actors/${base}_down.png`);
-      if (right) return { img: right, flipX: false };
+      // moving right
+      const right =
+        images.get(`actors/${base}_right.png`) ??
+        images.get(`actors/${base}_down.png`);
+      // invert: many AI "right" sheets face left of frame
+      return { img: right ?? null, flipX: true };
     }
-    if (dir === 2) {
-      const right = images.get(`actors/${base}_right.png`) ?? images.get(`actors/${base}_down.png`);
-      if (right) return { img: right, flipX: true };
-    }
-    const fallback = images.get(`actors/${base}.png`) ?? null;
-    return { img: fallback, flipX: Boolean(e.data.flipX) };
+    // left
+    const right =
+      images.get(`actors/${base}_right.png`) ??
+      images.get(`actors/${base}_down.png`);
+    return { img: right ?? null, flipX: false };
   }
 
   function spriteSize(e: { tags: string[] }): number {
@@ -504,36 +524,40 @@ async function main(): Promise<void> {
         ctx.strokeRect(x + 2, y + 2, Math.max(0, ww - 4), Math.max(0, hh - 4));
       }
 
-      for (const p of area.portals ?? []) {
-        const locked = p.requireClear && (blob.livingEnemies as number) > 0;
-        const x = p.x * SCALE - viewCamX;
-        const y = p.y * SCALE - viewCamY;
-        const ww = p.w * SCALE;
-        const hh = p.h * SCALE;
-        const pulse = 0.5 + 0.5 * Math.sin(now / 280);
-        const grd = ctx.createLinearGradient(x, y, x + ww, y);
-        if (locked) {
-          grd.addColorStop(0, "rgba(80,10,10,0.1)");
-          grd.addColorStop(0.5, `rgba(200,40,40,${0.25 + pulse * 0.25})`);
-          grd.addColorStop(1, "rgba(80,10,10,0.1)");
+      // Edge exits: subtle doorway light on open wall gaps (not arcade portals)
+      for (const ex of area.exits ?? []) {
+        const locked =
+          ex.requireClear && (blob.livingEnemies as number) > 0;
+        const pulse = 0.4 + 0.3 * Math.sin(now / 400);
+        let x = 0;
+        let y = 0;
+        let ww = 18;
+        let hh = 80;
+        if (ex.edge === "east") {
+          x = area.width * SCALE - 18 - viewCamX;
+          y = area.height * SCALE * 0.5 - 50 - viewCamY;
+          ww = 16;
+          hh = 100;
+        } else if (ex.edge === "west") {
+          x = 2 - viewCamX;
+          y = area.height * SCALE * 0.5 - 50 - viewCamY;
+          ww = 16;
+          hh = 100;
+        } else if (ex.edge === "north") {
+          x = area.width * SCALE * 0.5 - 50 - viewCamX;
+          y = 2 - viewCamY;
+          ww = 100;
+          hh = 16;
         } else {
-          grd.addColorStop(0, "rgba(10,60,40,0.08)");
-          grd.addColorStop(0.5, `rgba(60,255,150,${0.2 + pulse * 0.3})`);
-          grd.addColorStop(1, "rgba(10,60,40,0.08)");
+          x = area.width * SCALE * 0.5 - 50 - viewCamX;
+          y = area.height * SCALE - 18 - viewCamY;
+          ww = 100;
+          hh = 16;
         }
-        ctx.fillStyle = grd;
+        ctx.fillStyle = locked
+          ? `rgba(120,30,30,${0.15 + pulse * 0.1})`
+          : `rgba(200,160,80,${0.12 + pulse * 0.12})`;
         ctx.fillRect(x, y, ww, hh);
-        ctx.shadowColor = locked ? "#f44" : "#4f8";
-        ctx.shadowBlur = 16 + pulse * 12;
-        ctx.strokeStyle = locked ? "#e66" : "#9fe";
-        ctx.lineWidth = 3;
-        ctx.strokeRect(x + 4, y + 4, ww - 8, hh - 8);
-        ctx.shadowBlur = 0;
-        ctx.fillStyle = "#fff";
-        ctx.font = "bold 13px Cinzel, Georgia, serif";
-        ctx.textAlign = "center";
-        ctx.fillText(locked ? "SEALED" : "PASSAGE", x + ww / 2, y + hh / 2 + 4);
-        ctx.textAlign = "left";
       }
     }
 
@@ -785,13 +809,20 @@ async function main(): Promise<void> {
     ctx.fillText("QUEST", VIEW_W - 238, 34);
     ctx.fillStyle = "#ddd";
     ctx.font = "13px system-ui";
-    const obj =
-      blob.area === "town"
-        ? "Seek the east passage"
-        : blob.area === "parish"
-          ? "Purge the walking dead"
-          : "Silence the Bellwarden";
+    let obj = "Silence the Bellwarden";
+    if (blob.area === "town") obj = "Leave east into Cinder Parish";
+    else if (blob.area === "parish") {
+      obj =
+        (blob.livingEnemies as number) > 0
+          ? "Clear the parish of the dead"
+          : "Exit east into Bellcrypt";
+    }
     ctx.fillText(obj, VIEW_W - 238, 56);
+    if (blob.exitHint) {
+      ctx.fillStyle = "#e88";
+      ctx.font = "12px system-ui";
+      ctx.fillText(String(blob.exitHint), 28, panelY - 12);
+    }
 
     if (blob.victory) {
       ctx.fillStyle = "rgba(0,0,0,0.8)";

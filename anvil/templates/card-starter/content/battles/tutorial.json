@@ -1,0 +1,17 @@
+{
+  "id": "tutorial",
+  "playerHp": 50,
+  "energyMax": 3,
+  "handSize": 5,
+  "deck": [
+    "strike",
+    "strike",
+    "strike",
+    "strike",
+    "strike",
+    "strike",
+    "strike",
+    "strike"
+  ],
+  "enemies": ["slime"]
+}

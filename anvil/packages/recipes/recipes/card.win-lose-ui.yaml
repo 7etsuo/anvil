@@ -1,0 +1,10 @@
+id: card.win-lose-ui
+title: Notes for win/lose observe fields
+genre: card
+files:
+  - path: content/meta.json
+    write: |
+      {
+        "title": "Card battle",
+        "notes": "Observe genre.battle.won / genre.battle.phase for win-lose UI"
+      }

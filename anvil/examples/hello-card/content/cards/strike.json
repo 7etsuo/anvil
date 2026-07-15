@@ -1,0 +1,6 @@
+{
+  "id": "strike",
+  "name": "Strike",
+  "cost": 1,
+  "effects": [{ "op": "damage", "amount": 6, "target": "enemy" }]
+}

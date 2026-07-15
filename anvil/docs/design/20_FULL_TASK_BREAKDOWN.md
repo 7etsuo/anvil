@@ -58,74 +58,74 @@ Format inspired by GitHub Spec Kit `tasks` phase + SDD (arXiv:2602.00180).
 
 ## M3 — genre-card + recipes
 
-| ID | Task | Depends | Spec |
-|----|------|---------|------|
-| T-M3-001 | `@anvil/genre-card` package register | M2 | S-CARD, 08 |
-| T-M3-002 | CardDef schema + effects: damage, block, draw, apply_status | T-M3-001 | S-CARD |
-| T-M3-003 | Battle state machine PlayerTurn/EnemyTurn/Win/Lose | T-M3-002 | S-CARD |
-| T-M3-004 | Hand/draw/discard piles logic | T-M3-003 | S-CARD |
-| T-M3-005 | Energy/cost rules | T-M3-004 | S-CARD |
-| T-M3-006 | Enemy intent + act | T-M3-003 | S-CARD |
-| T-M3-007 | Battle UI (code-drawn) | T-M3-005 | S-CARD |
-| T-M3-008 | examples/hello-card content + art greybox | T-M3-007 | 11 |
-| T-M3-009 | Scripted test: win with seed 1 | T-M3-008 | 18 |
-| T-M3-010 | Recipes card.* **exactly 5 ids from 11** with full bodies | T-M3-008 | 11, S-RECIPES |
-| T-M3-011 | `anvil recipe list/show` | T-M3-010 | 05 |
-| T-M3-012 | template card-starter | T-M3-008 | 11 |
-| T-M3-013 | M3 acceptance | T-M3-012 | 14 |
+| ID | Task | Depends | Spec | Status |
+|----|------|---------|------|--------|
+| T-M3-001 | `@anvil/genre-card` package register | M2 | S-CARD, 08 | **[x]** |
+| T-M3-002 | CardDef schema + effects: damage, block, draw, apply_status | T-M3-001 | S-CARD | **[x]** |
+| T-M3-003 | Battle state machine PlayerTurn/EnemyTurn/Win/Lose | T-M3-002 | S-CARD | **[x]** |
+| T-M3-004 | Hand/draw/discard piles logic | T-M3-003 | S-CARD | **[x]** |
+| T-M3-005 | Energy/cost rules | T-M3-004 | S-CARD | **[x]** |
+| T-M3-006 | Enemy intent + act | T-M3-003 | S-CARD | **[x]** |
+| T-M3-007 | Battle UI (code-drawn) | T-M3-005 | S-CARD | **[x]** |
+| T-M3-008 | examples/hello-card content + art greybox | T-M3-007 | 11 | **[x]** |
+| T-M3-009 | Scripted test: win with seed 1 | T-M3-008 | 18 | **[x]** |
+| T-M3-010 | Recipes card.* **exactly 5 ids from 11** with full bodies | T-M3-008 | 11, S-RECIPES | **[x]** |
+| T-M3-011 | `anvil recipe list/show` | T-M3-010 | 05 | **[x]** |
+| T-M3-012 | template card-starter | T-M3-008 | 11 | **[x]** |
+| T-M3-013 | M3 acceptance | T-M3-012 | 14 | **[x]** |
 
 ---
 
 ## M4 — genre-topdown2d
 
-| ID | Task | Depends | Spec |
-|----|------|---------|------|
-| T-M4-001 | `@anvil/genre-topdown2d` package | M2 | S-TOPDOWN |
-| T-M4-002 | Transform + velocity move | T-M4-001 | S-TOPDOWN |
-| T-M4-003 | AABB/circle collision resolve (separate axis) | T-M4-002 | S-TOPDOWN |
-| T-M4-004 | Map JSON walls + spawns load | T-M4-003 | S-TOPDOWN |
-| T-M4-005 | AI chase_melee | T-M4-004 | S-TOPDOWN |
-| T-M4-006 | AI keep_distance_ranged + projectile | T-M4-005 | S-TOPDOWN |
-| T-M4-007 | Contact damage + i-frames player | T-M4-005 | S-TOPDOWN |
-| T-M4-008 | Animation state machine idle/walk/attack | T-M4-002 | S-TOPDOWN |
-| T-M4-009 | hello-topdown + tests | T-M4-008 | 18 |
-| T-M4-010 | Recipes topdown.* (5) | T-M4-009 | 11 |
-| T-M4-011 | template topdown-starter | T-M4-009 | 11 |
-| T-M4-012 | M4 acceptance | T-M4-011 | 14 |
+| ID | Task | Depends | Spec | Status |
+|----|------|---------|------|--------|
+| T-M4-001 | `@anvil/genre-topdown2d` package | M2 | S-TOPDOWN | **[x]** |
+| T-M4-002 | Transform + velocity move | T-M4-001 | S-TOPDOWN | **[x]** |
+| T-M4-003 | AABB/circle collision resolve (separate axis) | T-M4-002 | S-TOPDOWN | **[x]** |
+| T-M4-004 | Map JSON walls + spawns load | T-M4-003 | S-TOPDOWN | **[x]** |
+| T-M4-005 | AI chase_melee | T-M4-004 | S-TOPDOWN | **[x]** |
+| T-M4-006 | AI keep_distance_ranged + projectile | T-M4-005 | S-TOPDOWN | **[x]** |
+| T-M4-007 | Contact damage + i-frames player | T-M4-005 | S-TOPDOWN | **[x]** |
+| T-M4-008 | Animation state machine idle/walk/attack | T-M4-002 | S-TOPDOWN | **[x]** |
+| T-M4-009 | hello-topdown + tests | T-M4-008 | 18 | **[x]** |
+| T-M4-010 | Recipes topdown.* (5) | T-M4-009 | 11 | **[x]** |
+| T-M4-011 | template topdown-starter | T-M4-009 | 11 | **[x]** |
+| T-M4-012 | M4 acceptance | T-M4-011 | 14 | **[x]** |
 
 ---
 
 ## M5 — genre-vn + genre-shmup
 
-| ID | Task | Depends | Spec |
-|----|------|---------|------|
-| T-M5-001 | `@anvil/genre-vn` script graph interpreter | M2 | S-VN |
-| T-M5-002 | line/choice/jump/end + portraits/bg | T-M5-001 | S-VN |
-| T-M5-003 | hello-vn + test branch | T-M5-002 | 18 |
-| T-M5-004 | recipes vn.* **≥2** (vn.linear-scene, vn.two-choice) | T-M5-003 | 11 |
-| T-M5-005 | `@anvil/genre-shmup` scroll + ship | M2 | S-SHMUP |
-| T-M5-006 | Wave spawner data | T-M5-005 | S-SHMUP |
-| T-M5-007 | Bullet pattern DSL (linear, aim, fan) | T-M5-006 | S-SHMUP |
-| T-M5-008 | Lives / score / game over | T-M5-007 | S-SHMUP |
-| T-M5-009 | hello-shmup + tests | T-M5-008 | 18 |
-| T-M5-010 | recipes shmup.* **≥3** | T-M5-009 | 11 |
-| T-M5-011 | templates vn-starter, shmup-starter | T-M5-004,010 | 11 |
-| T-M5-012 | Total recipes ≥ 15 | T-M5-010 | 11 |
-| T-M5-013 | M5 acceptance | T-M5-012 | 14 |
+| ID | Task | Depends | Spec | Status |
+|----|------|---------|------|--------|
+| T-M5-001 | `@anvil/genre-vn` script graph interpreter | M2 | S-VN | **[x]** |
+| T-M5-002 | line/choice/jump/end + portraits/bg | T-M5-001 | S-VN | **[x]** |
+| T-M5-003 | hello-vn + test branch | T-M5-002 | 18 | **[x]** |
+| T-M5-004 | recipes vn.* **≥2** (vn.linear-scene, vn.two-choice) | T-M5-003 | 11 | **[x]** |
+| T-M5-005 | `@anvil/genre-shmup` scroll + ship | M2 | S-SHMUP | **[x]** |
+| T-M5-006 | Wave spawner data | T-M5-005 | S-SHMUP | **[x]** |
+| T-M5-007 | Bullet pattern DSL (linear, aim, fan) | T-M5-006 | S-SHMUP | **[x]** |
+| T-M5-008 | Lives / score / game over | T-M5-007 | S-SHMUP | **[x]** |
+| T-M5-009 | hello-shmup + tests | T-M5-008 | 18 | **[x]** |
+| T-M5-010 | recipes shmup.* **≥3** | T-M5-009 | 11 | **[x]** |
+| T-M5-011 | templates vn-starter, shmup-starter | T-M5-004,010 | 11 | **[x]** |
+| T-M5-012 | Total recipes ≥ 15 | T-M5-010 | 11 | **[x]** |
+| T-M5-013 | M5 acceptance | T-M5-012 | 14 | **[x]** |
 
 ---
 
 ## M6 — Agent-ready polish
 
-| ID | Task | Depends | Spec |
-|----|------|---------|------|
-| T-M6-001 | Root + anvil AGENTS.md commands match reality | M5 | AGENTS.md |
-| T-M6-002 | CI matrix all examples | M5 | 18 |
-| T-M6-003 | Exhaustive error codes documented + tested | M5 | S-ERRORS |
-| T-M6-004 | `anvil build` static export | M5 | 05 |
-| T-M6-005 | Performance smoke (entity budget) | M5 | 07 |
-| T-M6-006 | Docs sync: any API drift fixed | T-M6-004 | 14 |
-| T-M6-007 | M6 acceptance: agent-ready | T-M6-006 | 14 |
+| ID | Task | Depends | Spec | Status |
+|----|------|---------|------|--------|
+| T-M6-001 | Root + anvil AGENTS.md commands match reality | M5 | AGENTS.md | **[x]** |
+| T-M6-002 | CI matrix all examples | M5 | 18 | **[x]** |
+| T-M6-003 | Exhaustive error codes documented + tested | M5 | S-ERRORS | **[x]** |
+| T-M6-004 | `anvil build` static export | M5 | 05 | **[x]** |
+| T-M6-005 | Performance smoke (entity budget) | M5 | 07 | **[x]** |
+| T-M6-006 | Docs sync: any API drift fixed | T-M6-004 | 14 | **[x]** |
+| T-M6-007 | M6 acceptance: agent-ready | T-M6-006 | 14 | **[x]** |
 
 ---
 

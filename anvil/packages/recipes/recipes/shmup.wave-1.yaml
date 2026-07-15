@@ -1,0 +1,24 @@
+id: shmup.wave-1
+title: First shmup wave with popcorn enemies
+genre: shmup
+files:
+  - path: content/enemies/popcorn.json
+    write: |
+      {
+        "id": "popcorn",
+        "name": "Popcorn",
+        "hp": 1,
+        "speed": 50,
+        "radius": 10,
+        "score": 50
+      }
+  - path: content/waves/w1.json
+    write: |
+      {
+        "id": "w1",
+        "t": 0.2,
+        "spawns": [
+          { "enemy": "popcorn", "x": 80, "y": -10, "pattern": "down" },
+          { "enemy": "popcorn", "x": 160, "y": -10, "pattern": "down" }
+        ]
+      }

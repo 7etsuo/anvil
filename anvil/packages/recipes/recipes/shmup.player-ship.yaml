@@ -1,0 +1,18 @@
+id: shmup.player-ship
+title: Shmup player ship stage defaults
+genre: shmup
+files:
+  - path: content/stages/stage1.json
+    write: |
+      {
+        "id": "stage1",
+        "width": 240,
+        "height": 320,
+        "playerX": 120,
+        "playerY": 280,
+        "playerSpeed": 160,
+        "fireCooldownMs": 150,
+        "bulletSpeed": 300,
+        "lives": 3,
+        "waves": []
+      }

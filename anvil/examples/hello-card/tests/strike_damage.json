@@ -1,0 +1,11 @@
+{
+  "id": "strike_damage",
+  "seed": 1,
+  "maxTicks": 30,
+  "steps": [
+    { "tick": 0, "assert": { "path": "genre.battle.phase", "eq": "player_turn" } },
+    { "tick": 0, "assert": { "path": "genre.battle.enemies.0.hp", "eq": 12 } },
+    { "tick": 1, "action": "play_card", "args": { "slot": 0 } },
+    { "tick": 3, "assert": { "path": "genre.battle.enemies.0.hp", "lt": 12 } }
+  ]
+}

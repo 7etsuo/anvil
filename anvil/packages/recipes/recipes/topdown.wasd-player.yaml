@@ -1,0 +1,16 @@
+id: topdown.wasd-player
+title: WASD player actor
+genre: topdown2d
+files:
+  - path: content/actors/player.json
+    write: |
+      {
+        "id": "player",
+        "name": "Hero",
+        "hp": 30,
+        "speed": 120,
+        "ai": "none",
+        "team": "player",
+        "radius": 12,
+        "contactDamage": 0
+      }

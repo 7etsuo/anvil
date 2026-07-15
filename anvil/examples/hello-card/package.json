@@ -1,0 +1,9 @@
+{
+  "name": "@anvil/example-hello-card",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "test": "echo 'use: pnpm --filter @anvil/cli exec ... or root anvil test'"
+  }
+}

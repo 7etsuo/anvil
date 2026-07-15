@@ -44,6 +44,7 @@ export class Kernel implements KernelInternals {
   private maxDtSteps: number;
   private disposed = false;
   private clearColor = "#1a1a2e";
+  private genreObserve: () => Record<string, unknown> = () => ({});
 
   constructor(opts: {
     gameRoot: string;
@@ -70,6 +71,8 @@ export class Kernel implements KernelInternals {
       events: this.events,
       input: this.input,
       assets: this.assets,
+      seed: this.seed,
+      random: () => this.rng.random(),
     });
     this.audio = new AudioSystem(this.assets, this.events);
     this.cinema = new CinematicSystem(this.assets, this.events, this.input);
@@ -114,6 +117,14 @@ export class Kernel implements KernelInternals {
     for (const s of mod.defaultScenes?.() ?? []) {
       this.registerScene(s.name, s.factory);
     }
+  }
+
+  setGenreObserve(fn: () => Record<string, unknown>): void {
+    this.genreObserve = fn;
+  }
+
+  getGenreObserve(): Record<string, unknown> {
+    return this.genreObserve();
   }
 
   random(): number {

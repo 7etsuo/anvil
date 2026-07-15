@@ -1,0 +1,9 @@
+{
+  "id": "bash",
+  "name": "Bash",
+  "cost": 2,
+  "effects": [
+    { "op": "damage", "amount": 8, "target": "enemy" },
+    { "op": "apply_status", "status": "vulnerable", "amount": 2, "target": "enemy" }
+  ]
+}

@@ -1,12 +1,13 @@
 import fs from "node:fs";
 import path from "node:path";
-import { err } from "@anvil/schema";
 import { createGame, type GameHandle } from "../createGame.js";
+import type { GenreModule } from "../modules/ModuleRegistry.js";
 import { observe } from "../observe.js";
 
 export interface TestOpts {
   seed?: number;
   strictAssets?: boolean;
+  modules?: GenreModule[];
 }
 
 export interface TestReport {
@@ -64,6 +65,7 @@ export async function runTests(
         root: abs,
         headless: true,
         seed: opts.seed,
+        modules: opts.modules,
       });
       handle.tick(1 / 60);
       handle.dispose();
@@ -100,6 +102,7 @@ async function runScenario(
       root,
       headless: true,
       seed: opts.seed ?? scenario.seed,
+      modules: opts.modules,
     });
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e);
@@ -195,13 +198,19 @@ function applyStep(handle: GameHandle, step: TestStep): void {
   if (step.setUp) {
     for (const a of step.setUp) handle.input.setDown(a, false);
   }
+  // Pulse actions: release then press so isPressed edges fire every time
+  const pulse = (action: string) => {
+    handle.input.setDown(action, false);
+    handle.input.endFrame();
+    handle.input.setDown(action, true);
+  };
   if (step.action === "play_card") {
     const slot = Number(step.args?.slot ?? 0);
-    handle.input.setDown(`play_card_${slot}`, true);
+    pulse(`play_card_${slot}`);
   } else if (step.action === "end_turn") {
-    handle.input.setDown("end_turn", true);
+    pulse("end_turn");
   } else if (step.action) {
-    handle.input.setDown(step.action, true);
+    pulse(step.action);
   }
   if (step.wait && step.wait > 0) {
     for (let i = 0; i < step.wait; i++) handle.tick(1 / 60);
@@ -273,5 +282,3 @@ function collectJsonTests(dir: string): string[] {
   return out.sort();
 }
 
-// silence unused import if tree-shaken
-void err;

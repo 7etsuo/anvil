@@ -1,0 +1,37 @@
+{
+  "id": "stage1",
+  "width": 240,
+  "height": 320,
+  "playerX": 120,
+  "playerY": 280,
+  "playerSpeed": 160,
+  "fireCooldownMs": 150,
+  "bulletSpeed": 300,
+  "lives": 3,
+  "waves": [
+    {
+      "id": "w1",
+      "t": 0.2,
+      "spawns": [
+        { "enemy": "popcorn", "x": 80, "y": -10, "pattern": "down" },
+        { "enemy": "popcorn", "x": 160, "y": -10, "pattern": "down" }
+      ]
+    },
+    {
+      "id": "w2",
+      "t": 1.5,
+      "spawns": [
+        { "enemy": "gunner", "x": 120, "y": -15, "pattern": "down" }
+      ]
+    },
+    {
+      "id": "w3",
+      "t": 3.0,
+      "spawns": [
+        { "enemy": "popcorn", "x": 60, "y": -10, "pattern": "down" },
+        { "enemy": "popcorn", "x": 120, "y": -20, "pattern": "down" },
+        { "enemy": "popcorn", "x": 180, "y": -10, "pattern": "down" }
+      ]
+    }
+  ]
+}

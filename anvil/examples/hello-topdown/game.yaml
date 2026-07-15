@@ -1,0 +1,8 @@
+id: hello-topdown
+title: Hello Topdown
+genre: topdown2d
+modules:
+  - genre-topdown2d
+entryScene: main
+seed: 1
+schemaVersion: 1

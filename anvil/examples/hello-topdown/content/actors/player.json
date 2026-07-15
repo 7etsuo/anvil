@@ -1,0 +1,10 @@
+{
+  "id": "player",
+  "name": "Hero",
+  "hp": 30,
+  "speed": 120,
+  "ai": "none",
+  "team": "player",
+  "radius": 12,
+  "contactDamage": 0
+}

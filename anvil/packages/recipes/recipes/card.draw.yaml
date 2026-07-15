@@ -1,0 +1,12 @@
+id: card.draw
+title: Add a draw card
+genre: card
+files:
+  - path: content/cards/concentrate.json
+    write: |
+      {
+        "id": "concentrate",
+        "name": "Concentrate",
+        "cost": 0,
+        "effects": [{ "op": "draw", "amount": 2 }]
+      }

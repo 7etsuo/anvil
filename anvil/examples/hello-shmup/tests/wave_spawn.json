@@ -1,0 +1,14 @@
+{
+  "id": "wave_spawn",
+  "seed": 1,
+  "maxTicks": 40,
+  "steps": [
+    { "tick": 0, "assert": { "path": "genre.shmup.enemyCount", "eq": 0 } },
+    { "tick": 0, "assert": { "path": "genre.shmup.lives", "eq": 3 } },
+    { "tick": 20, "assert": { "path": "genre.shmup.enemyCount", "gte": 1 } },
+    {
+      "tick": 20,
+      "assert": { "path": "genre.shmup.wavesFired", "exists": true }
+    }
+  ]
+}

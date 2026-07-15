@@ -1,0 +1,8 @@
+id: hello-shmup
+title: Hello Shmup
+genre: shmup
+modules:
+  - genre-shmup
+entryScene: main
+seed: 1
+schemaVersion: 1

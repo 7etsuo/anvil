@@ -1,0 +1,8 @@
+{
+  "id": "popcorn",
+  "name": "Popcorn",
+  "hp": 1,
+  "speed": 50,
+  "radius": 10,
+  "score": 50
+}

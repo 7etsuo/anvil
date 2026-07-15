@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 import fs from "node:fs";
 import path from "node:path";
+import { fileURLToPath } from "node:url";
 import {
   createGame,
   listMissingAssets,
@@ -8,6 +9,8 @@ import {
   runTests,
   validateProject,
 } from "@anvil/core";
+import { listRecipes, showRecipe } from "@anvil/recipes";
+import { loadModulesForRoot } from "./loadModules.js";
 
 const VERSION = "0.1.0";
 
@@ -46,12 +49,26 @@ async function main(): Promise<void> {
         if (args[1] === "missing") await cmdAssetsMissing(args.slice(2));
         else usageError("Unknown assets subcommand");
         break;
+      case "recipe":
+        if (args[1] === "list") cmdRecipeList();
+        else if (args[1] === "show" && args[2]) cmdRecipeShow(args[2]);
+        else usageError("recipe list | recipe show <id>");
+        break;
+      case "build":
+        await cmdBuild(args.slice(1));
+        break;
       default:
         usageError(`Unknown command: ${cmd}`);
     }
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e);
-    console.error(JSON.stringify({ ok: false, errors: [{ code: "INTERNAL", message: msg }] }, null, 2));
+    console.error(
+      JSON.stringify(
+        { ok: false, errors: [{ code: "INTERNAL", message: msg }] },
+        null,
+        2,
+      ),
+    );
     process.exit(3);
   }
 }
@@ -60,13 +77,14 @@ function printHelp(): void {
   console.log(`anvil ${VERSION}
 Commands:
   version
-  new <name> [--genre none|card|...] [--root <dir>]
+  new <name> [--genre none|card|topdown2d|vn|shmup] [--root <dir>]
   validate [path] [--json]
   test [path] [--json] [--seed N] [--strict-assets]
   observe [--root path] [--json] [--shot]
-  dev [path]
+  dev [path] [--port N]
+  build [path] [--out dir]
   assets missing [path] [--json]
-  observe --shot writes artifacts/observe.png
+  recipe list | recipe show <id>
 `);
 }
 
@@ -99,12 +117,41 @@ async function cmdNew(args: string[]): Promise<void> {
   const name = args.find((a) => !a.startsWith("-") && a !== "none");
   if (!name) usageError("anvil new <name> required");
   const genre = getFlag(args, "--genre") ?? "none";
-  if (genre !== "none") {
-    usageError(`Genre '${genre}' not available until later milestone (M1: none only)`);
+  const supported = ["none", "card", "topdown2d", "vn", "shmup"] as const;
+  if (!(supported as readonly string[]).includes(genre)) {
+    usageError(
+      `Genre '${genre}' not available yet (supported: ${supported.join(", ")})`,
+    );
   }
   const base = getFlag(args, "--root")
     ? path.resolve(getFlag(args, "--root")!)
     : path.resolve(process.cwd(), name!);
+
+  const genreTemplate: Record<string, string> = {
+    card: "card-starter",
+    topdown2d: "topdown-starter",
+    vn: "vn-starter",
+    shmup: "shmup-starter",
+  };
+  const templateName = genreTemplate[genre];
+  if (templateName) {
+    const starterPath = path.resolve(
+      path.dirname(fileURLToPath(import.meta.url)),
+      `../../../templates/${templateName}`,
+    );
+    if (fs.existsSync(starterPath)) {
+      copyDir(starterPath, base);
+      const gy = path.join(base, "game.yaml");
+      let text = fs.readFileSync(gy, "utf8");
+      const id = name!.replace(/[^a-z0-9-]/gi, "-").toLowerCase();
+      text = text.replace(/^id:.*$/m, `id: ${id}`);
+      text = text.replace(/^title:.*$/m, `title: ${name}`);
+      fs.writeFileSync(gy, text);
+      console.log(base);
+      return;
+    }
+  }
+
   fs.mkdirSync(base, { recursive: true });
   fs.mkdirSync(path.join(base, "content"), { recursive: true });
   fs.mkdirSync(path.join(base, "assets"), { recursive: true });
@@ -140,6 +187,16 @@ schemaVersion: 1
   console.log(base);
 }
 
+function copyDir(src: string, dest: string): void {
+  fs.mkdirSync(dest, { recursive: true });
+  for (const ent of fs.readdirSync(src, { withFileTypes: true })) {
+    const s = path.join(src, ent.name);
+    const d = path.join(dest, ent.name);
+    if (ent.isDirectory()) copyDir(s, d);
+    else fs.copyFileSync(s, d);
+  }
+}
+
 async function cmdValidate(args: string[]): Promise<void> {
   const root = projectRoot(args);
   const result = await validateProject(root);
@@ -152,9 +209,11 @@ async function cmdValidate(args: string[]): Promise<void> {
 async function cmdTest(args: string[]): Promise<void> {
   const root = projectRoot(args);
   const seed = getFlag(args, "--seed");
+  const modules = await loadModulesForRoot(root);
   const report = await runTests(root, {
     seed: seed ? Number(seed) : undefined,
     strictAssets: hasFlag(args, "--strict-assets"),
+    modules,
   });
   console.log(JSON.stringify(report, null, 2));
   process.exit(report.ok ? 0 : 1);
@@ -162,7 +221,8 @@ async function cmdTest(args: string[]): Promise<void> {
 
 async function cmdObserve(args: string[]): Promise<void> {
   const root = projectRoot(args);
-  const handle = await createGame({ root, headless: true });
+  const modules = await loadModulesForRoot(root);
+  const handle = await createGame({ root, headless: true, modules });
   handle.tick(1 / 60);
   const snap = await observe(handle, { shot: hasFlag(args, "--shot") });
   console.log(JSON.stringify(snap, null, 2));
@@ -170,6 +230,20 @@ async function cmdObserve(args: string[]): Promise<void> {
     console.error(`screenshot written: ${snap.screenshot}`);
   }
   handle.dispose();
+}
+
+function cmdRecipeList(): void {
+  const ids = listRecipes();
+  if (ids.length === 0) console.log("(no recipes)");
+  else ids.forEach((id) => console.log(id));
+}
+
+function cmdRecipeShow(id: string): void {
+  const body = showRecipe(id);
+  if (!body) {
+    usageError(`Unknown recipe: ${id}`);
+  }
+  console.log(body);
 }
 
 async function cmdDev(args: string[]): Promise<void> {
@@ -213,7 +287,8 @@ async function cmdDev(args: string[]): Promise<void> {
 
 async function cmdAssetsMissing(args: string[]): Promise<void> {
   const root = projectRoot(args);
-  const handle = await createGame({ root, headless: true });
+  const modules = await loadModulesForRoot(root);
+  const handle = await createGame({ root, headless: true, modules });
   const missing = listMissingAssets(
     handle.root,
     handle.game.contentRoot,
@@ -227,6 +302,165 @@ async function cmdAssetsMissing(args: string[]): Promise<void> {
   }
   handle.dispose();
   process.exit(0);
+}
+
+/**
+ * Static export (S-CLI / M6).
+ * - Projects with vite.config: `vite build` → `--out` (default dist/)
+ * - Otherwise: data package (game.yaml + content + assets + minimal index.html)
+ */
+async function cmdBuild(args: string[]): Promise<void> {
+  const root = projectRoot(args);
+  const outFlag = getFlag(args, "--out");
+  const out = path.resolve(outFlag ?? path.join(root, "dist"));
+
+  // Refuse escaping game root when --out is relative weirdness: still allow absolute outs
+  const v = await validateProject(root);
+  if (!v.ok) {
+    console.error(JSON.stringify(v, null, 2));
+    process.exit(1);
+  }
+
+  const viteConfigTs = path.join(root, "vite.config.ts");
+  const viteConfigJs = path.join(root, "vite.config.js");
+  const hasVite = fs.existsSync(viteConfigTs) || fs.existsSync(viteConfigJs);
+
+  fs.mkdirSync(out, { recursive: true });
+
+  if (hasVite) {
+    const { spawnSync } = await import("node:child_process");
+    const config = fs.existsSync(viteConfigTs) ? viteConfigTs : viteConfigJs;
+    const r = spawnSync(
+      "pnpm",
+      [
+        "exec",
+        "vite",
+        "build",
+        "--config",
+        config,
+        "--outDir",
+        out,
+        "--emptyOutDir",
+      ],
+      {
+        cwd: root,
+        encoding: "utf8",
+        shell: process.platform === "win32",
+      },
+    );
+    if (r.status !== 0) {
+      console.error(
+        JSON.stringify(
+          {
+            ok: false,
+            errors: [
+              {
+                code: "INTERNAL",
+                message: r.stderr || r.stdout || "vite build failed",
+                path: root,
+                hint: "Ensure vite is installed and vite.config builds cleanly",
+              },
+            ],
+          },
+          null,
+          2,
+        ),
+      );
+      process.exit(r.status === 2 ? 2 : 3);
+    }
+  } else {
+    emitDataPackage(root, out);
+  }
+
+  // Always ensure data snapshot alongside web build
+  const dataDir = path.join(out, "anvil-data");
+  emitDataPackage(root, dataDir, { skipIndex: hasVite });
+
+  console.log(
+    JSON.stringify(
+      {
+        ok: true,
+        out,
+        mode: hasVite ? "vite" : "data",
+      },
+      null,
+      2,
+    ),
+  );
+}
+
+function emitDataPackage(
+  root: string,
+  out: string,
+  opts: { skipIndex?: boolean } = {},
+): void {
+  fs.mkdirSync(out, { recursive: true });
+  const gy = path.join(root, "game.yaml");
+  if (fs.existsSync(gy)) {
+    fs.copyFileSync(gy, path.join(out, "game.yaml"));
+  }
+  for (const dir of ["content", "assets", "tests"]) {
+    const src = path.join(root, dir);
+    if (fs.existsSync(src)) copyDir(src, path.join(out, dir));
+  }
+  if (!opts.skipIndex) {
+    let title = "Anvil game";
+    let id = "game";
+    let genre = "none";
+    try {
+      const text = fs.readFileSync(path.join(root, "game.yaml"), "utf8");
+      const t = text.match(/^title:\s*(.+)$/m);
+      const i = text.match(/^id:\s*(.+)$/m);
+      const g = text.match(/^genre:\s*(.+)$/m);
+      if (t) title = t[1]!.trim();
+      if (i) id = i[1]!.trim();
+      if (g) genre = g[1]!.trim();
+    } catch {
+      /* ignore */
+    }
+    fs.writeFileSync(
+      path.join(out, "index.html"),
+      `<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>${escapeHtml(title)}</title>
+  <style>
+    body { font-family: system-ui, sans-serif; background: #12121a; color: #e8e8f0; margin: 2rem; }
+    code { background: #2a2a3a; padding: 0.1em 0.35em; border-radius: 4px; }
+    a { color: #8ab4ff; }
+  </style>
+</head>
+<body>
+  <h1>${escapeHtml(title)}</h1>
+  <p>Anvil static data package (<code>${escapeHtml(id)}</code>, genre <code>${escapeHtml(genre)}</code>).</p>
+  <p>Headless: <code>anvil test .</code> · Browser shell: add <code>vite.config.ts</code> then <code>anvil build</code> / <code>anvil dev</code>.</p>
+  <p>This folder includes <code>game.yaml</code>, <code>content/</code>, <code>assets/</code>, <code>tests/</code>.</p>
+</body>
+</html>
+`,
+    );
+  }
+  fs.writeFileSync(
+    path.join(out, "anvil-build.json"),
+    JSON.stringify(
+      {
+        anvilVersion: VERSION,
+        builtAt: new Date().toISOString(),
+        root: path.basename(root),
+      },
+      null,
+      2,
+    ),
+  );
+}
+
+function escapeHtml(s: string): string {
+  return s
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;");
 }
 
 main();

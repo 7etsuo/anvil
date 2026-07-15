@@ -4,16 +4,52 @@
 
 Anvil is a multi-genre agent-native game engine. Specs in `docs/design/` are source of truth. Code implements `20_FULL_TASK_BREAKDOWN.md`.
 
-## 2. Commands (after M1)
+**Status:** M1–M6 done. Next: M7 genre-fps2.
+
+## 2. Commands (live)
+
+From monorepo package root `anvil/`:
 
 ```bash
-cd anvil && pnpm install && pnpm test
-pnpm exec anvil validate examples/hello-empty
-pnpm exec anvil test examples/hello-empty
-pnpm exec anvil observe --json
+cd anvil
+pnpm install
+pnpm -r run build
+pnpm test                 # unit/integration (all packages)
+pnpm lint
+pnpm validate:examples    # all hello-* examples
+pnpm test:examples
+
+# CLI (built bin)
+pnpm anvil version
+pnpm anvil new my-game --genre card|topdown2d|vn|shmup|none
+pnpm anvil validate examples/hello-empty
+pnpm anvil test examples/hello-card
+pnpm anvil observe --root examples/hello-empty --json
+pnpm anvil observe --root examples/hello-empty --shot
+pnpm anvil assets missing examples/hello-empty
+pnpm anvil recipe list
+pnpm anvil recipe show card.basic-attack
+pnpm anvil build examples/hello-empty --out examples/hello-empty/dist
+pnpm anvil dev examples/hello-empty
 ```
 
-Full CLI: `specs/S-CLI.md`.
+Equivalent: `node packages/cli/dist/index.js <cmd> …`
+
+### Examples (CI matrix)
+
+| Example | Genre |
+|---------|--------|
+| `examples/hello-empty` | none |
+| `examples/hello-card` | card |
+| `examples/hello-topdown` | topdown2d |
+| `examples/hello-vn` | vn |
+| `examples/hello-shmup` | shmup |
+
+### Allowed genres for `anvil new`
+
+`none`, `card`, `topdown2d`, `vn`, `shmup` (fps2 after M7).
+
+Full CLI: `specs/S-CLI.md`. Errors: `specs/S-ERRORS.md`.
 
 ## 3. Code style
 
@@ -21,7 +57,7 @@ See `STYLE.md`. No Phaser outside `packages/render-phaser`.
 
 ## 4. Testing
 
-See `18_TESTING_AND_CI.md` + `specs/S-TEST.md`. Always validate then test. Use observe on failure.
+See `18_TESTING_AND_CI.md` + `specs/S-TEST.md`. Always `validate` then `test`. Use `observe` on failure.
 
 ## 5. Security
 
@@ -39,4 +75,4 @@ See `CONTRIBUTING.md`.
 4. Implement one task; mark `[x]`  
 
 Repo root AGENTS: `../../../AGENTS.md` (from `anvil/docs/design/`).  
-No Gravewake.
+No Gravewake until M9 unpark.

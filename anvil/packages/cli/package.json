@@ -13,7 +13,13 @@
   },
   "dependencies": {
     "@anvil/core": "workspace:*",
-    "@anvil/schema": "workspace:*"
+    "@anvil/schema": "workspace:*",
+    "@anvil/genre-card": "workspace:*",
+    "@anvil/genre-topdown2d": "workspace:*",
+    "@anvil/genre-vn": "workspace:*",
+    "@anvil/genre-shmup": "workspace:*",
+    "@anvil/recipes": "workspace:*",
+    "yaml": "^2.6.1"
   },
   "devDependencies": {
     "typescript": "^5.7.2",

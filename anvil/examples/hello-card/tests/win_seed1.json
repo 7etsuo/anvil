@@ -1,0 +1,12 @@
+{
+  "id": "win_seed1",
+  "seed": 1,
+  "maxTicks": 200,
+  "steps": [
+    { "tick": 0, "assert": { "path": "genre.battle.phase", "eq": "player_turn" } },
+    { "tick": 1, "action": "play_card", "args": { "slot": 0 } },
+    { "tick": 3, "action": "play_card", "args": { "slot": 0 } },
+    { "tick": 5, "action": "play_card", "args": { "slot": 0 } },
+    { "tick": 8, "assert": { "path": "genre.battle.won", "eq": true } }
+  ]
+}

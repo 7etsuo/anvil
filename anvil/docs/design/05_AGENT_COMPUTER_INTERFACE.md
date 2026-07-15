@@ -23,7 +23,7 @@ GameCraft-Bench §5.1 — bash thrashing ≠ quality; perception-guided iteratio
 | `anvil assets missing` | | List of paths | P09 |
 | `anvil recipe list` | | Recipe ids | P10 |
 | `anvil recipe show <id>` | | Files to write | P10 |
-| `anvil build` | | Static web build | later |
+| `anvil build` | `[path] [--out dir]` | Static web/data build | P05/M6 |
 | `anvil version` | | Version string | — |
 
 **Forbidden as required workflow:** ad-hoc `rm -rf`, editing `node_modules`, importing `phaser` in game src.

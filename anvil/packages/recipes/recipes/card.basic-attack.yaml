@@ -1,0 +1,12 @@
+id: card.basic-attack
+title: Add a basic attack card
+genre: card
+files:
+  - path: content/cards/strike.json
+    write: |
+      {
+        "id": "strike",
+        "name": "Strike",
+        "cost": 1,
+        "effects": [{ "op": "damage", "amount": 6, "target": "enemy" }]
+      }

@@ -1,0 +1,15 @@
+{
+  "id": "chase_closes",
+  "seed": 1,
+  "maxTicks": 120,
+  "steps": [
+    {
+      "tick": 0,
+      "assert": { "path": "genre.topdown.entities.1.x", "eq": 240 }
+    },
+    {
+      "tick": 90,
+      "assert": { "path": "genre.topdown.entities.1.x", "lt": 240 }
+    }
+  ]
+}

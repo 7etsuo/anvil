@@ -1,0 +1,19 @@
+{
+  "id": "bullet_hit",
+  "seed": 1,
+  "maxTicks": 120,
+  "steps": [
+    {
+      "tick": 1,
+      "setDown": { "shoot": true, "move_up": true }
+    },
+    {
+      "tick": 15,
+      "assert": { "path": "genre.shmup.enemyCount", "gte": 1 }
+    },
+    {
+      "tick": 100,
+      "assert": { "path": "genre.shmup.score", "gt": 0 }
+    }
+  ]
+}

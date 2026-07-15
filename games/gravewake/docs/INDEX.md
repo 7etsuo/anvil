@@ -1,6 +1,6 @@
 # Gravewake — Documentation Index
 
-**Game:** Gravewake  
+**Game:** Gravewake (active M9 title)
 **Engine/SDK:** [Anvil](../../../anvil/README.md) (repo `anvil/` — not mixed into this game)
 
 **Read order:**
@@ -19,9 +19,11 @@
 12. **ASSET_PIPELINE.md** — Imagine workflow (game-level)  
 13. **ASSET_CHECKLIST.md** — every file  
 
-## Loop
+The detailed design files capture the original vertical-slice intent. For current runtime scope and commands, start with [`../README.md`](../README.md); source and content are authoritative where older Cinder Parish/Bellcrypt-only notes differ.
 
-**Ashen Lychgate** → **Cinder Parish** → **Bellcrypt** → **Bellwarden**. Levels + loot.
+## Current loop
+
+**Ashen Lychgate** → **Ashen Wastes** → **Bellcrypt / Howling Catacombs / Bonekeep** → endless threat scaling. Levels + loot + crafting.
 
 ## Monorepo
 
@@ -29,5 +31,5 @@
 x-game/
   anvil/              # framework only
   games/
-    gravewake/        # this game (parked)
+    gravewake/        # active first title
 ```

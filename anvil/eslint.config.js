@@ -47,4 +47,10 @@ export default tseslint.config(
       "no-restricted-imports": "off",
     },
   },
+  {
+    files: ["**/*.cjs"],
+    rules: {
+      "@typescript-eslint/no-require-imports": "off",
+    },
+  },
 );

@@ -445,30 +445,12 @@ async function main(): Promise<void> {
     }
   };
 
-  // Title → play: any pointer on mount/canvas/window
-  const onPointerStart = (e: Event) => {
-    if (started) return;
-    beginPlay();
-    // Stop the same event from also being treated as a world click
-    e.stopPropagation?.();
-  };
-  mount.addEventListener("pointerdown", onPointerStart, true);
-  canvas?.addEventListener("pointerdown", onPointerStart, true);
-  window.addEventListener("pointerdown", onPointerStart, true);
-
-  mount.addEventListener("mousedown", (e) => {
+  // One pointer path avoids duplicate canvas/mount events and suppresses the
+  // title click instead of also turning it into a world move.
+  mount.addEventListener("pointerdown", (e) => {
     if (!started) {
       beginPlay();
-      return;
-    }
-    if (e.button === 0 || e.button === 2) {
       e.preventDefault();
-      onWorldClick(e.clientX, e.clientY, e.button);
-    }
-  });
-  canvas?.addEventListener("mousedown", (e) => {
-    if (!started) {
-      beginPlay();
       return;
     }
     if (e.button === 0 || e.button === 2) {
@@ -477,7 +459,6 @@ async function main(): Promise<void> {
     }
   });
   mount.addEventListener("contextmenu", (e) => e.preventDefault());
-  canvas?.addEventListener("contextmenu", (e) => e.preventDefault());
 
   // Periodic run save while playing
   setInterval(() => {
@@ -627,15 +608,6 @@ async function main(): Promise<void> {
     return 78;
   }
 
-  function xpPct(level: number, xp: number): number {
-    // progression xpToLevel: [0, 40, 100, ...] — need next threshold
-    const table = [0, 40, 100, 180, 280, 400, 550, 750, 1000];
-    const cur = table[Math.min(level, table.length - 1)] ?? 0;
-    const next = table[Math.min(level + 1, table.length - 1)] ?? cur + 100;
-    if (next <= cur) return 1;
-    return Math.max(0, Math.min(1, (xp - cur) / (next - cur)));
-  }
-
   function frame(now: number): void {
     try {
       frameInner(now);
@@ -745,24 +717,19 @@ async function main(): Promise<void> {
     const player = handle.world.get("player");
     const blob = gw.observeBlob();
     // Prefer live procgen geometry from game; fall back to embedded content
-    const embedded = embeddedAreas[String(blob.area)];
-    const liveWalls = (blob.walls as Array<{ x: number; y: number; w: number; h: number }>) ?? [];
+    const embedded = embeddedAreas[blob.area];
+    const liveWalls = blob.walls;
     const area = embedded
       ? {
           ...embedded,
-          width: Number(blob.mapW ?? embedded.width),
-          height: Number(blob.mapH ?? embedded.height),
+          width: blob.mapW || embedded.width,
+          height: blob.mapH || embedded.height,
           walls: liveWalls.length ? liveWalls : embedded.walls,
         }
       : null;
-    const fx = gw.fx as FxEvent[];
-    const cds = (blob.cds as Record<string, number>) ?? {};
-    const stats = (blob.stats as {
-      damage?: number;
-      armor?: number;
-      maxHp?: number;
-      critChance?: number;
-    }) ?? {};
+    const fx: FxEvent[] = gw.fx;
+    const cds = blob.cds;
+    const stats = blob.stats;
 
     // engine ViewCamera follow + shake
     const tcx = player?.transform?.x ?? handle.camera.wx;
@@ -939,17 +906,7 @@ async function main(): Promise<void> {
         ctx.textAlign = "left";
       }
 
-      const portals =
-        (blob.portals as Array<{
-          x: number;
-          y: number;
-          w: number;
-          h: number;
-          label?: string;
-          kind?: string;
-        }>) ??
-        area.portals ??
-        [];
+      const portals = blob.portals.length ? blob.portals : (area.portals ?? []);
       for (const pr of portals) {
         const s = handle.camera.project(pr.x + pr.w / 2, pr.y + pr.h / 2);
         const cx = s.x;
@@ -1093,14 +1050,7 @@ async function main(): Promise<void> {
         }
         // Diablo paper-doll: small slot-scaled layers (never full-body size)
         if (e.tags.includes("player")) {
-          const layers = (blob.visualLayers as Array<{
-            sprite: string;
-            ox: number;
-            oy: number;
-            scale?: number;
-            slot?: string;
-            z: number;
-          }>) ?? [];
+          const layers = blob.visualLayers;
           for (const layer of layers) {
             const gimg = images.get(layer.sprite);
             if (!gimg) continue;
@@ -1238,13 +1188,7 @@ async function main(): Promise<void> {
     }
 
     // World interactables (chests / shrines) markers
-    for (const it of (blob.interactables as Array<{
-      id: string;
-      kind: string;
-      used: boolean;
-      x: number;
-      y: number;
-    }>) ?? []) {
+    for (const it of blob.interactables) {
       if (it.used && it.kind === "chest") continue;
       const { x: sx, y: sy } = wp(it.x, it.y);
       ctx.save();
@@ -1462,7 +1406,6 @@ async function main(): Promise<void> {
     const hp = Number(blob.hp ?? player?.health?.hp ?? 0);
     const max = Number(blob.maxHp ?? player?.health?.max ?? 1);
     const hpPct = max > 0 ? hp / max : 0;
-    const potPct = Math.min(1, Number(blob.potions ?? 0) / 5);
 
     const panelY = VIEW_H - 100;
     ctx.fillStyle = "rgba(8,6,4,0.88)";
@@ -1621,7 +1564,7 @@ async function main(): Promise<void> {
     // XP bar
     ctx.fillStyle = "#1a1820";
     ctx.fillRect(26, 90, 290, 8);
-    const xpp = xpPct(Number(blob.level ?? 1), Number(blob.xp ?? 0));
+    const xpp = blob.xpProgress.ratio;
     const xg = ctx.createLinearGradient(26, 90, 26 + 290, 90);
     xg.addColorStop(0, "#3a6aa0");
     xg.addColorStop(1, "#80b0e0");
@@ -1638,7 +1581,7 @@ async function main(): Promise<void> {
     ctx.fillStyle = "#ddd";
     ctx.font = "13px system-ui";
     const questText =
-      (blob.quest as string | null) ??
+      blob.quest ??
       (blob.area === "town"
         ? "Exit east into the Ashen Wastes"
         : "Hunt · delve · survive");
@@ -1653,8 +1596,8 @@ async function main(): Promise<void> {
     );
 
     // mini-map (fog of war from engine MinimapFog sample)
-    const mapW = Number(blob.mapW ?? 0);
-    const mapH = Number(blob.mapH ?? 0);
+      const mapW = blob.mapW;
+      const mapH = blob.mapH;
     if (mapW > 0 && mapH > 0 && player?.transform) {
       const mmW = 148;
       const mmH = 118;
@@ -1663,7 +1606,7 @@ async function main(): Promise<void> {
       panel(ctx, mmX, mmY, mmW, mmH);
       ctx.fillStyle = "rgba(8,6,4,0.95)";
       ctx.fillRect(mmX + 4, mmY + 4, mmW - 8, mmH - 8);
-      const fog = blob.fog as number[][] | null;
+      const fog = blob.fog;
       const innerW = mmW - 8;
       const innerH = mmH - 20;
       if (fog && fog.length > 0) {
@@ -1684,7 +1627,7 @@ async function main(): Promise<void> {
       const sxm = innerW / mapW;
       const sym = innerH / mapH;
       // portals on mini
-      for (const pr of (blob.portals as Array<{ x: number; y: number; w: number; h: number; kind?: string }>) ?? []) {
+      for (const pr of blob.portals) {
         ctx.fillStyle =
           pr.kind === "boss"
             ? "#e64"
@@ -1746,7 +1689,7 @@ async function main(): Promise<void> {
     }
 
     // equipped strip
-    const equipped = (blob.equipped as Record<string, string | null>) ?? {};
+    const equipped = blob.equipped;
     const eqParts = ["weapon", "head", "chest"]
       .map((s) => equipped[s])
       .filter(Boolean);
@@ -1761,13 +1704,7 @@ async function main(): Promise<void> {
     // Only one modal at a time (game already enforces; draw order safety)
     // inventory panel
     if (blob.inventoryOpen && !blob.statsOpen && !blob.skillsOpen && !blob.craftOpen && !blob.vendorOpen) {
-      const inv = (blob.inventory as Array<{
-        defId: string;
-        name: string;
-        qty: number;
-        rarity?: string;
-        slot?: string;
-      }>) ?? [];
+      const inv = blob.inventory;
       const iw = 340;
       const ih = 380;
       const ix = VIEW_W / 2 - iw / 2;
@@ -1816,7 +1753,7 @@ async function main(): Promise<void> {
     }
 
     // Loot compare toast
-    const lc = blob.lootCompare as { text: string; color: string; t: number } | null;
+    const lc = blob.lootCompare;
     if (lc && lc.t > 0) {
       ctx.fillStyle = "rgba(0,0,0,0.7)";
       ctx.fillRect(VIEW_W / 2 - 180, 120, 360, 36);
@@ -1831,16 +1768,7 @@ async function main(): Promise<void> {
 
     // Craft panel (K)
     if (blob.craftOpen && !blob.vendorOpen && !blob.skillsOpen && !blob.statsOpen) {
-      const cp = blob.craftPanel as {
-        recipes: Array<{
-          id: string;
-          name: string;
-          can: boolean;
-          inputs: Array<{ itemId: string; qty: number }>;
-          outputId: string;
-          cost?: Record<string, number>;
-        }>;
-      };
+      const cp = blob.craftPanel;
       const iw = 480;
       const ih = 360;
       const ix = VIEW_W / 2 - iw / 2;
@@ -1886,21 +1814,7 @@ async function main(): Promise<void> {
 
     // Vendor panel (X)
     if (blob.vendorOpen && !blob.craftOpen && !blob.skillsOpen && !blob.statsOpen) {
-      const vp = blob.vendorPanel as {
-        offers: Array<{
-          id: string;
-          name: string;
-          price: Record<string, number>;
-          stock?: number;
-        }>;
-        sellable: Array<{
-          uid: string;
-          name: string;
-          qty: number;
-          value: number;
-          rarity: string;
-        }>;
-      };
+      const vp = blob.vendorPanel;
       const iw = 500;
       const ih = 420;
       const ix = VIEW_W / 2 - iw / 2;
@@ -1962,20 +1876,7 @@ async function main(): Promise<void> {
 
     // Skill tree panel (T / level-up)
     if (blob.skillsOpen && !blob.craftOpen && !blob.vendorOpen) {
-      const panelData = blob.skillPanel as {
-        points: number;
-        pending: boolean;
-        nodes: Array<{
-          id: string;
-          name: string;
-          rank: number;
-          maxRank: number;
-          canUnlock: boolean;
-          reqLevel: number;
-          description: string;
-          requires: string[];
-        }>;
-      };
+      const panelData = blob.skillPanel;
       const iw = 460;
       const ih = 400;
       const ix = VIEW_W / 2 - iw / 2;
@@ -2035,16 +1936,7 @@ async function main(): Promise<void> {
 
     // Character stats: base + gear = final
     if (blob.statsOpen && !blob.inventoryOpen && !blob.skillsOpen && !blob.craftOpen && !blob.vendorOpen) {
-      const bd = blob.statBreakdown as {
-        base: Record<string, number>;
-        gear: Record<string, number>;
-        final: Record<string, number>;
-        bySlot: Array<{
-          slot: string;
-          name: string;
-          stats: Record<string, number>;
-        }>;
-      } | null;
+      const bd = blob.statBreakdown;
       const iw = 420;
       const ih = 420;
       const ix = VIEW_W / 2 - iw / 2;
@@ -2119,8 +2011,8 @@ async function main(): Promise<void> {
           .map(([k, v]) => `${k} ${v! > 0 ? "+" : ""}${v}`)
           .join("  ");
         const lv =
-          (g as { itemLevel?: number }).itemLevel != null
-            ? ` L${(g as { itemLevel?: number }).itemLevel}`
+          g.itemLevel != null
+            ? ` L${g.itemLevel}`
             : "";
         ctx.fillStyle = "#ccc";
         ctx.font = "12px system-ui";

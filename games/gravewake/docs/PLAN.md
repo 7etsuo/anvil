@@ -6,6 +6,8 @@
 **Engine/SDK:** **Anvil** (`../../../anvil/`) — separate framework tree  
 **Framework plan:** [`../../../anvil/docs/design/README.md`](../../../anvil/docs/design/README.md)
 
+**Runtime status:** M9 playable slice implemented. This file now tracks the remaining polish pass; older detailed design docs remain useful intent, but [`../README.md`](../README.md), `src/`, and `content/` describe the current build.
+
 ---
 
 ## Documentation map (complete for v1 slice)
@@ -32,16 +34,14 @@ If it is not in these docs, it is **out of slice** until docs change.
 ## Build order (do not skip)
 
 ```
-1. Docs freeze          ← YOU ARE HERE (docs written)
-2. Scaffold project     Vite + Phaser + folders
-3. Greybox playable     town + overworld packs + dungeon rooms
-4. Progression          XP/level/HUD in greybox
-5. Pack 0 style bible   Imagine lock
-6. Packs A–H art        checklist order
-7. Pack J audio         placeholders fine
-8. Pack I wire QA
-9. Balance pass
-10. Ship vertical slice
+1. Docs freeze          ✓
+2. Anvil/Vite scaffold  ✓
+3. Playable world loop  ✓
+4. Progression/economy  ✓
+5. Production art       ✓
+6. Audio + combat juice ✓
+7. Automated gates      ✓ typecheck, lint, validate, scenarios, web build
+8. Balance/playtest     ← CURRENT
 ```
 
 **Start coding only after** you accept this plan; first code milestone = greybox, not art dump.
@@ -60,28 +60,28 @@ See GDD §15 + ASSET_CHECKLIST Pack I.
 - [x] Full design suite + asset checklist with real names
 
 ### Phase 1 — Scaffold + greybox
-- [ ] Repo package, Phaser boot
-- [ ] Player move/attack/skills/dodge with rects
-- [ ] Town → Overworld → Dungeon scene flow
-- [ ] `cinder_parish.json` packs + respawn
-- [ ] XP / level-up system
-- [ ] Enemies AI stubs with rects
-- [ ] `bellcrypt_01.json` all rooms
-- [ ] Vendor + inventory logic
-- [ ] Boss phases without final art
-- [ ] Save/load (level, xp, gear)
+- [x] Anvil game package + Vite browser host
+- [x] Mouse/WASD movement, pathing, attacks, and skills
+- [x] Town → overworld → three dungeon flow
+- [x] Timed packs + respawn in `content/areas/wastes.json`
+- [x] XP, levels, skill points, and HUD
+- [x] Melee/ranged enemy AI and elite affixes
+- [x] Procedural dungeon layouts via Anvil generators
+- [x] Vendor, inventory, equipment, crafting, and sockets
+- [x] Three boss encounters and milestone handling
+- [x] Run-state save/load (level, XP, gear, area, position, flags)
 
 ### Phase 2 — Style bible (Imagine)
-- [ ] Pack 0
+- [x] Actor/environment/gear visual identity established
 
 ### Phase 3 — Production art
-- [ ] Packs A–H per checklist
+- [x] Current actor, environment, gear, portal, and loot set wired
 
 ### Phase 4 — Audio + juice
-- [ ] Pack J + screen shake, numbers
+- [x] Bundled audio cues, screen shake, particles, and floating numbers
 
 ### Phase 5 — Polish ship
-- [ ] Balance, bugs, README playtest script
+- [ ] Final balance/playtest pass and browser interaction QA
 
 ---
 
@@ -89,13 +89,13 @@ See GDD §15 + ASSET_CHECKLIST Pack I.
 
 | Risk | Mitigation |
 |------|------------|
-| Scope creep | Roster fixed: 3 enemies + 1 boss |
+| Scope creep | Current roster/content are data-driven; new reusable mechanics must enter Anvil first |
 | Anim identity drift | Base→edit only |
 | Art before fun | Greybox first |
 | Doc drift | Change GDD+bible+checklist together |
 
 ---
 
-## Immediate next action (when you say go)
+## Immediate next action
 
-Scaffold Phaser project + implement greybox against locked JSON content — **no Imagine mass-gen yet**.
+Run the full quality gates, then playtest the complete economy/combat loop and tune content JSON rather than adding title-only engine workarounds.

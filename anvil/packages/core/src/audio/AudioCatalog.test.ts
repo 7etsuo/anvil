@@ -1,4 +1,5 @@
 import fs from "node:fs";
+import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it, beforeEach } from "vitest";
@@ -73,12 +74,17 @@ describe("AudioCatalog", () => {
     expect(idem.a).toBe("audio/sfx/x.ogg");
   });
 
-  it("writeBundledAudioCatalog rewrites catalog.json", () => {
-    const out = writeBundledAudioCatalog(AUDIO_ROOT);
-    expect(out).toBe(path.join(AUDIO_ROOT, "catalog.json"));
+  it("writeBundledAudioCatalog writes a catalog without mutating fixtures", () => {
+    const root = fs.mkdtempSync(path.join(os.tmpdir(), "anvil-audio-catalog-"));
+    fs.mkdirSync(path.join(root, "sfx"), { recursive: true });
+    fs.writeFileSync(path.join(root, "sfx", "test.ogg"), "fixture");
+
+    const out = writeBundledAudioCatalog(root);
+    expect(out).toBe(path.join(root, "catalog.json"));
     const raw = JSON.parse(fs.readFileSync(out!, "utf8")) as {
       counts: { total: number };
     };
-    expect(raw.counts.total).toBeGreaterThan(100);
+    expect(raw.counts.total).toBe(1);
+    fs.rmSync(root, { recursive: true, force: true });
   });
 });

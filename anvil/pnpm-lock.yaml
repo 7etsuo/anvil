@@ -45,9 +45,15 @@ importers:
       '@types/node':
         specifier: ^22.10.0
         version: 22.20.1
+      eslint:
+        specifier: ^9.17.0
+        version: 9.39.5
       typescript:
         specifier: ^5.7.2
         version: 5.9.3
+      typescript-eslint:
+        specifier: ^8.18.0
+        version: 8.64.0(eslint@9.39.5)(typescript@5.9.3)
       vite:
         specifier: ^6.0.3
         version: 6.4.3(@types/node@22.20.1)(tsx@4.23.1)(yaml@2.9.0)

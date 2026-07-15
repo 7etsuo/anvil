@@ -18,6 +18,7 @@ pnpm test                 # unit/integration (all packages)
 pnpm lint
 pnpm validate:examples    # all hello-* examples
 pnpm test:examples
+pnpm check                # full active engine + Gravewake gate
 
 # CLI (built bin)
 pnpm anvil version

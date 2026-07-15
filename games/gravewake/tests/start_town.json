@@ -17,6 +17,14 @@
     },
     {
       "tick": 0,
+      "assert": { "path": "genre.gravewake.xpProgress.next", "eq": 40 }
+    },
+    {
+      "tick": 0,
+      "assert": { "path": "genre.gravewake.xpProgress.ratio", "eq": 0 }
+    },
+    {
+      "tick": 0,
       "assert": { "path": "genre.gravewake.gold", "eq": 40 }
     },
     {

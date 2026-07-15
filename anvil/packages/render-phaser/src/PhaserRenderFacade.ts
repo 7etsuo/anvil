@@ -193,5 +193,6 @@ export class PhaserRenderFacade implements RenderFacade {
 
 /** @deprecated kept for API compat — Phaser is always the real facade now */
 export function setPhaserFactory(_factory: unknown): void {
+  void _factory;
   /* no-op: Phaser is a hard dependency */
 }

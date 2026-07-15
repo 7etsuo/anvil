@@ -1,7 +1,7 @@
 # Gravewake — Technical Systems Design
 
-Implementation contract for the **game layer** on **Anvil** (`@anvil/core` + `@anvil/genre-arpg`).  
-Phaser is wrapped by Anvil; prefer Anvil APIs. Align modules to these names.
+Implementation map for the **game layer** on **Anvil** (`@anvil/core` + `@anvil/genre-topdown2d`).
+Gravewake uses Anvil APIs only. The conceptual systems below may be separate engine services or responsibilities inside `GravewakeGame`; do not recreate reusable mechanics in the title.
 
 ---
 
@@ -11,14 +11,17 @@ Phaser is wrapped by Anvil; prefer Anvil APIs. Align modules to these names.
 |-------|--------|
 | Language | TypeScript |
 | Bundler | Vite |
-| Engine | Phaser 3 |
+| Engine | Anvil |
+| Browser rendering | Anvil `CanvasRenderFacade` + game presentation layer |
 | Content | JSON under `content/` |
 | Assets | `public/assets/` |
-| Save | `localStorage` key `gravewake_save_v1` |
+| Save | Anvil run state, `localStorage` key `anvil_run_gravewake_run0` |
 
 ---
 
-## 2. Scenes
+## 2. Runtime areas and presentation
+
+The current runtime uses one Anvil `main` scene and transitions between area states. The table below describes responsibilities, not separate raw renderer scenes.
 
 | Scene | Responsibility |
 |-------|----------------|

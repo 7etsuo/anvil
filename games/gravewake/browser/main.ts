@@ -17,13 +17,36 @@ const VIEW_H = 680;
 
 const ASSET_URLS: Record<string, string> = {
   "actors/gravewarden.png": "/assets/actors/gravewarden.png",
+  "actors/gravewarden_down.png": "/assets/actors/gravewarden_down.png",
+  "actors/gravewarden_up.png": "/assets/actors/gravewarden_up.png",
+  "actors/gravewarden_right.png": "/assets/actors/gravewarden_right.png",
   "actors/scuttler.png": "/assets/actors/scuttler.png",
+  "actors/scuttler_down.png": "/assets/actors/scuttler_down.png",
+  "actors/scuttler_right.png": "/assets/actors/scuttler_right.png",
   "actors/wretch.png": "/assets/actors/wretch.png",
+  "actors/wretch_down.png": "/assets/actors/wretch_down.png",
+  "actors/wretch_right.png": "/assets/actors/wretch_right.png",
   "actors/crypt_guard.png": "/assets/actors/crypt_guard.png",
+  "actors/crypt_guard_down.png": "/assets/actors/crypt_guard_down.png",
+  "actors/crypt_guard_right.png": "/assets/actors/crypt_guard_right.png",
   "actors/bellwarden.png": "/assets/actors/bellwarden.png",
+  "actors/bellwarden_down.png": "/assets/actors/bellwarden_down.png",
+  "actors/bellwarden_right.png": "/assets/actors/bellwarden_right.png",
   "env/floor.png": "/assets/env/floor.png",
   "env/wall.png": "/assets/env/wall.png",
 };
+
+/** 0=right, 1=down, 2=left, 3=up from facing angle (y+ down). */
+function dirFromFacing(facing: number): 0 | 1 | 2 | 3 {
+  // normalize
+  let a = facing;
+  while (a <= -Math.PI) a += Math.PI * 2;
+  while (a > Math.PI) a -= Math.PI * 2;
+  if (a > -Math.PI * 0.25 && a <= Math.PI * 0.25) return 0; // right
+  if (a > Math.PI * 0.25 && a <= Math.PI * 0.75) return 1; // down
+  if (a > Math.PI * 0.75 || a <= -Math.PI * 0.75) return 2; // left
+  return 3; // up
+}
 
 type Particle = {
   x: number;
@@ -264,21 +287,49 @@ async function main(): Promise<void> {
     }
   }
 
-  function spriteFor(e: { tags: string[]; sprite?: { frames: string[] } }) {
-    const frame = e.sprite?.frames?.[0];
-    if (frame && images.has(frame)) return images.get(frame)!;
-    for (const t of e.tags) {
-      const p = `actors/${t}.png`;
-      if (images.has(p)) return images.get(p)!;
+  function actorBase(e: { tags: string[]; data: Record<string, unknown> }): string {
+    if (e.tags.includes("player") || e.tags.includes("gravewarden")) return "gravewarden";
+    if (e.tags.includes("bellwarden")) return "bellwarden";
+    if (e.tags.includes("crypt_guard")) return "crypt_guard";
+    if (e.tags.includes("wretch")) return "wretch";
+    if (e.tags.includes("scuttler")) return "scuttler";
+    const id = String(e.data.actorId ?? e.tags.find((t) => t !== "enemy" && t !== "actor" && t !== "player") ?? "scuttler");
+    return id;
+  }
+
+  function spriteForEntity(e: {
+    tags: string[];
+    data: Record<string, unknown>;
+  }): { img: HTMLImageElement | null; flipX: boolean } {
+    const base = actorBase(e);
+    const facing = Number(e.data.facing ?? Math.PI / 2);
+    const dir = dirFromFacing(facing);
+    // Prefer directional sheets; left = flip of right
+    if (dir === 3) {
+      const up = images.get(`actors/${base}_up.png`) ?? images.get(`actors/${base}_down.png`);
+      if (up) return { img: up, flipX: false };
     }
-    return null;
+    if (dir === 1) {
+      const down = images.get(`actors/${base}_down.png`) ?? images.get(`actors/${base}.png`);
+      if (down) return { img: down, flipX: false };
+    }
+    if (dir === 0) {
+      const right = images.get(`actors/${base}_right.png`) ?? images.get(`actors/${base}_down.png`);
+      if (right) return { img: right, flipX: false };
+    }
+    if (dir === 2) {
+      const right = images.get(`actors/${base}_right.png`) ?? images.get(`actors/${base}_down.png`);
+      if (right) return { img: right, flipX: true };
+    }
+    const fallback = images.get(`actors/${base}.png`) ?? null;
+    return { img: fallback, flipX: Boolean(e.data.flipX) };
   }
 
   function spriteSize(e: { tags: string[] }): number {
     if (e.tags.includes("bellwarden")) return 128;
     if (e.tags.includes("crypt_guard")) return 92;
-    if (e.tags.includes("player") || e.tags.includes("gravewarden")) return 100;
-    return 74;
+    if (e.tags.includes("player") || e.tags.includes("gravewarden")) return 104;
+    return 78;
   }
 
   function frame(now: number): void {
@@ -497,40 +548,70 @@ async function main(): Promise<void> {
       const sx = t.x * SCALE - viewCamX;
       const sy = t.y * SCALE - viewCamY;
       const size = spriteSize(e);
-      const img = spriteFor(e);
-      const flip = e.data.flipX === true;
+      const { img, flipX } = spriteForEntity(e);
+      const speed = Number(e.data.speed ?? 0);
+      const attacking = e.data.attacking === true;
+      const facing = Number(e.data.facing ?? Math.PI / 2);
+
+      // walk cycle: bob + slight lean (feels alive, not a stamped block)
+      const phase = now / 90 + t.x * 0.2;
+      const walk = speed > 8;
+      const bob = walk ? Math.abs(Math.sin(phase)) * 5 : 0;
+      const lean = walk ? Math.sin(phase) * 0.08 : 0;
+      const attackLunge = attacking ? 10 : 0;
+      const lungeX = Math.cos(facing) * attackLunge;
+      const lungeY = Math.sin(facing) * attackLunge;
+      const squash = attacking ? 1.08 : walk ? 1 + Math.sin(phase) * 0.04 : 1;
+      const stretch = attacking ? 0.92 : walk ? 1 - Math.sin(phase) * 0.03 : 1;
 
       // ground blob shadow
       ctx.fillStyle = "rgba(0,0,0,0.45)";
       ctx.beginPath();
-      ctx.ellipse(sx, sy + size * 0.28, size * 0.34, size * 0.12, 0, 0, Math.PI * 2);
+      ctx.ellipse(
+        sx + lungeX * 0.3,
+        sy + size * 0.3,
+        size * 0.34 * squash,
+        size * 0.12,
+        0,
+        0,
+        Math.PI * 2,
+      );
       ctx.fill();
 
       // selection ring under player
       if (e.tags.includes("player")) {
-        ctx.strokeStyle = "rgba(201,164,108,0.35)";
+        ctx.strokeStyle = "rgba(201,164,108,0.4)";
         ctx.lineWidth = 2;
         ctx.beginPath();
-        ctx.ellipse(sx, sy + size * 0.28, size * 0.38, size * 0.14, 0, 0, Math.PI * 2);
+        ctx.ellipse(sx, sy + size * 0.3, size * 0.4, size * 0.15, 0, 0, Math.PI * 2);
         ctx.stroke();
       }
 
       if (img) {
+        const dw = size * squash;
+        const dh = size * stretch;
         ctx.save();
-        if (flip) {
-          ctx.translate(sx, sy - size * 0.58);
+        ctx.translate(sx + lungeX, sy - dh * 0.55 - bob + lungeY);
+        ctx.rotate(lean);
+        if (flipX) {
           ctx.scale(-1, 1);
-          ctx.drawImage(img, -size / 2, 0, size, size);
+          ctx.drawImage(img, -dw / 2, 0, dw, dh);
         } else {
-          ctx.drawImage(img, sx - size / 2, sy - size * 0.58, size, size);
+          ctx.drawImage(img, -dw / 2, 0, dw, dh);
         }
         ctx.restore();
+      } else {
+        // never leave a naked block — colored body placeholder
+        ctx.fillStyle = e.tags.includes("player") ? "#c9a46c" : "#a44";
+        ctx.beginPath();
+        ctx.arc(sx, sy - 10 - bob, size * 0.28, 0, Math.PI * 2);
+        ctx.fill();
       }
 
       if (e.health && e.tags.includes("enemy")) {
         const pct = Math.max(0, e.health.hp / e.health.max);
         const bx = sx - 32;
-        const by = sy - size * 0.68;
+        const by = sy - size * 0.72 - bob;
         ctx.fillStyle = "rgba(0,0,0,0.75)";
         ctx.fillRect(bx - 1, by - 1, 66, 9);
         ctx.fillStyle = "#2a1010";

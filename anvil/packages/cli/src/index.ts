@@ -6,7 +6,10 @@ import {
   AGENT_TOOL_CATALOG,
   ANVIL_VERSION,
   createGame,
+  listBundledAudio,
+  listBundledSprites,
   listMissingAssets,
+  loadBundledAudioCatalog,
   observe,
   runTests,
   validateProject,
@@ -50,6 +53,18 @@ async function main(): Promise<void> {
       case "assets":
         if (args[1] === "missing") await cmdAssetsMissing(args.slice(2));
         else usageError("Unknown assets subcommand");
+        break;
+      case "audio":
+        if (args[1] === "list") cmdAudioList(args.slice(2));
+        else usageError("audio list [--kind music|sfx] [--prefix path] [--query q] [--json]");
+        break;
+      case "content":
+        if (args[1] === "list") cmdContentList(args.slice(2));
+        else usageError("content list [path] [--json]");
+        break;
+      case "sprites":
+        if (args[1] === "list") cmdSpritesList(args.slice(2));
+        else usageError("sprites list [--prefix path] [--query q] [--json]");
         break;
       case "recipe":
         if (args[1] === "list") cmdRecipeList();
@@ -96,11 +111,96 @@ Commands:
   dev [path] [--port N]
   build [path] [--out dir]
   assets missing [path] [--json]
+  audio list [--kind music|sfx] [--prefix path] [--query q] [--limit N] [--json]
+  sprites list [--prefix path] [--query q] [--limit N] [--json]
+  content list [path] [--json]
   recipe list | recipe show <id>
   tools [--json]
   doctor [path] [--json]
   net health [--url http://host:port]
 `);
+}
+
+function cmdAudioList(args: string[]): void {
+  const kind = getFlag(args, "--kind") as "music" | "sfx" | "jingle" | undefined;
+  const prefix = getFlag(args, "--prefix");
+  const query = getFlag(args, "--query");
+  const limit = getFlag(args, "--limit")
+    ? Number(getFlag(args, "--limit"))
+    : undefined;
+  const json = hasFlag(args, "--json");
+  const cat = loadBundledAudioCatalog();
+  const entries = listBundledAudio({ kind, prefix, query, limit });
+  if (json) {
+    console.log(
+      JSON.stringify(
+        {
+          ok: true,
+          counts: cat?.counts,
+          suggestedCues: cat?.suggestedCues,
+          entries,
+        },
+        null,
+        2,
+      ),
+    );
+    return;
+  }
+  console.log(
+    `Bundled audio: ${cat?.counts.total ?? 0} files` +
+      (kind ? ` (kind=${kind})` : ""),
+  );
+  for (const e of entries) {
+    console.log(`  ${e.path}`);
+  }
+  if (cat?.suggestedCues) {
+    console.log("\nSuggested cues:");
+    for (const [k, v] of Object.entries(cat.suggestedCues)) {
+      console.log(`  ${k} → ${v}`);
+    }
+  }
+}
+
+function cmdSpritesList(args: string[]): void {
+  const prefix = getFlag(args, "--prefix");
+  const query = getFlag(args, "--query");
+  const limit = getFlag(args, "--limit")
+    ? Number(getFlag(args, "--limit"))
+    : undefined;
+  const json = hasFlag(args, "--json");
+  const entries = listBundledSprites({ prefix, query, limit });
+  if (json) {
+    console.log(JSON.stringify({ ok: true, entries }, null, 2));
+    return;
+  }
+  console.log(`Bundled sprites: ${entries.length}`);
+  for (const e of entries) console.log(`  ${e.path}`);
+}
+
+function cmdContentList(args: string[]): void {
+  const root = path.resolve(args.find((a) => !a.startsWith("--")) ?? ".");
+  const json = hasFlag(args, "--json");
+  const contentRoot = path.join(root, "content");
+  const files: string[] = [];
+  const walk = (d: string) => {
+    if (!fs.existsSync(d)) return;
+    for (const ent of fs.readdirSync(d, { withFileTypes: true })) {
+      if (ent.name.startsWith(".")) continue;
+      const full = path.join(d, ent.name);
+      if (ent.isDirectory()) walk(full);
+      else if (/\.(json|yaml|yml)$/i.test(ent.name)) {
+        files.push(path.relative(root, full).replace(/\\/g, "/"));
+      }
+    }
+  };
+  walk(contentRoot);
+  files.sort();
+  if (json) {
+    console.log(JSON.stringify({ ok: true, root, files }, null, 2));
+    return;
+  }
+  console.log(`Content under ${contentRoot}: ${files.length} files`);
+  for (const f of files) console.log(`  ${f}`);
 }
 
 function usageError(msg: string): never {

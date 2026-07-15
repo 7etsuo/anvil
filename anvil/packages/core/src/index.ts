@@ -281,3 +281,148 @@ export type {
   BundledAudioChannel,
   ListBundledAudioFilter,
 } from "./audio/AudioCatalog.js";
+
+// Spatial audio
+export { spatialVolume, playSpatial } from "./audio/SpatialAudio.js";
+export type { SpatialAudioOpts, ListenerPose } from "./audio/SpatialAudio.js";
+
+// Projectiles, threat, elites, death
+export { ProjectileSystem } from "./combat/ProjectileSystem.js";
+export type {
+  Projectile,
+  ProjectileId,
+  ProjectileSpawnOpts,
+  ProjectileHitEvent,
+  ProjectileHitQuery,
+} from "./combat/ProjectileSystem.js";
+export { ThreatTable } from "./combat/ThreatTable.js";
+export type { ThreatEntry } from "./combat/ThreatTable.js";
+export {
+  BUILTIN_ELITE_AFFIXES,
+  rollEliteAffixes,
+  buildRolledElite,
+} from "./combat/EliteAffixes.js";
+export type { EliteAffixDef, RolledElite } from "./combat/EliteAffixes.js";
+export { DeathSystem } from "./combat/DeathSystem.js";
+export type {
+  DeathPhase,
+  DeathRecord,
+  DeathEvent,
+  DeathSystemOpts,
+} from "./combat/DeathSystem.js";
+
+// Resources, skill tree, wallet
+export {
+  ResourcePool,
+  DEFAULT_RESOURCES,
+} from "./rpg/ResourcePool.js";
+export type {
+  ResourceId,
+  ResourceDef,
+  ResourceState,
+} from "./rpg/ResourcePool.js";
+export {
+  SkillTree,
+  SAMPLE_COMBAT_TREE,
+} from "./rpg/SkillTree.js";
+export type {
+  SkillNodeId,
+  SkillNodeDef,
+  SkillTreeDef,
+  SkillTreeState,
+} from "./rpg/SkillTree.js";
+export { Wallet } from "./rpg/Wallet.js";
+export type { CurrencyId, WalletSnapshot } from "./rpg/Wallet.js";
+
+// World: interactables, triggers, fog, LOS
+export { InteractableSystem } from "./world/Interactables.js";
+export type {
+  InteractableKind,
+  InteractableDef,
+  InteractableState,
+  InteractResult,
+} from "./world/Interactables.js";
+export { TriggerSystem } from "./world/Triggers.js";
+export type { TriggerVolume, TriggerEvent } from "./world/Triggers.js";
+export { MinimapFog } from "./world/MinimapFog.js";
+export type { FogCell, MinimapFogOpts } from "./world/MinimapFog.js";
+export {
+  losLine,
+  hasLineOfSight,
+  coverLevel,
+  coverDamageMul,
+} from "./world/LineOfSight.js";
+export type { LosGrid } from "./world/LineOfSight.js";
+
+// Economy
+export { Vendor } from "./economy/Vendor.js";
+export type {
+  VendorOffer,
+  VendorDef,
+  BuyResult,
+  SellResult,
+} from "./economy/Vendor.js";
+export {
+  CraftingSystem,
+  socketGem,
+  reforgeStats,
+} from "./economy/Crafting.js";
+export type {
+  CraftIngredient,
+  CraftRecipe,
+  CraftResult,
+  SocketResult,
+  ReforgeResult,
+  CraftInventory,
+} from "./economy/Crafting.js";
+
+// Presentation FX
+export { FloatTextSystem } from "./fx/FloatText.js";
+export type {
+  FloatText,
+  FloatTextStyle,
+  FloatTextSpawn,
+} from "./fx/FloatText.js";
+export { ScreenTransition } from "./fx/ScreenTransition.js";
+export type {
+  TransitionKind,
+  TransitionPhase,
+  TransitionOpts,
+  ScreenTransitionState,
+} from "./fx/ScreenTransition.js";
+
+// Sprite atlas + catalog
+export {
+  sheetFrames,
+  frameAt,
+  tickAnimClip,
+  SpriteAtlas,
+} from "./assets/SpriteAtlas.js";
+export type {
+  AtlasFrame,
+  SpriteSheetDef,
+  AnimClipDef,
+} from "./assets/SpriteAtlas.js";
+export {
+  resolveBundledSpriteRoot,
+  loadBundledSpriteCatalog,
+  buildSpriteCatalogFromDisk,
+  writeBundledSpriteCatalog,
+  listBundledSprites,
+  clearBundledSpriteCatalogCache,
+} from "./assets/SpriteCatalog.js";
+export type {
+  BundledSpriteEntry,
+  BundledSpriteCatalog,
+} from "./assets/SpriteCatalog.js";
+
+// Net prediction
+export {
+  InputPredictor,
+  makeTopdownMoveFn,
+} from "./net/InputPrediction.js";
+export type {
+  InputFrame,
+  PredictedPose,
+  MoveFn,
+} from "./net/InputPrediction.js";

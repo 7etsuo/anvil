@@ -18,6 +18,24 @@ Everything here is **implemented code**, not a design wish-list.
 | Combat audio | `audio/wireCombatAudio.ts` | Event bus → hit/kill/heal/UI/zone music |
 | Damage | `combat/Damage.ts` | Types + armor + resists |
 | Statuses | `combat/StatusSystem.ts` | Buffs/debuffs/DoT; Kernel.statuses |
+| Projectiles | `combat/ProjectileSystem.ts` | Pool, pierce/chain, hit query |
+| Threat | `combat/ThreatTable.ts` | Aggro table + decay |
+| Elites | `combat/EliteAffixes.ts` | Data-driven pack affixes |
+| Death | `combat/DeathSystem.ts` | Dying → corpse → removed / revive |
+| Resources | `rpg/ResourcePool.ts` | Mana/stamina spend/regen |
+| Skill tree | `rpg/SkillTree.ts` | Nodes, points, prereqs |
+| Wallet | `rpg/Wallet.ts` | Multi-currency |
+| Interactables | `world/Interactables.ts` | Chests/shrines/levers/doors |
+| Triggers | `world/Triggers.ts` | Enter/exit volumes |
+| Fog | `world/MinimapFog.ts` | Reveal + fog of war grid |
+| LOS | `world/LineOfSight.ts` | Bresenham LOS + cover |
+| Vendor | `economy/Vendor.ts` | Buy/sell |
+| Crafting | `economy/Crafting.ts` | Recipes, sockets, reforge |
+| Float text | `fx/FloatText.ts` | Damage numbers |
+| Transitions | `fx/ScreenTransition.ts` | Fade in/out |
+| Spatial audio | `audio/SpatialAudio.ts` | Distance volume |
+| Atlas | `assets/SpriteAtlas.ts` | Sheet frames + anim tick |
+| Prediction | `net/InputPrediction.ts` | Client predict + reconcile |
 | Input | `input/InputMap.ts` | Keys, rebind, gamepad |
 | Content | `content/validateContent.ts` | Item/loot validation + roll |
 | Plugins | `plugins/PluginRegistry.ts` | Register / update / dispose |

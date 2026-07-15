@@ -43,6 +43,14 @@ export interface GameHandle {
   readonly camera: Kernel["camera"];
   readonly abilities: Kernel["abilities"];
   readonly statuses: Kernel["statuses"];
+  readonly projectiles: Kernel["projectiles"];
+  readonly resources: Kernel["resources"];
+  readonly interactables: Kernel["interactables"];
+  readonly triggers: Kernel["triggers"];
+  readonly floatText: Kernel["floatText"];
+  readonly transitions: Kernel["transitions"];
+  readonly threat: Kernel["threat"];
+  readonly death: Kernel["death"];
   readonly kernel: Kernel;
   readonly game: GameYaml;
   readonly root: string;
@@ -182,6 +190,14 @@ export async function createGame(
     camera: kernel.camera,
     abilities: kernel.abilities,
     statuses: kernel.statuses,
+    projectiles: kernel.projectiles,
+    resources: kernel.resources,
+    interactables: kernel.interactables,
+    triggers: kernel.triggers,
+    floatText: kernel.floatText,
+    transitions: kernel.transitions,
+    threat: kernel.threat,
+    death: kernel.death,
     kernel,
     game,
     root,

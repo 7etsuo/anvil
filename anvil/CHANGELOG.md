@@ -1,5 +1,19 @@
 # Changelog
 
+## 0.7.0 — Engine systems pack
+
+Reusable systems for ARPGs and multi-genre games:
+
+- **Combat:** ProjectileSystem, ThreatTable, EliteAffixes, DeathSystem
+- **Progression:** ResourcePool (mana/stamina), SkillTree, multi-currency Wallet
+- **World:** Interactables, Triggers, MinimapFog, line-of-sight / cover
+- **Economy:** Vendor shop, Crafting + sockets + reforge
+- **FX:** FloatText, ScreenTransition; spatial audio falloff
+- **Assets:** SpriteAtlas helpers, bundled sprites catalog hooks
+- **Net:** InputPredictor + top-down move helper; `docs/NET_COMBAT_SAMPLE.md`
+- **CLI:** `anvil audio list`, `sprites list`, `content list`
+- **Observe:** statuses, ability CDs, resources, projectiles, death phases
+
 ## 0.5.5 — Combat audio, statuses, damage types
 
 - **Damage types + resists**: physical/fire/cold/lightning/poison/holy/arcane; armor + resist mitigation

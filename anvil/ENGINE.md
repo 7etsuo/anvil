@@ -39,6 +39,25 @@ handle.quests; handle.plugins; handle.ui; handle.cinema;
 handle.tick(1/60);
 ```
 
+## Engine systems (0.7+)
+
+First-class on `Kernel` / `GameHandle`: projectiles, statuses, resources, threat,
+death, interactables, triggers, float text, screen transitions — plus libraries
+for skill trees, wallet, vendor, crafting, minimap fog, LOS, elites, spatial
+audio, sprite atlases, and input prediction.
+
+```ts
+handle.projectiles.spawnToward(x, y, tx, ty, { damage: 12, damageType: "fire" });
+handle.resources.attach("player");
+handle.resources.spend("player", "mana", 10);
+handle.interactables.register({ id: "chest1", kind: "chest", x: 100, y: 80 });
+handle.floatText.damage(x, y, 42, true);
+handle.transitions.start({ label: "The Wastes", onMid: () => enterZone() });
+```
+
+CLI discovery: `anvil audio list`, `anvil sprites list`, `anvil content list`.  
+Net combat pattern: `docs/NET_COMBAT_SAMPLE.md`.
+
 ## Bundled audio (CC0)
 
 Ready-to-pick library: **`anvil/assets/audio/`** (~400 SFX + music).  

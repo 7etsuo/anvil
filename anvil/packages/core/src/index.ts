@@ -124,7 +124,7 @@ export type { SpatialItem } from "./spatial/SpatialHash.js";
 export { TileMap } from "./map/TileMap.js";
 export type { TileMapData, TileDef, TileId } from "./map/TileMap.js";
 
-// Loot policy
+// Loot policy + item level
 export {
   dropFromTable,
   LOOT_GOLD_RADIUS,
@@ -135,6 +135,14 @@ export type {
   LootPolicyOpts,
   LootTableLike as LootPolicyTable,
 } from "./rpg/LootPolicy.js";
+export {
+  scaleStatsForItemLevel,
+  rollDropItemLevel,
+  rollItemInstance,
+  stackReqLevel,
+  canEquipAtLevel,
+} from "./rpg/itemLevel.js";
+export type { ItemLevelOpts, RolledItemInstance } from "./rpg/itemLevel.js";
 
 // Run state save
 export {

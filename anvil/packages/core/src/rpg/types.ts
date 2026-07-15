@@ -76,8 +76,16 @@ export interface ItemDef {
   maxStack?: number;
   /** If set, can equip to this slot */
   slot?: EquipSlot;
-  /** Flat stat mods when equipped (or consumed by game rules) */
+  /**
+   * Base stats at `itemLevel` (default level 1).
+   * Instances scale these via rollItemInstance / itemLevel system.
+   */
   stats?: Partial<Stats>;
+  /**
+   * Content base item level for `stats` (default 1).
+   * Dropped instances get their own itemLevel ≥ this.
+   */
+  itemLevel?: number;
   /** Flavor / icon path */
   icon?: string;
   /** Diablo-style paper-doll visuals */
@@ -104,7 +112,17 @@ export interface ItemStack {
   uid: string;
   defId: string;
   qty: number;
-  /** Rolled affixes etc. */
+  /**
+   * Instance item level (power). Stats are usually fully stored in rolledStats
+   * for this level.
+   */
+  itemLevel?: number;
+  /**
+   * Required character level to equip. Typically === itemLevel.
+   * Character level ≥ reqLevel may equip (level 12 can wear req 10).
+   */
+  reqLevel?: number;
+  /** Rolled / scaled stats for this instance (preferred over def.stats when set). */
   rolledStats?: Partial<Stats>;
   data?: Record<string, unknown>;
 }

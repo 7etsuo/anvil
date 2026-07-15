@@ -1,5 +1,6 @@
 import { Equipment, type ItemDefLookup } from "./Equipment.js";
 import { Inventory } from "./Inventory.js";
+import { rollItemInstance } from "./itemLevel.js";
 import { addStats, computeFinalStats, emptyStats } from "./stats.js";
 import type {
   CharacterSaveBlob,
@@ -15,7 +16,14 @@ export type StatBreakdown = {
   gear: Stats;
   final: Stats;
   /** Per-slot gear contribution */
-  bySlot: Array<{ slot: EquipSlot; defId: string; name: string; stats: Partial<Stats> }>;
+  bySlot: Array<{
+    slot: EquipSlot;
+    defId: string;
+    name: string;
+    stats: Partial<Stats>;
+    itemLevel?: number;
+    reqLevel?: number;
+  }>;
 };
 
 /** Default draw order for paper-doll layers (body under gear under weapon). */
@@ -124,12 +132,17 @@ export class CharacterSheet {
       const stack = this.inventory.get(uid);
       if (!stack) continue;
       const def = this.defs[stack.defId];
-      const mods = { ...(def?.stats ?? {}), ...(stack.rolledStats ?? {}) };
+      const mods =
+        stack.rolledStats && Object.keys(stack.rolledStats).length
+          ? { ...stack.rolledStats }
+          : { ...(def?.stats ?? {}) };
       bySlot.push({
         slot,
         defId: stack.defId,
         name: def?.name ?? stack.defId,
         stats: mods,
+        itemLevel: stack.itemLevel,
+        reqLevel: stack.reqLevel,
       });
       gearParts.push(mods);
     }
@@ -167,6 +180,8 @@ export class CharacterSheet {
     qty = 1,
     opts?: {
       rolledStats?: Partial<Stats>;
+      itemLevel?: number;
+      reqLevel?: number;
       data?: Record<string, unknown>;
     },
   ): boolean {
@@ -174,13 +189,42 @@ export class CharacterSheet {
     const stack = this.inventory.add(defId, qty, {
       maxStack: def?.maxStack ?? 1,
       rolledStats: opts?.rolledStats,
+      itemLevel: opts?.itemLevel,
+      reqLevel: opts?.reqLevel,
       data: opts?.data,
     });
     return stack !== null;
   }
 
   equip(uid: string) {
-    return this.equipment.equipAuto(uid, this.inventory, this.lookup);
+    return this.equipment.equipAuto(
+      uid,
+      this.inventory,
+      this.lookup,
+      this.level,
+    );
+  }
+
+  /** Pickup a leveled gear instance (itemLevel + rolled stats). */
+  pickupLeveled(
+    defId: string,
+    itemLevel: number,
+    opts?: { qty?: number; rng?: () => number },
+  ): boolean {
+    const def = this.defs[defId];
+    if (!def) return this.pickup(defId, opts?.qty ?? 1);
+    // consumables / gold-like: no level scale
+    if (!def.slot || (def.maxStack ?? 1) > 1) {
+      return this.pickup(defId, opts?.qty ?? 1);
+    }
+    const inst = rollItemInstance(def, itemLevel, { rng: opts?.rng });
+    const stack = this.inventory.add(defId, opts?.qty ?? 1, {
+      maxStack: 1,
+      rolledStats: inst.rolledStats,
+      itemLevel: inst.itemLevel,
+      reqLevel: inst.reqLevel,
+    });
+    return stack !== null;
   }
 
   unequip(slot: import("./types.js").EquipSlot) {

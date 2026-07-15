@@ -9,6 +9,7 @@ import {
   tryPickupNearest,
 } from "./Loot.js";
 import { ZoneGraph } from "./ZoneGraph.js";
+import { canEquipAtLevel, rollItemInstance } from "./itemLevel.js";
 import type { ItemDef } from "./types.js";
 
 const items: Record<string, ItemDef> = {
@@ -75,6 +76,48 @@ describe("Inventory + Equipment + CharacterSheet", () => {
     inv.add("potion", 3, { maxStack: 20 });
     expect(inv.count()).toBe(1);
     expect(inv.findByDef("potion")!.qty).toBe(8);
+  });
+
+  it("scales gear by item level and gates equip by reqLevel", () => {
+    const def = {
+      id: "mail",
+      name: "Mail",
+      slot: "chest" as const,
+      stats: { armor: 6, maxHp: 20 },
+      itemLevel: 1,
+    };
+    const l1 = rollItemInstance(def, 1, { rng: () => 0.5, variance: 0 });
+    const l10 = rollItemInstance(def, 10, { rng: () => 0.5, variance: 0 });
+    expect(l1.reqLevel).toBe(1);
+    expect(l10.reqLevel).toBe(10);
+    expect((l10.rolledStats.armor ?? 0) > (l1.rolledStats.armor ?? 0)).toBe(true);
+    expect(canEquipAtLevel(5, l10)).toBe(false);
+    expect(canEquipAtLevel(10, l10)).toBe(true);
+    expect(canEquipAtLevel(12, l10)).toBe(true);
+
+    const sheet = new CharacterSheet({
+      level: 5,
+      baseStats: {
+        maxHp: 100,
+        damage: 10,
+        armor: 0,
+        speed: 160,
+        critChance: 0.05,
+        critMult: 1.5,
+      },
+      itemDefs: { mail: def },
+    });
+    sheet.inventory.add("mail", 1, {
+      rolledStats: l10.rolledStats,
+      itemLevel: 10,
+      reqLevel: 10,
+    });
+    const uid = sheet.inventory.findByDef("mail")!.uid;
+    const r = sheet.equip(uid);
+    expect(r.ok).toBe(false);
+    expect(r.error).toBe("level_req");
+    sheet.level = 10;
+    expect(sheet.equip(uid).ok).toBe(true);
   });
 
   it("statBreakdown separates base and gear", () => {

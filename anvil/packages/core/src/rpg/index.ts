@@ -12,6 +12,14 @@ export type { ItemDefLookup } from "./Equipment.js";
 export { CharacterSheet } from "./CharacterSheet.js";
 export type { CharacterSheetOpts, StatBreakdown } from "./CharacterSheet.js";
 export {
+  scaleStatsForItemLevel,
+  rollDropItemLevel,
+  rollItemInstance,
+  stackReqLevel,
+  canEquipAtLevel,
+} from "./itemLevel.js";
+export type { ItemLevelOpts, RolledItemInstance } from "./itemLevel.js";
+export {
   spawnGroundLoot,
   spawnGoldPile,
   lootNear,

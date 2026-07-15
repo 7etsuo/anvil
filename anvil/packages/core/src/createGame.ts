@@ -114,7 +114,12 @@ export async function createGame(
     browser: opts.browser ?? false,
   });
 
-  await renderer.init(800, 600);
+  // Only init if the host has not already attached a canvas (browser games)
+  const maybeCanvas = (renderer as unknown as { getCanvas?: () => unknown })
+    .getCanvas?.();
+  if (!maybeCanvas) {
+    await renderer.init(800, 600);
+  }
 
   // Built-in empty main scene
   kernel.registerScene("main", () => ({

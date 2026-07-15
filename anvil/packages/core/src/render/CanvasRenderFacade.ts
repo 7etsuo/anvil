@@ -39,27 +39,38 @@ export class CanvasRenderFacade implements RenderFacade {
     this.width = width;
     this.height = height;
     if (typeof document === "undefined") return;
-    const canvas = document.createElement("canvas");
-    canvas.width = width;
-    canvas.height = height;
-    canvas.style.display = "block";
-    canvas.style.width = "100%";
-    canvas.style.height = "100%";
-    canvas.style.background = "#000";
-    canvas.tabIndex = 0;
-    const parent = this.mount ?? document.body;
-    parent.appendChild(canvas);
-    this.canvas = canvas;
-    this.ctx = canvas.getContext("2d");
+    // Reuse existing canvas (createGame may call init after the game already sized it)
+    if (!this.canvas) {
+      const canvas = document.createElement("canvas");
+      canvas.style.display = "block";
+      canvas.style.width = "100%";
+      canvas.style.height = "100%";
+      canvas.style.background = "#000";
+      canvas.tabIndex = 0;
+      const parent = this.mount ?? document.body;
+      parent.appendChild(canvas);
+      this.canvas = canvas;
+      this.ctx = canvas.getContext("2d");
+    }
+    this.canvas.width = width;
+    this.canvas.height = height;
   }
 
   resize(width: number, height: number): void {
-    this.width = width;
-    this.height = height;
+    this.width = Math.max(1, Math.floor(width));
+    this.height = Math.max(1, Math.floor(height));
     if (this.canvas) {
-      this.canvas.width = width;
-      this.canvas.height = height;
+      this.canvas.width = this.width;
+      this.canvas.height = this.height;
     }
+  }
+
+  getWidth(): number {
+    return this.width;
+  }
+
+  getHeight(): number {
+    return this.height;
   }
 
   clear(cssColor: string): void {

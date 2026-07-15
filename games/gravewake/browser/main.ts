@@ -178,17 +178,12 @@ async function main(): Promise<void> {
     }),
   );
 
-  const dpr = Math.min(window.devicePixelRatio || 1, 2);
-  VIEW_W = Math.max(960, Math.floor(window.innerWidth));
-  VIEW_H = Math.max(600, Math.floor(window.innerHeight));
+  // Simple full-window canvas — no DPR transform tricks (those caused black screens)
+  VIEW_W = Math.max(640, window.innerWidth | 0);
+  VIEW_H = Math.max(480, window.innerHeight | 0);
 
   const renderer = new CanvasRenderFacade(mount);
-  await renderer.init(Math.floor(VIEW_W * dpr), Math.floor(VIEW_H * dpr));
-  // Draw in CSS-pixel space while backing store is HiDPI
-  const rawCtx = renderer.getContext();
-  if (rawCtx) rawCtx.setTransform(dpr, 0, 0, dpr, 0, 0);
-  renderer.resize(Math.floor(VIEW_W * dpr), Math.floor(VIEW_H * dpr));
-  if (rawCtx) rawCtx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  await renderer.init(VIEW_W, VIEW_H);
 
   const handle = await createGame({
     root: "/",
@@ -204,12 +199,15 @@ async function main(): Promise<void> {
       modules: [],
       entryScene: "main",
       seed: 1,
-      version: "0.3.0",
+      version: "0.3.1",
       contentRoot: "content",
       assetsRoot: "assets",
       schemaVersion: 1,
     },
   });
+
+  // Re-apply size after createGame (engine may have touched the renderer)
+  renderer.resize(VIEW_W, VIEW_H);
 
   for (const [path, img] of images) {
     const tex = handle.assets.getTexture(path);
@@ -223,19 +221,19 @@ async function main(): Promise<void> {
   const canvas = renderer.getCanvas();
   if (canvas) {
     canvas.style.outline = "none";
+    canvas.style.width = "100%";
+    canvas.style.height = "100%";
     canvas.focus();
     mount.addEventListener("click", () => canvas.focus());
   }
 
   const applySize = () => {
-    VIEW_W = Math.max(960, Math.floor(window.innerWidth));
-    VIEW_H = Math.max(600, Math.floor(window.innerHeight));
-    const d = Math.min(window.devicePixelRatio || 1, 2);
-    renderer.resize(Math.floor(VIEW_W * d), Math.floor(VIEW_H * d));
-    const c = renderer.getContext();
-    if (c) c.setTransform(d, 0, 0, d, 0, 0);
+    VIEW_W = Math.max(640, window.innerWidth | 0);
+    VIEW_H = Math.max(480, window.innerHeight | 0);
+    renderer.resize(VIEW_W, VIEW_H);
   };
   window.addEventListener("resize", applySize);
+  applySize();
 
   const keysHeld = new Set<string>();
   const syncMove = () => {

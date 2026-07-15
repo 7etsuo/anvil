@@ -1,0 +1,36 @@
+{
+  "name": "@anvil/net-colyseus",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Production multiplayer for Anvil via Colyseus (server-authoritative)",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "test": "vitest run src/security.test.ts && tsx src/run-integration.ts",
+    "dev:server": "tsx src/run-dev-server.ts"
+  },
+  "dependencies": {
+    "@anvil/core": "workspace:*",
+    "@colyseus/core": "^0.16.0",
+    "@colyseus/schema": "^3.0.0",
+    "@colyseus/ws-transport": "^0.16.0",
+    "colyseus": "^0.16.0",
+    "colyseus.js": "^0.16.0",
+    "express": "^4.21.2"
+  },
+  "devDependencies": {
+    "@types/express": "^5.0.0",
+    "@types/node": "^22.10.0",
+    "tsx": "^4.19.2",
+    "typescript": "^5.7.2",
+    "vitest": "^2.1.8"
+  }
+}

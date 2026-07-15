@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.4.0 — Colyseus multiplayer
+
+### Engine
+- **`@anvil/net-colyseus`**: production multiplayer via **Colyseus**
+  - Server-authoritative room (input only from clients)
+  - Schema state sync, rate limits, action whitelist, auth hook
+  - `createAnvilNetServer` / `connectAnvilNet`
+  - Integration smoke + security unit tests
+- Spec: `docs/design/specs/S-NET-COLYSEUS.md`
+- Legacy `@anvil/genre-net` remains for loopback tests only
+
 ## 0.3.0 — Engine extras completeness pass
 
 ### Engine (`@anvil/core` + net/render)

@@ -87,18 +87,29 @@ export class CraftingSystem {
     const r = this.recipes.get(recipeId);
     if (!r) return { ok: false, reason: "missing" };
     if (!this.canCraft(recipeId, inv, wallet)) {
+      // Distinguish funds vs ingredients for better UX
+      if (r.cost && wallet && !wallet.canAfford(r.cost)) {
+        return { ok: false, reason: "funds" };
+      }
       return { ok: false, reason: "ingredients" };
     }
-    if (r.cost && wallet && !wallet.spendMany(r.cost)) {
-      return { ok: false, reason: "funds" };
-    }
+    // Consume ingredients first so we never charge gold if bag can't pay items
     for (const ing of r.inputs) {
       if (!inv.removeDef(ing.itemId, ing.qty)) {
         return { ok: false, reason: "ingredients" };
       }
     }
+    if (r.cost && wallet && !wallet.spendMany(r.cost)) {
+      // Refund ingredients is hard without snapshot; fail before pay only if
+      // canCraft was wrong — still try not to charge
+      return { ok: false, reason: "funds" };
+    }
     const qty = r.outputQty ?? 1;
     if (!inv.addDef(r.outputId, qty)) {
+      // Refund gold if charged
+      if (r.cost && wallet) {
+        for (const [c, a] of Object.entries(r.cost)) wallet.add(c, a);
+      }
       return { ok: false, reason: "inv_full" };
     }
     return { ok: true, outputId: r.outputId, qty };

@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "generatedAt": "2026-07-15T22:45:17.218Z",
+  "generatedAt": "2026-07-15T23:05:00.503Z",
   "license": "CC0-1.0 (public domain dedication) unless noted in LICENSES.md",
   "root": "anvil/assets/audio",
   "description": "Bundled free (CC0) game audio for agents. Paths relative to this folder.",

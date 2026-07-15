@@ -281,19 +281,26 @@ export class GravewakeGame {
     });
     this.crafting.registerAll([
       {
-        id: "hone_blade",
-        name: "Hone Blade",
-        inputs: [
-          { itemId: "rusty_sword", qty: 1 },
-          { itemId: "ruby_gem", qty: 1 },
-        ],
-        outputId: "bone_cleaver",
-        cost: { gold: 15 },
+        id: "brew_vial",
+        name: "Brew Vials",
+        inputs: [{ itemId: "emerald_gem", qty: 1 }],
+        outputId: "health_potion",
+        outputQty: 3,
+        cost: { gold: 8 },
+        station: "alchemy",
+      },
+      {
+        id: "cut_ruby",
+        name: "Cut Ruby Bundle",
+        inputs: [{ itemId: "ruby_gem", qty: 2 }],
+        outputId: "ruby_gem",
+        outputQty: 3,
+        cost: { gold: 25 },
         station: "forge",
       },
       {
         id: "temper_mail",
-        name: "Temper Mail",
+        name: "Temper Mail → Cloak",
         inputs: [
           { itemId: "ash_mail", qty: 1 },
           { itemId: "sapphire_gem", qty: 1 },
@@ -301,15 +308,6 @@ export class GravewakeGame {
         outputId: "warden_cloak",
         cost: { gold: 20 },
         station: "forge",
-      },
-      {
-        id: "brew_vial",
-        name: "Brew Vial",
-        inputs: [{ itemId: "emerald_gem", qty: 1 }],
-        outputId: "health_potion",
-        outputQty: 2,
-        cost: { gold: 5 },
-        station: "alchemy",
       },
     ]);
     this.services.resources?.attach("player");
@@ -585,12 +583,47 @@ export class GravewakeGame {
     return this.showVendor;
   }
 
+  /** Close all modal panels (only one open at a time). */
+  private closePanels(): void {
+    this.showInv = false;
+    this.showStats = false;
+    this.showSkills = false;
+    this.showCraft = false;
+    this.showVendor = false;
+  }
+
+  private openPanel(
+    which: "inv" | "stats" | "skills" | "craft" | "vendor",
+  ): void {
+    const was =
+      which === "inv"
+        ? this.showInv
+        : which === "stats"
+          ? this.showStats
+          : which === "skills"
+            ? this.showSkills
+            : which === "craft"
+              ? this.showCraft
+              : this.showVendor;
+    this.closePanels();
+    if (!was) {
+      if (which === "inv") this.showInv = true;
+      else if (which === "stats") this.showStats = true;
+      else if (which === "skills") this.showSkills = true;
+      else if (which === "craft") this.showCraft = true;
+      else this.showVendor = true;
+    }
+  }
+
   private craftInv(): CraftInventory {
+    const isEquipped = (uid: string) =>
+      Object.values(this.sheet.equipment.all()).includes(uid);
     return {
+      // Only bag (unequipped) counts — matches removeDef
       countDef: (id) => {
         let n = 0;
         for (const s of this.sheet.inventory.all()) {
-          if (s.defId === id) n += s.qty;
+          if (s.defId === id && !isEquipped(s.uid)) n += s.qty;
         }
         return n;
       },
@@ -598,11 +631,7 @@ export class GravewakeGame {
         let left = qty;
         for (const s of [...this.sheet.inventory.all()]) {
           if (s.defId !== id || left <= 0) continue;
-          // Don't consume equipped gear unless unique instance
-          const equipped = Object.values(this.sheet.equipment.all()).includes(
-            s.uid,
-          );
-          if (equipped) continue;
+          if (isEquipped(s.uid)) continue;
           const take = Math.min(left, s.qty);
           this.sheet.inventory.remove(s.uid, take);
           left -= take;
@@ -610,8 +639,7 @@ export class GravewakeGame {
         return left <= 0;
       },
       addDef: (id, qty) => {
-        this.sheet.pickup(id, qty);
-        return true;
+        return this.sheet.pickup(id, qty);
       },
     };
   }
@@ -668,30 +696,48 @@ export class GravewakeGame {
 
   /** Sell all unequipped common gear + excess potions (Diablo "sell junk"). */
   sellJunk(): number {
+    let goldGained = 0;
     let n = 0;
     for (const s of [...this.sheet.inventory.all()]) {
       if (Object.values(this.sheet.equipment.all()).includes(s.uid)) continue;
       const def = this.items[s.defId];
       if (!def) continue;
-      if (def.rarity === "common" || def.id === "health_potion") {
-        // keep 5 potions
-        if (def.id === "health_potion" && s.qty <= 5) continue;
-        if (def.id === "health_potion") {
-          const sellQty = s.qty - 5;
-          for (let i = 0; i < sellQty; i++) {
-            if (this.sellItem(s.uid)) n++;
-            else break;
-          }
-          continue;
-        }
-        if (this.sellItem(s.uid)) n++;
+      const isCommonGear = !!def.slot && (def.rarity ?? "common") === "common";
+      const isPotion = def.id === "health_potion";
+      if (!isCommonGear && !isPotion) continue;
+      if (isPotion) {
+        if (s.qty <= 5) continue;
+        const sellQty = s.qty - 5;
+        const unit = this.itemSellValue({ ...s, qty: 1 });
+        this.sheet.inventory.remove(s.uid, sellQty);
+        this.sheet.addGold(unit * sellQty);
+        goldGained += unit * sellQty;
+        n += sellQty;
+        continue;
       }
+      const unit = this.itemSellValue({ ...s, qty: 1 });
+      const gold = unit * s.qty;
+      this.sheet.inventory.remove(s.uid, s.qty);
+      this.sheet.addGold(gold);
+      goldGained += gold;
+      n += 1;
     }
+    this.syncWalletFromSheet();
     if (n > 0) {
       this.pushFx({
         kind: "banner",
-        text: `Sold junk (${n})`,
+        text: `Sold junk +${goldGained}g`,
         t: 1.4,
+      });
+      this.services.audio?.play("pickup", "sfx");
+    } else {
+      this.pushFx({
+        kind: "float",
+        x: this.sim?.getPlayerPos()?.x ?? 0,
+        y: this.sim?.getPlayerPos()?.y ?? 0,
+        text: "Nothing to sell",
+        color: "#e88",
+        t: 1,
       });
     }
     return n;
@@ -735,41 +781,44 @@ export class GravewakeGame {
       .find((s) => gemIds.includes(s.defId));
     if (!gemStack) {
       this.services.events?.emit("ui:error", {});
+      this.pushFx({
+        kind: "float",
+        x: this.sim?.getPlayerPos()?.x ?? 0,
+        y: this.sim?.getPlayerPos()?.y ?? 0,
+        text: "No gem",
+        color: "#e88",
+        t: 1,
+      });
       return false;
     }
-    const slots = preferSlot
+    const slots = (preferSlot
       ? [preferSlot]
-      : (["weapon", "chest", "head"] as const);
+      : (["weapon", "chest", "head"] as const)) as Array<
+      "weapon" | "chest" | "head"
+    >;
     for (const slot of slots) {
-      const uid = this.sheet.equipment.get(slot as "weapon");
+      const uid = this.sheet.equipment.get(slot);
       if (!uid) continue;
       const gear = this.sheet.inventory.get(uid);
       if (!gear) continue;
-      const res = socketGem(gear, 0, gemStack.defId, { maxSockets: 2 });
-      if (!res.ok) {
-        // try second socket
-        const res2 = socketGem(gear, 1, gemStack.defId, { maxSockets: 2 });
-        if (!res2.ok) continue;
-        this.sheet.inventory.remove(gemStack.uid, 1);
-        // update stack data — inventory holds reference; replace via remove/add is hard
-        // mutate in place if stack is same object
-        Object.assign(gear, res2.stack);
-        this.syncPlayerFromSheet();
-        this.pushFx({
-          kind: "banner",
-          text: `Socketed ${this.items[gemStack.defId]?.name}`,
-          t: 1.4,
-        });
-        this.services.audio?.play("equip_metal", "sfx");
-        return true;
+      // Ensure data bag exists for mutation
+      if (!gear.data) gear.data = {};
+      let placed: ReturnType<typeof socketGem> | null = null;
+      for (let i = 0; i < 2; i++) {
+        const res = socketGem(gear, i, gemStack.defId, { maxSockets: 2 });
+        if (res.ok) {
+          placed = res;
+          break;
+        }
       }
+      if (!placed?.ok) continue;
       this.sheet.inventory.remove(gemStack.uid, 1);
-      Object.assign(gear, res.stack);
+      gear.data = placed.stack.data;
       this.syncPlayerFromSheet();
       this.pushFx({
         kind: "banner",
-        text: `Socketed ${this.items[gemStack.defId]?.name}`,
-        t: 1.4,
+        text: `Socketed ${this.items[gemStack.defId]?.name} → ${this.items[gear.defId]?.name ?? slot}`,
+        t: 1.5,
       });
       this.services.audio?.play("equip_metal", "sfx");
       return true;
@@ -778,7 +827,7 @@ export class GravewakeGame {
       kind: "float",
       x: this.sim?.getPlayerPos()?.x ?? 0,
       y: this.sim?.getPlayerPos()?.y ?? 0,
-      text: "No socket",
+      text: "No free socket",
       color: "#e88",
       t: 1,
     });
@@ -1642,13 +1691,9 @@ export class GravewakeGame {
         this.cast("potion");
     }
     if (input.isPressed("inventory")) {
-      this.showInv = !this.showInv;
+      this.openPanel("inv");
       this.services.events?.emit(this.showInv ? "ui:open" : "ui:close", {});
       this.services.events?.emit("ui:click", {});
-      if (this.showInv) {
-        this.showStats = false;
-        this.showSkills = false;
-      }
     }
     // C = character stats (base + gear) — bind once
     input.defineAction("character");
@@ -1656,52 +1701,37 @@ export class GravewakeGame {
     input.defineAction("skills");
     input.bindKey("skills", "KeyT");
     if (input.isPressed("character")) {
-      this.showStats = !this.showStats;
+      this.openPanel("stats");
       this.services.events?.emit("ui:click", {});
-      if (this.showStats) {
-        this.showInv = false;
-        this.showSkills = false;
-      }
     }
     if (input.isPressed("skills")) {
-      this.showSkills = !this.showSkills;
+      this.openPanel("skills");
       this.services.events?.emit(
         this.showSkills ? "ui:open" : "ui:close",
         {},
       );
       this.services.events?.emit("ui:click", {});
-      if (this.showSkills) {
-        this.showInv = false;
-        this.showStats = false;
-        this.showCraft = false;
-        this.showVendor = false;
-      }
     }
     // K = craft / sockets
     input.defineAction("craft");
     input.bindKey("craft", "KeyK");
     if (input.isPressed("craft")) {
-      this.showCraft = !this.showCraft;
+      this.openPanel("craft");
       this.services.events?.emit("ui:click", {});
-      if (this.showCraft) {
-        this.showInv = false;
-        this.showStats = false;
-        this.showSkills = false;
-        this.showVendor = false;
-      }
     }
-    // X = vendor panel (sell) when in town / at shrine
+    // X = vendor panel (sell)
     input.defineAction("vendor");
     input.bindKey("vendor", "KeyX");
     if (input.isPressed("vendor")) {
-      this.showVendor = !this.showVendor;
+      this.openPanel("vendor");
       this.services.events?.emit("ui:click", {});
-      if (this.showVendor) {
-        this.showInv = false;
-        this.showStats = false;
-        this.showSkills = false;
-        this.showCraft = false;
-      }
+    }
+    // Escape closes any panel
+    input.defineAction("close_panel");
+    input.bindKey("close_panel", "Escape");
+    if (input.isPressed("close_panel")) {
+      this.closePanels();
+      this.services.events?.emit("ui:close", {});
     }
     // Y = socket gem into gear
     input.defineAction("socket");
@@ -2444,9 +2474,8 @@ export class GravewakeGame {
         // Skill point — player chooses (T panel), no silent auto-unlock
         this.skillTree.addPoints(1);
         this.pendingSkillChoice = true;
+        this.closePanels();
         this.showSkills = true;
-        this.showInv = false;
-        this.showStats = false;
         this.services.resources?.fill("player");
         this.services.floatText?.spawn({
           x: e.x,

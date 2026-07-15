@@ -1434,28 +1434,27 @@ async function main(): Promise<void> {
       ctx.fillRect(p.x, p.y, p.r, p.r);
     }
 
-    // Soft vignette only — hard pitch fog made the game look "broken"
-    // Diablo light radius (readable, not black void)
+    // Soft vignette — keep readable (was crushing the scene to black)
     if (player?.transform) {
       const lp = wp(player.transform.x, player.transform.y);
-      const core = ctx.createRadialGradient(lp.x, lp.y, 30, lp.x, lp.y, 340);
-      core.addColorStop(0, "rgba(255,200,120,0.08)");
-      core.addColorStop(0.45, "rgba(0,0,0,0)");
-      core.addColorStop(1, "rgba(0,0,0,0.55)");
+      const core = ctx.createRadialGradient(lp.x, lp.y, 40, lp.x, lp.y, 420);
+      core.addColorStop(0, "rgba(255,200,120,0.06)");
+      core.addColorStop(0.55, "rgba(0,0,0,0)");
+      core.addColorStop(1, "rgba(0,0,0,0.28)");
       ctx.fillStyle = core;
       ctx.fillRect(0, 0, VIEW_W, VIEW_H);
     }
     const vig = ctx.createRadialGradient(
       VIEW_W / 2,
       VIEW_H / 2,
-      VIEW_H * 0.15,
+      VIEW_H * 0.2,
       VIEW_W / 2,
       VIEW_H / 2,
-      VIEW_H * 0.95,
+      VIEW_H * 1.05,
     );
     vig.addColorStop(0, "rgba(0,0,0,0)");
-    vig.addColorStop(0.75, "rgba(0,0,0,0.2)");
-    vig.addColorStop(1, "rgba(0,0,0,0.62)");
+    vig.addColorStop(0.8, "rgba(0,0,0,0.12)");
+    vig.addColorStop(1, "rgba(0,0,0,0.38)");
     ctx.fillStyle = vig;
     ctx.fillRect(0, 0, VIEW_W, VIEW_H);
 
@@ -1596,7 +1595,7 @@ async function main(): Promise<void> {
     ctx.fillStyle = "#9a8a70";
     ctx.font = "11px system-ui";
     ctx.fillText(
-      `DMG ${stats.damage ?? "—"}  ·  ARM ${stats.armor ?? "—"}  ·  SPD ${Math.round(Number(stats.speed ?? 0))}  ·  CRIT ${Math.round((stats.critChance ?? 0) * 100)}%  ·  F/I/T/C/K craft/X trade/Y socket`,
+      `DMG ${stats.damage ?? "—"}  ·  ARM ${stats.armor ?? "—"}  ·  SPD ${Math.round(Number(stats.speed ?? 0))}  ·  CRIT ${Math.round((stats.critChance ?? 0) * 100)}%  ·  Esc close  ·  I bag  ·  C char  ·  T skills  ·  K craft  ·  X trade  ·  Y socket`,
       VIEW_W / 2,
       VIEW_H - 12,
     );
@@ -1759,8 +1758,9 @@ async function main(): Promise<void> {
       ctx.fillText(`Gear: ${eqParts.join(" · ")}`, 26, 140);
     }
 
+    // Only one modal at a time (game already enforces; draw order safety)
     // inventory panel
-    if (blob.inventoryOpen) {
+    if (blob.inventoryOpen && !blob.statsOpen && !blob.skillsOpen && !blob.craftOpen && !blob.vendorOpen) {
       const inv = (blob.inventory as Array<{
         defId: string;
         name: string;
@@ -1830,7 +1830,7 @@ async function main(): Promise<void> {
     }
 
     // Craft panel (K)
-    if (blob.craftOpen) {
+    if (blob.craftOpen && !blob.vendorOpen && !blob.skillsOpen && !blob.statsOpen) {
       const cp = blob.craftPanel as {
         recipes: Array<{
           id: string;
@@ -1885,7 +1885,7 @@ async function main(): Promise<void> {
     }
 
     // Vendor panel (X)
-    if (blob.vendorOpen) {
+    if (blob.vendorOpen && !blob.craftOpen && !blob.skillsOpen && !blob.statsOpen) {
       const vp = blob.vendorPanel as {
         offers: Array<{
           id: string;
@@ -1961,7 +1961,7 @@ async function main(): Promise<void> {
     }
 
     // Skill tree panel (T / level-up)
-    if (blob.skillsOpen) {
+    if (blob.skillsOpen && !blob.craftOpen && !blob.vendorOpen) {
       const panelData = blob.skillPanel as {
         points: number;
         pending: boolean;
@@ -2034,7 +2034,7 @@ async function main(): Promise<void> {
     }
 
     // Character stats: base + gear = final
-    if (blob.statsOpen) {
+    if (blob.statsOpen && !blob.inventoryOpen && !blob.skillsOpen && !blob.craftOpen && !blob.vendorOpen) {
       const bd = blob.statBreakdown as {
         base: Record<string, number>;
         gear: Record<string, number>;

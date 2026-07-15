@@ -41,15 +41,15 @@ export function applyKnockback(
  */
 export function tickCombatBody(body: CombatBody, dtMs: number): boolean {
   if (body.dead) return false;
+  if (body.iframeMs > 0) {
+    body.iframeMs = Math.max(0, body.iframeMs - dtMs);
+  }
   if (body.hitstunMs > 0) {
     body.hitstunMs = Math.max(0, body.hitstunMs - dtMs);
     // damp velocity during stun
     body.vx *= 0.85;
     body.vy *= 0.85;
-    return false;
-  }
-  if (body.iframeMs > 0) {
-    body.iframeMs = Math.max(0, body.iframeMs - dtMs);
+    return body.hitstunMs <= 0;
   }
   return true;
 }

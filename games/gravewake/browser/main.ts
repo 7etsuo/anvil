@@ -1009,23 +1009,27 @@ async function main(): Promise<void> {
         } else {
           ctx.drawImage(img, -dw / 2, 0, dw, dh);
         }
-        // Diablo paper-doll: equipped gear layers from CharacterSheet
+        // Diablo paper-doll: small slot-scaled layers (never full-body size)
         if (e.tags.includes("player")) {
           const layers = (blob.visualLayers as Array<{
             sprite: string;
             ox: number;
             oy: number;
+            scale?: number;
+            slot?: string;
             z: number;
           }>) ?? [];
           for (const layer of layers) {
             const gimg = images.get(layer.sprite);
             if (!gimg) continue;
-            const gw = dw * 0.92;
-            const gh = dh * 0.92;
-            // flipX already applied to context — ox is toward "weapon hand"
+            const sc = Math.min(0.55, Math.max(0.12, layer.scale ?? 0.35));
+            const gw = dw * sc;
+            const gh = dh * sc;
+            // Anchor: body local space (0,0)=top-center of sprite draw
+            // ox/oy are fractions of *body* size toward hand/head
             const ox = layer.ox * dw;
-            const oy = layer.oy * dh;
-            ctx.drawImage(gimg, -gw / 2 + ox, oy + dh * 0.08, gw, gh);
+            const oy = dh * 0.5 + layer.oy * dh - gh / 2;
+            ctx.drawImage(gimg, -gw / 2 + ox, oy, gw, gh);
           }
         }
         ctx.restore();

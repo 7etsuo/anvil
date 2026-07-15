@@ -11,7 +11,8 @@
   "visual": {
     "sprite": "gear/ash_mail.png",
     "ox": 0,
-    "oy": 0.05,
+    "oy": 0.04,
+    "scale": 0.48,
     "z": 20
   },
   "icon": "gear/ash_mail.png"

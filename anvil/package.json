@@ -10,7 +10,7 @@
   "packageManager": "pnpm@9.15.9",
   "scripts": {
     "build": "pnpm -r run build",
-    "test": "pnpm --filter @anvil/schema --filter @anvil/core --filter @anvil/genre-card --filter @anvil/genre-topdown2d --filter @anvil/genre-vn --filter @anvil/genre-shmup --filter @anvil/genre-fps2 --filter @anvil/genre-net --filter @anvil/cli --filter @anvil/render-phaser --filter @anvil/recipes run test",
+    "test": "pnpm --filter @anvil/schema --filter @anvil/core --filter @anvil/genre-card --filter @anvil/genre-topdown2d --filter @anvil/genre-vn --filter @anvil/genre-shmup --filter @anvil/genre-fps2 --filter @anvil/genre-net --filter @anvil/net-colyseus --filter @anvil/cli --filter @anvil/render-phaser --filter @anvil/recipes run test",
     "lint": "eslint .",
     "validate:examples": "node packages/cli/dist/index.js validate examples/hello-empty && node packages/cli/dist/index.js validate examples/hello-card && node packages/cli/dist/index.js validate examples/hello-topdown && node packages/cli/dist/index.js validate examples/hello-vn && node packages/cli/dist/index.js validate examples/hello-shmup && node packages/cli/dist/index.js validate examples/hello-fps2 && node packages/cli/dist/index.js validate examples/hello-net",
     "test:examples": "node packages/cli/dist/index.js test examples/hello-empty && node packages/cli/dist/index.js test examples/hello-card && node packages/cli/dist/index.js test examples/hello-topdown && node packages/cli/dist/index.js test examples/hello-vn && node packages/cli/dist/index.js test examples/hello-shmup && node packages/cli/dist/index.js test examples/hello-fps2 && node packages/cli/dist/index.js test examples/hello-net",

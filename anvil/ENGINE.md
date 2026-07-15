@@ -33,14 +33,24 @@ handle.tick(1/60)
 | `@anvil/desktop` | **Real Electron** shell for web builds |
 | `@anvil/recipes` | content recipes |
 
-## Net
+## Multiplayer (production): Colyseus
 
 ```ts
-import { NetServer, WsClientTransport } from "@anvil/genre-net";
-const server = await NetServer.listen({ port: 8742 });
-const client = new WsClientTransport("ws://127.0.0.1:8742");
-await client.connect();
+import { createAnvilNetServer, connectAnvilNet } from "@anvil/net-colyseus";
+
+// server process
+const server = await createAnvilNetServer({ port: 2567 });
+
+// game client
+const net = await connectAnvilNet({
+  endpoint: "ws://127.0.0.1:2567",
+  name: "Hero",
+});
+net.sendInput(["move_right"], 1); // input only — server owns x/y/hp
 ```
+
+Legacy spike (not for production): `@anvil/genre-net` loopback / raw WS relay.  
+Spec: `docs/design/specs/S-NET-COLYSEUS.md`.
 
 ## Desktop
 

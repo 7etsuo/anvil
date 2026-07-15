@@ -621,7 +621,7 @@ async function main(): Promise<void> {
 
       const pat = ctx.createPattern(floor, "repeat");
       if (pat && typeof (pat as CanvasPattern).setTransform === "function") {
-        // Map texture pixels so FLOOR_TILE_WORLD units ≈ one tile
+        // World-locked primary grain
         const tilePx = FLOOR_TILE_WORLD * SCALE;
         const sx = tilePx / floor.naturalWidth;
         const sy = tilePx / floor.naturalHeight;
@@ -630,30 +630,30 @@ async function main(): Promise<void> {
           .scale(sx, sy);
         (pat as CanvasPattern).setTransform(m);
         ctx.fillStyle = pat;
-        ctx.globalAlpha = 0.92;
+        ctx.globalAlpha = 0.88;
         ctx.fillRect(0, 0, VIEW_W, VIEW_H);
+        // Second pass, offset + larger scale breaks the obvious tile lattice
+        const pat2 = ctx.createPattern(floor, "repeat");
+        if (pat2 && typeof pat2.setTransform === "function") {
+          const m2 = new DOMMatrix()
+            .translate(-viewCamX + 47, -viewCamY + 31)
+            .scale(sx * 1.37, sy * 1.37)
+            .rotate(17);
+          pat2.setTransform(m2);
+          ctx.fillStyle = pat2;
+          ctx.globalAlpha = 0.28;
+          ctx.fillRect(0, 0, VIEW_W, VIEW_H);
+        }
         ctx.globalAlpha = 1;
-      } else if (pat) {
-        // fallback: draw only viewport tiles in world space
-        ctx.save();
-        ctx.translate(-viewCamX, -viewCamY);
-        ctx.fillStyle = pat;
-        ctx.fillRect(
-          viewCamX,
-          viewCamY,
-          VIEW_W,
-          VIEW_H,
-        );
-        ctx.restore();
       }
 
-      // single subtle mood wash (not a second tiled layer)
+      // soft vignette dirt, not a second "floor layer"
       const wash =
         blob.areaKind === "dungeon"
-          ? "rgba(20,12,40,0.28)"
+          ? "rgba(12,8,22,0.32)"
           : blob.area === "wastes"
-            ? "rgba(30,18,10,0.18)"
-            : "rgba(0,0,0,0.08)";
+            ? "rgba(22,14,8,0.22)"
+            : "rgba(0,0,0,0.1)";
       ctx.fillStyle = wash;
       ctx.fillRect(0, 0, VIEW_W, VIEW_H);
     }

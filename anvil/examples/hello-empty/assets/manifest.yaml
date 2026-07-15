@@ -1,0 +1,3 @@
+# Optional required paths (S04). blip may be missing — greybox / missing list.
+required:
+  - sfx/blip.ogg

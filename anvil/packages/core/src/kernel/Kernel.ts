@@ -55,6 +55,8 @@ export class Kernel implements KernelInternals {
   private maxDtSteps: number;
   private disposed = false;
   private clearColor = "#1a1a2e";
+  /** When true, Kernel skips clear/draw (browser owns the canvas presentation). */
+  private skipDefaultDraw = false;
   private genreObserve: () => Record<string, unknown> = () => ({});
   /** Soft entity budget (observe warns; does not hard-fail). */
   readonly entityBudget = 500;
@@ -171,6 +173,11 @@ export class Kernel implements KernelInternals {
     this.clearColor = c;
   }
 
+  /** Browser games that paint the full frame themselves should enable this. */
+  setSkipDefaultDraw(skip: boolean): void {
+    this.skipDefaultDraw = skip;
+  }
+
   pause(): void {
     if (!this.paused) {
       this.paused = true;
@@ -209,7 +216,7 @@ export class Kernel implements KernelInternals {
       this.accumulator -= this.fixedDt;
       steps++;
     }
-    if (!this.cinema.isPlaying()) {
+    if (!this.cinema.isPlaying() && !this.skipDefaultDraw) {
       this.renderer.beginFrame();
       this.renderer.clear(this.clearColor);
       this.drawEntities();

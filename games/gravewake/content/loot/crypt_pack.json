@@ -1,0 +1,11 @@
+{
+  "id": "crypt_pack",
+  "entries": [
+    { "item": "gold", "weight": 30, "min": 12, "max": 40 },
+    { "item": "health_potion", "weight": 18, "min": 1, "max": 3 },
+    { "item": "bone_cleaver", "weight": 14, "min": 1, "max": 1 },
+    { "item": "ash_mail", "weight": 12, "min": 1, "max": 1 },
+    { "item": "iron_helm", "weight": 10, "min": 1, "max": 1 },
+    { "item": "rusty_sword", "weight": 8, "min": 1, "max": 1 }
+  ]
+}

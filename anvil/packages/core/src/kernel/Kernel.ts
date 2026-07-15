@@ -89,6 +89,8 @@ export class Kernel implements KernelInternals {
       assets: this.assets,
       seed: this.seed,
       random: () => this.rng.random(),
+      particles: this.particles,
+      quests: this.quests,
     });
     this.audio = new AudioSystem(this.assets, this.events);
     this.cinema = new CinematicSystem(this.assets, this.events, this.input);

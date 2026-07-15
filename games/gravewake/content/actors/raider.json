@@ -1,0 +1,15 @@
+{
+  "id": "raider",
+  "name": "Ash Raider",
+  "hp": 42,
+  "speed": 95,
+  "ai": "chase_melee",
+  "team": "enemy",
+  "radius": 12,
+  "contactDamage": 11,
+  "meleeRange": 40,
+  "animations": {
+    "idle": ["actors/crypt_guard.png"],
+    "walk": ["actors/crypt_guard.png"]
+  }
+}

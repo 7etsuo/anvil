@@ -1,0 +1,8 @@
+{
+  "id": "rusty_sword",
+  "name": "Rusty Sword",
+  "rarity": "common",
+  "slot": "weapon",
+  "stats": { "damage": 4 },
+  "flavor": "Ash-pitted steel of a fallen warden."
+}

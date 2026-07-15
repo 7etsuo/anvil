@@ -35,44 +35,34 @@ export const gravewakeModule: GenreModule = {
     return [
       {
         name: "main",
-        factory: (ctx: SceneContext) => createGravewakeScene(ctx),
-      },
-      {
-        name: "play",
-        factory: (ctx: SceneContext) => createGravewakeScene(ctx),
+        factory: (ctx: SceneContext) => {
+          const root = ctx.assets.getGameRoot();
+          const content = loadGravewakeContent(root);
+          for (const e of ctx.world.all()) ctx.world.destroy(e.id);
+          const game = new GravewakeGame(
+            ctx.world,
+            content.actors,
+            content.areas,
+            content.progression,
+            content.items,
+            content.lootTables,
+            ctx.random ?? Math.random,
+            { particles: ctx.particles, quests: ctx.quests },
+          );
+          activeApi = { game };
+          return {
+            enter() {},
+            update(dt: number) {
+              game.update(dt, ctx.input);
+            },
+            exit() {
+              if (activeApi?.game === game) activeApi = null;
+            },
+          };
+        },
       },
     ];
   },
 };
-
-function createGravewakeScene(ctx: SceneContext) {
-  const root = ctx.assets.getGameRoot();
-  const content = loadGravewakeContent(root);
-  const rng = ctx.random ?? Math.random;
-
-  for (const e of ctx.world.all()) ctx.world.destroy(e.id);
-
-  const game = new GravewakeGame(
-    ctx.world,
-    content.actors,
-    content.areas,
-    content.progression,
-    rng,
-  );
-
-  activeApi = { game };
-  ctx.events.emit("gravewake:ready", { game });
-
-  return {
-    enter() {},
-    update(dt: number) {
-      game.update(dt, ctx.input);
-      ctx.events.emit("gravewake:ui", game.observeBlob());
-    },
-    exit() {
-      if (activeApi?.game === game) activeApi = null;
-    },
-  };
-}
 
 export default gravewakeModule;

@@ -1,13 +1,19 @@
 {
   "xpPerKill": {
-    "scuttler": 18,
-    "wretch": 22,
-    "crypt_guard": 55,
+    "fallen": 8,
+    "scuttler": 12,
+    "shade": 14,
+    "wretch": 15,
+    "raider": 22,
+    "crypt_guard": 35,
     "bellwarden": 200
   },
-  "xpToLevel": [0, 40, 100, 180, 280, 420],
-  "meleeDamage": 22,
+  "xpToLevel": [0, 40, 100, 180, 280, 400, 550],
+  "meleeDamage": 10,
   "meleeRange": 78,
   "startGold": 40,
-  "potionHeal": 55
+  "potionHeal": 45,
+  "whirlDamageMul": 0.75,
+  "smiteDamageMul": 1.35,
+  "smiteRange": 160
 }

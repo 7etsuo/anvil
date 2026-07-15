@@ -1,6 +1,8 @@
 import type { AssetServer } from "../assets/AssetServer.js";
 import type { EventBus } from "../events/EventBus.js";
+import type { ParticleSystem } from "../fx/ParticleSystem.js";
 import type { InputMap } from "../input/InputMap.js";
+import type { QuestSystem } from "../quest/QuestSystem.js";
 import type { World } from "../world/World.js";
 
 export interface SceneContext {
@@ -11,6 +13,9 @@ export interface SceneContext {
   data?: unknown;
   seed?: number;
   random?: () => number;
+  /** First-class engine services (when run under Kernel) */
+  particles?: ParticleSystem;
+  quests?: QuestSystem;
 }
 
 export interface Scene {

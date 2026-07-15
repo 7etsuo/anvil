@@ -1,0 +1,30 @@
+{
+  "id": "parish_purge",
+  "title": "Purge the Parish",
+  "description": "Clear the walking dead from Cinder Parish.",
+  "autoStart": true,
+  "steps": [
+    {
+      "id": "enter",
+      "description": "Enter Cinder Parish",
+      "completeFlag": "entered_parish"
+    },
+    {
+      "id": "slay",
+      "description": "Slay the dead",
+      "countKey": "kill",
+      "countTarget": 8
+    },
+    {
+      "id": "crypt",
+      "description": "Descend into Bellcrypt",
+      "completeFlag": "entered_crypt"
+    },
+    {
+      "id": "boss",
+      "description": "Silence the Bellwarden",
+      "completeFlag": "bellwarden_dead"
+    }
+  ],
+  "rewards": { "xp": 50, "gold": 40 }
+}

@@ -37,16 +37,46 @@ const ASSET_URLS: Record<string, string> = {
   "env/wall.png": "/assets/env/wall.png",
 };
 
+/** Visual aliases: new mob types reuse sheets with tints. */
+const ACTOR_SHEET: Record<string, string> = {
+  fallen: "scuttler",
+  raider: "crypt_guard",
+  shade: "wretch",
+  scuttler: "scuttler",
+  wretch: "wretch",
+  crypt_guard: "crypt_guard",
+  bellwarden: "bellwarden",
+  gravewarden: "gravewarden",
+};
+
+const ACTOR_TINT: Record<string, string | null> = {
+  fallen: "rgba(180,90,40,0.35)",
+  raider: "rgba(120,40,40,0.3)",
+  shade: "rgba(60,40,120,0.45)",
+  scuttler: null,
+  wretch: null,
+  crypt_guard: null,
+  bellwarden: "rgba(80,60,20,0.2)",
+  gravewarden: null,
+};
+
+const RARITY_COLOR: Record<string, string> = {
+  common: "#d0d0d0",
+  magic: "#6868ff",
+  rare: "#ffcc00",
+  unique: "#bf7f3f",
+  set: "#00ff00",
+};
+
 /** 0=right, 1=down, 2=left, 3=up (canvas y+ is down). */
 function dirFromFacing(facing: number): 0 | 1 | 2 | 3 {
   let a = facing;
   while (a <= -Math.PI) a += Math.PI * 2;
   while (a > Math.PI) a -= Math.PI * 2;
-  // Prefer cardinal by dominant axis via angle sectors
-  if (a >= -Math.PI / 4 && a < Math.PI / 4) return 0; // right
-  if (a >= Math.PI / 4 && a < (3 * Math.PI) / 4) return 1; // down
-  if (a >= (3 * Math.PI) / 4 || a < (-3 * Math.PI) / 4) return 2; // left
-  return 3; // up
+  if (a >= -Math.PI / 4 && a < Math.PI / 4) return 0;
+  if (a >= Math.PI / 4 && a < (3 * Math.PI) / 4) return 1;
+  if (a >= (3 * Math.PI) / 4 || a < (-3 * Math.PI) / 4) return 2;
+  return 3;
 }
 
 function dirFromString(d: unknown): 0 | 1 | 2 | 3 | null {
@@ -84,7 +114,6 @@ function drawOrb(
   pct: number,
   hue: "blood" | "mana",
 ): void {
-  // outer metal ring
   const metal = ctx.createLinearGradient(cx - radius, cy - radius, cx + radius, cy + radius);
   metal.addColorStop(0, "#6a5a40");
   metal.addColorStop(0.4, "#d4b878");
@@ -98,7 +127,6 @@ function drawOrb(
   ctx.lineWidth = 2;
   ctx.stroke();
 
-  // glass bowl
   ctx.save();
   ctx.beginPath();
   ctx.arc(cx, cy, radius, 0, Math.PI * 2);
@@ -121,11 +149,9 @@ function drawOrb(
   ctx.fillStyle = grad;
   ctx.fillRect(cx - radius, top, radius * 2, fillH);
 
-  // liquid surface shine
   ctx.fillStyle = "rgba(255,255,255,0.15)";
   ctx.fillRect(cx - radius * 0.7, top, radius * 1.4, 3);
 
-  // glass highlight
   const hi = ctx.createRadialGradient(cx - radius * 0.35, cy - radius * 0.4, 2, cx, cy, radius);
   hi.addColorStop(0, "rgba(255,255,255,0.28)");
   hi.addColorStop(0.35, "rgba(255,255,255,0.05)");
@@ -144,6 +170,7 @@ function drawSkillSlot(
   hotkey: string,
   ready: boolean,
   cdPct = 0,
+  accent = "#e8c878",
 ): void {
   ctx.fillStyle = "#1a1410";
   ctx.fillRect(x, y, size, size);
@@ -153,18 +180,39 @@ function drawSkillSlot(
   ctx.strokeStyle = g;
   ctx.lineWidth = 2;
   ctx.strokeRect(x + 1, y + 1, size - 2, size - 2);
-  ctx.fillStyle = ready ? "#e8c878" : "#666";
+  // icon wash
+  ctx.fillStyle = ready ? accent : "#444";
+  ctx.globalAlpha = ready ? 0.22 : 0.12;
+  ctx.fillRect(x + 4, y + 4, size - 8, size - 18);
+  ctx.globalAlpha = 1;
+  ctx.fillStyle = ready ? accent : "#666";
   ctx.font = "bold 11px Cinzel, Georgia, serif";
   ctx.textAlign = "center";
-  ctx.fillText(label, x + size / 2, y + size / 2 + 4);
-  ctx.fillStyle = "#aaa";
-  ctx.font = "10px system-ui";
-  ctx.fillText(hotkey, x + size / 2, y + size - 8);
-  if (cdPct > 0) {
-    ctx.fillStyle = "rgba(0,0,0,0.55)";
-    ctx.fillRect(x, y, size, size * cdPct);
+  ctx.fillText(label, x + size / 2, y + size / 2 + 2);
+  ctx.fillStyle = "#bbb";
+  ctx.font = "bold 10px system-ui";
+  ctx.fillText(hotkey, x + size / 2, y + size - 7);
+  if (cdPct > 0.02) {
+    ctx.fillStyle = "rgba(0,0,0,0.6)";
+    ctx.fillRect(x, y, size, size * Math.min(1, cdPct));
+    ctx.fillStyle = "#ccc";
+    ctx.font = "bold 12px system-ui";
+    ctx.fillText(`${Math.ceil(cdPct * 10) / 10}s`, x + size / 2, y + size / 2 + 4);
   }
   ctx.textAlign = "left";
+}
+
+function panel(
+  ctx: CanvasRenderingContext2D,
+  x: number,
+  y: number,
+  w: number,
+  h: number,
+): void {
+  ctx.fillStyle = "rgba(8,6,4,0.78)";
+  ctx.fillRect(x, y, w, h);
+  ctx.strokeStyle = "rgba(201,164,108,0.32)";
+  ctx.strokeRect(x + 0.5, y + 0.5, w - 1, h - 1);
 }
 
 async function main(): Promise<void> {
@@ -178,7 +226,6 @@ async function main(): Promise<void> {
     }),
   );
 
-  // Simple full-window canvas — no DPR transform tricks (those caused black screens)
   VIEW_W = Math.max(640, window.innerWidth | 0);
   VIEW_H = Math.max(480, window.innerHeight | 0);
 
@@ -206,7 +253,6 @@ async function main(): Promise<void> {
     },
   });
 
-  // Re-apply size after createGame (engine may have touched the renderer)
   renderer.resize(VIEW_W, VIEW_H);
 
   for (const [path, img] of images) {
@@ -259,16 +305,15 @@ async function main(): Promise<void> {
   });
 
   let clickSlash = false;
-  mount.addEventListener("mousedown", () => {
-    clickSlash = true;
+  mount.addEventListener("mousedown", (e) => {
+    if (e.button === 0) clickSlash = true;
   });
 
   const floor = images.get("env/floor.png")!;
   const wallTex = images.get("env/wall.png")!;
 
-  // ambient ash particles (screen space)
   const ash: Particle[] = [];
-  for (let i = 0; i < 60; i++) {
+  for (let i = 0; i < 70; i++) {
     ash.push({
       x: Math.random() * VIEW_W,
       y: Math.random() * VIEW_H,
@@ -290,8 +335,9 @@ async function main(): Promise<void> {
   let lastPlayerX = 0;
   let lastPlayerY = 0;
   let last = performance.now();
+  const seenFx = new Set<string>();
 
-  function spawnHitSparks(wx: number, wy: number, n = 10): void {
+  function spawnHitSparks(wx: number, wy: number, n = 10, colorA = "rgba(255,80,60,", colorB = "rgba(255,200,80,"): void {
     for (let i = 0; i < n; i++) {
       const a = Math.random() * Math.PI * 2;
       const sp = 40 + Math.random() * 120;
@@ -303,7 +349,7 @@ async function main(): Promise<void> {
         life: 0.25 + Math.random() * 0.35,
         max: 0.5,
         r: 1.5 + Math.random() * 2.5,
-        color: Math.random() > 0.5 ? "rgba(255,80,60," : "rgba(255,200,80,",
+        color: Math.random() > 0.5 ? colorA : colorB,
         world: true,
       });
     }
@@ -311,59 +357,66 @@ async function main(): Promise<void> {
 
   function actorBase(e: { tags: string[]; data: Record<string, unknown> }): string {
     if (e.tags.includes("player") || e.tags.includes("gravewarden")) return "gravewarden";
-    if (e.tags.includes("bellwarden")) return "bellwarden";
-    if (e.tags.includes("crypt_guard")) return "crypt_guard";
-    if (e.tags.includes("wretch")) return "wretch";
-    if (e.tags.includes("scuttler")) return "scuttler";
-    const id = String(e.data.actorId ?? e.tags.find((t) => t !== "enemy" && t !== "actor" && t !== "player") ?? "scuttler");
+    for (const t of e.tags) {
+      if (ACTOR_SHEET[t]) return t;
+    }
+    const id = String(e.data.actorId ?? "scuttler");
     return id;
   }
 
   function spriteForEntity(e: {
     tags: string[];
     data: Record<string, unknown>;
-  }): { img: HTMLImageElement | null; flipX: boolean } {
-    const base = actorBase(e);
-    // Prefer sim's dominant-axis dir (more stable than continuous angle)
+  }): { img: HTMLImageElement | null; flipX: boolean; tint: string | null } {
+    const baseId = actorBase(e);
+    const sheet = ACTOR_SHEET[baseId] ?? baseId;
+    const tint = ACTOR_TINT[baseId] ?? null;
     const dir =
       dirFromString(e.data.dir) ??
       dirFromFacing(Number(e.data.facing ?? Math.PI / 2));
 
-    // Art sheets face: down, up, right. Left = flip RIGHT sheet.
-    // If go-right looked left before, the right sheet faces left → flip when moving RIGHT.
     if (dir === 3) {
       const up =
-        images.get(`actors/${base}_up.png`) ??
-        images.get(`actors/${base}_down.png`) ??
-        images.get(`actors/${base}.png`);
-      return { img: up ?? null, flipX: false };
+        images.get(`actors/${sheet}_up.png`) ??
+        images.get(`actors/${sheet}_down.png`) ??
+        images.get(`actors/${sheet}.png`);
+      return { img: up ?? null, flipX: false, tint };
     }
     if (dir === 1) {
       const down =
-        images.get(`actors/${base}_down.png`) ??
-        images.get(`actors/${base}.png`);
-      return { img: down ?? null, flipX: false };
+        images.get(`actors/${sheet}_down.png`) ??
+        images.get(`actors/${sheet}.png`);
+      return { img: down ?? null, flipX: false, tint };
     }
     if (dir === 0) {
-      // moving right
       const right =
-        images.get(`actors/${base}_right.png`) ??
-        images.get(`actors/${base}_down.png`);
-      // invert: many AI "right" sheets face left of frame
-      return { img: right ?? null, flipX: true };
+        images.get(`actors/${sheet}_right.png`) ??
+        images.get(`actors/${sheet}_down.png`);
+      return { img: right ?? null, flipX: true, tint };
     }
-    // left
     const right =
-      images.get(`actors/${base}_right.png`) ??
-      images.get(`actors/${base}_down.png`);
-    return { img: right ?? null, flipX: false };
+      images.get(`actors/${sheet}_right.png`) ??
+      images.get(`actors/${sheet}_down.png`);
+    return { img: right ?? null, flipX: false, tint };
   }
 
-  function spriteSize(e: { tags: string[] }): number {
-    if (e.tags.includes("bellwarden")) return 128;
-    if (e.tags.includes("crypt_guard")) return 92;
+  function spriteSize(e: { tags: string[]; data: Record<string, unknown> }): number {
+    if (e.tags.includes("bellwarden") || e.data.actorId === "bellwarden") return 132;
+    if (e.tags.includes("crypt_guard") || e.data.actorId === "crypt_guard") return 96;
+    if (e.tags.includes("raider") || e.data.actorId === "raider") return 96;
     if (e.tags.includes("player") || e.tags.includes("gravewarden")) return 104;
+    if (e.tags.includes("fallen") || e.data.actorId === "fallen") return 68;
+    if (e.tags.includes("shade") || e.data.actorId === "shade") return 82;
     return 78;
+  }
+
+  function xpPct(level: number, xp: number): number {
+    // progression xpToLevel: [0, 40, 100, ...] — need next threshold
+    const table = [0, 40, 100, 180, 280, 400, 550, 750, 1000];
+    const cur = table[Math.min(level, table.length - 1)] ?? 0;
+    const next = table[Math.min(level + 1, table.length - 1)] ?? cur + 100;
+    if (next <= cur) return 1;
+    return Math.max(0, Math.min(1, (xp - cur) / (next - cur)));
   }
 
   function frame(now: number): void {
@@ -386,7 +439,6 @@ async function main(): Promise<void> {
       ctx.fillStyle = rg;
       ctx.fillRect(0, 0, VIEW_W, VIEW_H);
 
-      // floating ash on title
       for (const p of ash) {
         p.x += p.vx * dt;
         p.y += p.vy * dt;
@@ -405,17 +457,24 @@ async function main(): Promise<void> {
       ctx.font = "bold 64px Cinzel, Georgia, serif";
       ctx.shadowColor = "rgba(201,164,108,0.45)";
       ctx.shadowBlur = 24;
-      ctx.fillText("GRAVEWAKE", VIEW_W / 2, VIEW_H / 2 - 36);
+      ctx.fillText("GRAVEWAKE", VIEW_W / 2, VIEW_H / 2 - 48);
       ctx.shadowBlur = 0;
       ctx.fillStyle = "#9a8a70";
-      ctx.font = "italic 18px 'IM Fell English', Georgia, serif";
-      ctx.fillText("The parish no longer answers the bells", VIEW_W / 2, VIEW_H / 2 + 8);
+      ctx.font = "italic 18px Georgia, serif";
+      ctx.fillText("The parish no longer answers the bells", VIEW_W / 2, VIEW_H / 2 - 4);
       ctx.fillStyle = "#e6dcc8";
       ctx.font = "bold 18px system-ui";
-      ctx.fillText("Click or press any key", VIEW_W / 2, VIEW_H / 2 + 70);
+      ctx.fillText("Click or press any key to begin", VIEW_W / 2, VIEW_H / 2 + 48);
+      ctx.fillStyle = "#888";
+      ctx.font = "13px system-ui";
+      ctx.fillText(
+        "WASD move  ·  Space / LMB Slash  ·  2 Whirl  ·  3 Smite  ·  1 Potion  ·  F Loot  ·  I Inventory",
+        VIEW_W / 2,
+        VIEW_H / 2 + 86,
+      );
       ctx.fillStyle = "#666";
-      ctx.font = "14px system-ui";
-      ctx.fillText("WASD  ·  Space to slash  ·  Clear the Parish  ·  Kill the Bellwarden", VIEW_W / 2, VIEW_H / 2 + 104);
+      ctx.font = "12px system-ui";
+      ctx.fillText("Clear randomized packs · Equip loot · Silence the Bellwarden", VIEW_W / 2, VIEW_H / 2 + 112);
       ctx.textAlign = "left";
 
       if (keysHeld.size || clickSlash) {
@@ -448,6 +507,13 @@ async function main(): Promise<void> {
     const blob = gw.observeBlob();
     const area = embeddedAreas[String(blob.area)];
     const fx = gw.fx as FxEvent[];
+    const cds = (blob.cds as Record<string, number>) ?? {};
+    const stats = (blob.stats as {
+      damage?: number;
+      armor?: number;
+      maxHp?: number;
+      critChance?: number;
+    }) ?? {};
 
     // camera lerp + shake
     const targetX = (player?.transform?.x ?? 0) * SCALE - VIEW_W / 2;
@@ -461,9 +527,31 @@ async function main(): Promise<void> {
         shakeX += (Math.random() - 0.5) * f.mag * 2.5;
         shakeY += (Math.random() - 0.5) * f.mag * 2.5;
       }
-      if (f.kind === "hit" && f.t > 0.55) {
-        spawnHitSparks(f.x, f.y, 8);
+      if (f.kind === "hit" && f.t > 0.6) {
+        const key = `hit-${f.x.toFixed(1)}-${f.y.toFixed(1)}-${f.t.toFixed(2)}`;
+        if (!seenFx.has(key)) {
+          seenFx.add(key);
+          spawnHitSparks(
+            f.x,
+            f.y,
+            f.crit ? 16 : 8,
+            f.crit ? "rgba(255,220,80," : "rgba(255,80,60,",
+            f.crit ? "rgba(255,255,200," : "rgba(255,200,80,",
+          );
+        }
       }
+      if (f.kind === "kill" && f.t > 0.4) {
+        const key = `kill-${f.x.toFixed(0)}-${f.y.toFixed(0)}`;
+        if (!seenFx.has(key)) {
+          seenFx.add(key);
+          spawnHitSparks(f.x, f.y, 18, "rgba(255,180,60,", "rgba(200,40,40,");
+        }
+      }
+    }
+    if (seenFx.size > 80) {
+      const arr = [...seenFx];
+      seenFx.clear();
+      for (const k of arr.slice(-40)) seenFx.add(k);
     }
     const viewCamX = camX + shakeX;
     const viewCamY = camY + shakeY;
@@ -489,7 +577,7 @@ async function main(): Promise<void> {
       lastPlayerY = player.transform.y;
     }
 
-    // --- WORLD ---
+    // --- WORLD FLOOR ---
     ctx.save();
     ctx.translate(-viewCamX, -viewCamY);
     const pat = ctx.createPattern(floor, "repeat");
@@ -497,9 +585,15 @@ async function main(): Promise<void> {
       ctx.fillStyle = pat;
       ctx.fillRect(0, 0, area.width * SCALE, area.height * SCALE);
     }
-    // darken floor slightly for mood
     if (area) {
-      ctx.fillStyle = "rgba(0,0,0,0.18)";
+      // zone mood wash
+      if (blob.area === "crypt") {
+        ctx.fillStyle = "rgba(10,8,30,0.35)";
+      } else if (blob.area === "parish") {
+        ctx.fillStyle = "rgba(40,15,8,0.22)";
+      } else {
+        ctx.fillStyle = "rgba(0,0,0,0.15)";
+      }
       ctx.fillRect(0, 0, area.width * SCALE, area.height * SCALE);
     }
     ctx.restore();
@@ -508,14 +602,16 @@ async function main(): Promise<void> {
     if (player?.transform) {
       const lx = player.transform.x * SCALE - viewCamX;
       const ly = player.transform.y * SCALE - viewCamY;
-      const light = ctx.createRadialGradient(lx, ly, 20, lx, ly, 280);
-      light.addColorStop(0, "rgba(255,200,120,0.08)");
-      light.addColorStop(0.4, "rgba(0,0,0,0)");
-      light.addColorStop(1, "rgba(0,0,0,0.55)");
+      const lightR = blob.area === "crypt" ? 220 : 300;
+      const light = ctx.createRadialGradient(lx, ly, 20, lx, ly, lightR);
+      light.addColorStop(0, "rgba(255,200,120,0.1)");
+      light.addColorStop(0.35, "rgba(0,0,0,0)");
+      light.addColorStop(1, blob.area === "crypt" ? "rgba(0,0,0,0.72)" : "rgba(0,0,0,0.55)");
       ctx.fillStyle = light;
       ctx.fillRect(0, 0, VIEW_W, VIEW_H);
     }
 
+    // walls
     if (area) {
       for (const w of area.walls) {
         const x = w.x * SCALE - viewCamX;
@@ -530,7 +626,6 @@ async function main(): Promise<void> {
         ctx.fillStyle = wp ?? "#3a3228";
         ctx.fillRect(x, y, ww, hh);
         ctx.restore();
-        // bevel
         ctx.strokeStyle = "rgba(0,0,0,0.65)";
         ctx.lineWidth = 2;
         ctx.strokeRect(x + 0.5, y + 0.5, ww - 1, hh - 1);
@@ -538,13 +633,88 @@ async function main(): Promise<void> {
         ctx.strokeRect(x + 2, y + 2, Math.max(0, ww - 4), Math.max(0, hh - 4));
       }
 
-      // Zone changes: walk through wall gaps only — no door chrome drawn.
+      // exit glows
+      for (const ex of area.exits ?? []) {
+        let exX = 0;
+        let exY = 0;
+        let exW = 40;
+        let exH = 80;
+        if (ex.edge === "east") {
+          exX = area.width * SCALE - 18 - viewCamX;
+          exY = area.height * SCALE * 0.35 - viewCamY;
+          exW = 18;
+          exH = area.height * SCALE * 0.3;
+        } else if (ex.edge === "west") {
+          exX = 0 - viewCamX;
+          exY = area.height * SCALE * 0.35 - viewCamY;
+          exW = 18;
+          exH = area.height * SCALE * 0.3;
+        }
+        const blocked = ex.requireClear && (blob.livingEnemies as number) > 0;
+        const pulse = 0.25 + Math.sin(now / 400) * 0.12;
+        ctx.fillStyle = blocked
+          ? `rgba(180,40,40,${pulse})`
+          : `rgba(201,164,108,${pulse})`;
+        ctx.fillRect(exX, exY, exW, exH);
+      }
+    }
+
+    // LOOT piles (before actors so they sit on floor)
+    for (const e of handle.world.query("transform")) {
+      if (!e.tags.includes("loot") || !e.transform) continue;
+      const loot = e.data.loot as { defId?: string; gold?: number; qty?: number } | undefined;
+      const sx = e.transform.x * SCALE - viewCamX;
+      const sy = e.transform.y * SCALE - viewCamY;
+      const isGold = loot?.defId === "gold";
+      const pulse = 0.55 + Math.sin(now / 180 + e.transform.x) * 0.35;
+      // glow
+      const glow = ctx.createRadialGradient(sx, sy, 2, sx, sy, 22);
+      glow.addColorStop(0, isGold ? `rgba(255,210,60,${pulse})` : `rgba(120,160,255,${pulse * 0.8})`);
+      glow.addColorStop(1, "rgba(0,0,0,0)");
+      ctx.fillStyle = glow;
+      ctx.beginPath();
+      ctx.arc(sx, sy, 22, 0, Math.PI * 2);
+      ctx.fill();
+      // pile
+      ctx.fillStyle = isGold ? "#e8c040" : "#6a8cff";
+      ctx.beginPath();
+      ctx.ellipse(sx, sy + 2, 10, 5, 0, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = isGold ? "#fff0a0" : "#c0d0ff";
+      ctx.beginPath();
+      ctx.arc(sx - 3, sy - 2, 3, 0, Math.PI * 2);
+      ctx.arc(sx + 4, sy - 1, 2.5, 0, Math.PI * 2);
+      ctx.fill();
+      // label when near player
+      if (player?.transform) {
+        const d = Math.hypot(e.transform.x - player.transform.x, e.transform.y - player.transform.y);
+        if (d < 90) {
+          const name = isGold
+            ? `${loot?.gold ?? 0} gold`
+            : String(loot?.defId ?? "loot").replace(/_/g, " ");
+          ctx.font = "bold 11px system-ui";
+          ctx.textAlign = "center";
+          ctx.fillStyle = isGold ? "#fd4" : "#acf";
+          ctx.fillText(name, sx, sy - 16);
+          if (d < 48) {
+            ctx.fillStyle = "#ccc";
+            ctx.font = "10px system-ui";
+            ctx.fillText("[F]", sx, sy - 28);
+          }
+          ctx.textAlign = "left";
+        }
+      }
     }
 
     // entities
     const entities = handle.world
       .query("transform")
-      .filter((e) => !e.tags.includes("dead") && !e.tags.includes("projectile"))
+      .filter(
+        (e) =>
+          !e.tags.includes("dead") &&
+          !e.tags.includes("projectile") &&
+          !e.tags.includes("loot"),
+      )
       .sort((a, b) => (a.transform?.y ?? 0) - (b.transform?.y ?? 0));
 
     for (const e of entities) {
@@ -552,12 +722,11 @@ async function main(): Promise<void> {
       const sx = t.x * SCALE - viewCamX;
       const sy = t.y * SCALE - viewCamY;
       const size = spriteSize(e);
-      const { img, flipX } = spriteForEntity(e);
+      const { img, flipX, tint } = spriteForEntity(e);
       const speed = Number(e.data.speed ?? 0);
       const attacking = e.data.attacking === true;
       const facing = Number(e.data.facing ?? Math.PI / 2);
 
-      // walk cycle: bob + slight lean (feels alive, not a stamped block)
       const phase = now / 90 + t.x * 0.2;
       const walk = speed > 8;
       const bob = walk ? Math.abs(Math.sin(phase)) * 5 : 0;
@@ -568,7 +737,6 @@ async function main(): Promise<void> {
       const squash = attacking ? 1.08 : walk ? 1 + Math.sin(phase) * 0.04 : 1;
       const stretch = attacking ? 0.92 : walk ? 1 - Math.sin(phase) * 0.03 : 1;
 
-      // ground blob shadow
       ctx.fillStyle = "rgba(0,0,0,0.45)";
       ctx.beginPath();
       ctx.ellipse(
@@ -582,9 +750,8 @@ async function main(): Promise<void> {
       );
       ctx.fill();
 
-      // selection ring under player
       if (e.tags.includes("player")) {
-        ctx.strokeStyle = "rgba(201,164,108,0.4)";
+        ctx.strokeStyle = "rgba(201,164,108,0.45)";
         ctx.lineWidth = 2;
         ctx.beginPath();
         ctx.ellipse(sx, sy + size * 0.3, size * 0.4, size * 0.15, 0, 0, Math.PI * 2);
@@ -594,8 +761,9 @@ async function main(): Promise<void> {
       if (img) {
         const dw = size * squash;
         const dh = size * stretch;
+        const drawY = sy - dh * 0.55 - bob + lungeY;
         ctx.save();
-        ctx.translate(sx + lungeX, sy - dh * 0.55 - bob + lungeY);
+        ctx.translate(sx + lungeX, drawY);
         ctx.rotate(lean);
         if (flipX) {
           ctx.scale(-1, 1);
@@ -604,8 +772,22 @@ async function main(): Promise<void> {
           ctx.drawImage(img, -dw / 2, 0, dw, dh);
         }
         ctx.restore();
+        // identity wash for remapped mob types (fallen/raider/shade)
+        if (tint) {
+          ctx.fillStyle = tint;
+          ctx.beginPath();
+          ctx.ellipse(
+            sx + lungeX,
+            drawY + dh * 0.45,
+            dw * 0.32,
+            dh * 0.38,
+            0,
+            0,
+            Math.PI * 2,
+          );
+          ctx.fill();
+        }
       } else {
-        // never leave a naked block — colored body placeholder
         ctx.fillStyle = e.tags.includes("player") ? "#c9a46c" : "#a44";
         ctx.beginPath();
         ctx.arc(sx, sy - 10 - bob, size * 0.28, 0, Math.PI * 2);
@@ -625,10 +807,41 @@ async function main(): Promise<void> {
         hg.addColorStop(1, "#601010");
         ctx.fillStyle = hg;
         ctx.fillRect(bx, by, 64 * pct, 7);
+        // name plate for elites
+        const aid = String(e.data.actorId ?? "");
+        if (aid === "bellwarden" || aid === "raider" || aid === "crypt_guard") {
+          ctx.font = "bold 10px Cinzel, Georgia, serif";
+          ctx.textAlign = "center";
+          ctx.fillStyle = aid === "bellwarden" ? "#c9a46c" : "#ccc";
+          ctx.fillText(
+            aid === "bellwarden" ? "Bellwarden" : aid === "raider" ? "Ash Raider" : "Crypt Guard",
+            sx,
+            by - 6,
+          );
+          ctx.textAlign = "left";
+        }
       }
     }
 
-    // combat particles
+    // projectiles
+    for (const e of handle.world.query("transform")) {
+      if (!e.tags.includes("projectile") || !e.transform) continue;
+      const sx = e.transform.x * SCALE - viewCamX;
+      const sy = e.transform.y * SCALE - viewCamY;
+      const g = ctx.createRadialGradient(sx, sy, 1, sx, sy, 10);
+      g.addColorStop(0, "rgba(180,140,255,0.95)");
+      g.addColorStop(1, "rgba(80,40,160,0)");
+      ctx.fillStyle = g;
+      ctx.beginPath();
+      ctx.arc(sx, sy, 10, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = "#e0d0ff";
+      ctx.beginPath();
+      ctx.arc(sx, sy, 3, 0, Math.PI * 2);
+      ctx.fill();
+    }
+
+    // combat particles (local)
     for (let i = combatFx.length - 1; i >= 0; i--) {
       const p = combatFx[i]!;
       p.life -= dt;
@@ -648,42 +861,108 @@ async function main(): Promise<void> {
       ctx.fill();
     }
 
-    // slash / numbers
+    // engine particles (world space)
+    if (handle.particles?.particles) {
+      for (const p of handle.particles.particles) {
+        const a = Math.max(0, p.life / p.maxLife);
+        const sx = p.x * SCALE - viewCamX;
+        const sy = p.y * SCALE - viewCamY;
+        ctx.globalAlpha = a;
+        ctx.fillStyle = p.color;
+        ctx.beginPath();
+        ctx.arc(sx, sy, p.size * SCALE * 0.8, 0, Math.PI * 2);
+        ctx.fill();
+      }
+      ctx.globalAlpha = 1;
+    }
+
+    // slash / numbers / floats
     for (const f of fx) {
       const alpha = Math.min(1, f.t * 2.5);
       if (f.kind === "slash") {
         const sx = f.x * SCALE - viewCamX;
         const sy = f.y * SCALE - viewCamY;
-        ctx.strokeStyle = `rgba(255,210,120,${alpha})`;
-        ctx.lineWidth = 5;
-        ctx.beginPath();
-        ctx.arc(sx, sy, 55 * (1.15 - f.t * 0.5), -1.0, 1.1);
-        ctx.stroke();
-        ctx.strokeStyle = `rgba(255,255,220,${alpha * 0.5})`;
-        ctx.lineWidth = 2;
-        ctx.beginPath();
-        ctx.arc(sx, sy, 40 * (1.15 - f.t * 0.5), -0.8, 0.9);
-        ctx.stroke();
+        const skill = f.skill;
+        if (skill === "whirl") {
+          ctx.strokeStyle = `rgba(255,150,40,${alpha})`;
+          ctx.lineWidth = 6;
+          ctx.beginPath();
+          ctx.arc(sx, sy, 70 * (1.2 - f.t), 0, Math.PI * 2);
+          ctx.stroke();
+          ctx.strokeStyle = `rgba(255,220,120,${alpha * 0.5})`;
+          ctx.lineWidth = 3;
+          ctx.beginPath();
+          ctx.arc(sx, sy, 50 * (1.15 - f.t * 0.4), 0.2, Math.PI * 1.6);
+          ctx.stroke();
+        } else if (skill === "smite") {
+          ctx.strokeStyle = `rgba(120,180,255,${alpha})`;
+          ctx.lineWidth = 4;
+          ctx.beginPath();
+          ctx.moveTo(sx, sy - 80);
+          ctx.lineTo(sx + 6, sy - 20);
+          ctx.lineTo(sx - 8, sy);
+          ctx.stroke();
+          ctx.fillStyle = `rgba(180,220,255,${alpha * 0.4})`;
+          ctx.beginPath();
+          ctx.arc(sx, sy, 28, 0, Math.PI * 2);
+          ctx.fill();
+        } else {
+          ctx.strokeStyle = `rgba(255,210,120,${alpha})`;
+          ctx.lineWidth = 5;
+          ctx.beginPath();
+          ctx.arc(sx, sy, 55 * (1.15 - f.t * 0.5), -1.0, 1.1);
+          ctx.stroke();
+          ctx.strokeStyle = `rgba(255,255,220,${alpha * 0.5})`;
+          ctx.lineWidth = 2;
+          ctx.beginPath();
+          ctx.arc(sx, sy, 40 * (1.15 - f.t * 0.5), -0.8, 0.9);
+          ctx.stroke();
+        }
       } else if (f.kind === "hit") {
         const sx = f.x * SCALE - viewCamX;
         const sy = f.y * SCALE - viewCamY - (1 - f.t) * 48;
-        ctx.font = "bold 20px Cinzel, Georgia, serif";
+        const label = f.crit ? `CRIT ${f.dmg}` : `-${f.dmg}`;
+        ctx.font = f.crit
+          ? "bold 24px Cinzel, Georgia, serif"
+          : "bold 20px Cinzel, Georgia, serif";
         ctx.textAlign = "center";
         ctx.fillStyle = `rgba(0,0,0,${alpha * 0.6})`;
-        ctx.fillText(`-${f.dmg}`, sx + 1, sy + 1);
-        ctx.fillStyle = `rgba(255,230,120,${alpha})`;
-        ctx.fillText(`-${f.dmg}`, sx, sy);
+        ctx.fillText(label, sx + 1, sy + 1);
+        ctx.fillStyle = f.crit
+          ? `rgba(255,220,80,${alpha})`
+          : `rgba(255,230,120,${alpha})`;
+        ctx.fillText(label, sx, sy);
         ctx.textAlign = "left";
       } else if (f.kind === "kill") {
         const sx = f.x * SCALE - viewCamX;
         const sy = f.y * SCALE - viewCamY - (1 - f.t) * 36;
-        ctx.font = "bold 15px system-ui";
+        ctx.font = "bold 14px system-ui";
         ctx.textAlign = "center";
-        ctx.fillStyle = `rgba(255,210,100,${alpha})`;
-        ctx.fillText(`+${f.gold} gold`, sx, sy);
+        ctx.fillStyle = `rgba(255,100,80,${alpha})`;
+        ctx.fillText("SLAIN", sx, sy);
+        ctx.textAlign = "left";
+      } else if (f.kind === "loot") {
+        const sx = f.x * SCALE - viewCamX;
+        const sy = f.y * SCALE - viewCamY - (1 - f.t) * 30;
+        ctx.font = "bold 13px system-ui";
+        ctx.textAlign = "center";
+        ctx.fillStyle = `rgba(160,200,255,${alpha})`;
+        ctx.fillText(f.name, sx, sy);
+        ctx.textAlign = "left";
+      } else if (f.kind === "float") {
+        const sx = f.x * SCALE - viewCamX;
+        const sy = f.y * SCALE - viewCamY - (1 - f.t) * 40;
+        ctx.font = "bold 14px system-ui";
+        ctx.textAlign = "center";
+        ctx.fillStyle = f.color.startsWith("#")
+          ? f.color
+          : f.color;
+        ctx.globalAlpha = alpha;
+        ctx.fillText(f.text, sx, sy);
+        ctx.globalAlpha = 1;
         ctx.textAlign = "left";
       } else if (f.kind === "levelup") {
-        ctx.font = "bold 32px Cinzel, Georgia, serif";
+        ctx.font = "bold 36px Cinzel, Georgia, serif";
         ctx.textAlign = "center";
         ctx.fillStyle = `rgba(160,210,255,${alpha})`;
         ctx.shadowColor = "rgba(100,160,255,0.6)";
@@ -695,7 +974,7 @@ async function main(): Promise<void> {
         ctx.font = "bold 26px Cinzel, Georgia, serif";
         ctx.textAlign = "center";
         ctx.fillStyle = `rgba(0,0,0,${alpha * 0.55})`;
-        ctx.fillRect(VIEW_W / 2 - 200, 100, 400, 44);
+        ctx.fillRect(VIEW_W / 2 - 220, 100, 440, 44);
         ctx.fillStyle = `rgba(201,164,108,${alpha})`;
         ctx.fillText(f.text, VIEW_W / 2, 130);
         ctx.textAlign = "left";
@@ -730,112 +1009,258 @@ async function main(): Promise<void> {
     ctx.fillRect(0, 0, VIEW_W, VIEW_H);
 
     // --- DIABLO HUD ---
-    const hp = player?.health?.hp ?? 0;
-    const max = player?.health?.max ?? 1;
+    const hp = Number(blob.hp ?? player?.health?.hp ?? 0);
+    const max = Number(blob.maxHp ?? player?.health?.max ?? 1);
     const hpPct = max > 0 ? hp / max : 0;
-    // potion as fake mana
-    const potPct = Math.min(1, (blob.potions as number) / 5);
+    const potPct = Math.min(1, Number(blob.potions ?? 0) / 5);
 
-    // bottom panel bar
-    const panelY = VIEW_H - 92;
-    ctx.fillStyle = "rgba(8,6,4,0.82)";
-    ctx.fillRect(0, panelY, VIEW_W, 92);
-    ctx.strokeStyle = "rgba(201,164,108,0.35)";
+    const panelY = VIEW_H - 100;
+    ctx.fillStyle = "rgba(8,6,4,0.88)";
+    ctx.fillRect(0, panelY, VIEW_W, 100);
+    // ornate top edge
+    const edgeGrad = ctx.createLinearGradient(0, panelY, VIEW_W, panelY);
+    edgeGrad.addColorStop(0, "rgba(80,60,30,0.2)");
+    edgeGrad.addColorStop(0.5, "rgba(201,164,108,0.55)");
+    edgeGrad.addColorStop(1, "rgba(80,60,30,0.2)");
+    ctx.strokeStyle = edgeGrad;
+    ctx.lineWidth = 2;
     ctx.beginPath();
     ctx.moveTo(0, panelY + 0.5);
     ctx.lineTo(VIEW_W, panelY + 0.5);
     ctx.stroke();
 
-    drawOrb(ctx, 70, VIEW_H - 48, 34, hpPct, "blood");
-    drawOrb(ctx, VIEW_W - 70, VIEW_H - 48, 34, potPct, "mana");
+    drawOrb(ctx, 72, VIEW_H - 52, 36, hpPct, "blood");
+    drawOrb(ctx, VIEW_W - 72, VIEW_H - 52, 36, potPct, "mana");
 
     ctx.fillStyle = "#c9a46c";
     ctx.font = "bold 11px system-ui";
     ctx.textAlign = "center";
-    ctx.fillText("LIFE", 70, VIEW_H - 8);
-    ctx.fillText("POTIONS", VIEW_W - 70, VIEW_H - 8);
+    ctx.fillText("LIFE", 72, VIEW_H - 8);
+    ctx.fillText("POTIONS", VIEW_W - 72, VIEW_H - 8);
     ctx.fillStyle = "#eee";
-    ctx.font = "bold 12px system-ui";
-    ctx.fillText(`${Math.ceil(hp)}`, 70, VIEW_H - 44);
-    ctx.fillText(`${blob.potions}`, VIEW_W - 70, VIEW_H - 44);
+    ctx.font = "bold 13px system-ui";
+    ctx.fillText(`${Math.ceil(hp)}/${Math.ceil(max)}`, 72, VIEW_H - 48);
+    ctx.fillText(`${blob.potions ?? 0}`, VIEW_W - 72, VIEW_H - 48);
 
-    // skill slots center
-    const slot = 52;
-    const baseX = VIEW_W / 2 - (slot * 3 + 16) / 2;
-    const sy = VIEW_H - 72;
-    const cd = Math.min(1, (blob.meleeCdMs as number) / 380);
-    drawSkillSlot(ctx, baseX, sy, slot, "SLASH", "SPC", cd < 0.05, cd);
-    drawSkillSlot(ctx, baseX + slot + 8, sy, slot, "POTION", "1", (blob.potions as number) > 0, 0);
-    drawSkillSlot(ctx, baseX + (slot + 8) * 2, sy, slot, "MOVE", "WASD", true, 0);
+    // 4 skill slots
+    const slot = 54;
+    const gap = 10;
+    const skills = [
+      {
+        id: "slash",
+        label: "SLASH",
+        key: "SPC",
+        cdMax: 280,
+        accent: "#e8c878",
+      },
+      {
+        id: "whirl",
+        label: "WHIRL",
+        key: "2",
+        cdMax: 850,
+        accent: "#ff9a40",
+      },
+      {
+        id: "smite",
+        label: "SMITE",
+        key: "3",
+        cdMax: 650,
+        accent: "#80c0ff",
+      },
+      {
+        id: "potion",
+        label: "POTION",
+        key: "1",
+        cdMax: 400,
+        accent: "#e06060",
+      },
+    ] as const;
+    const totalW = skills.length * slot + (skills.length - 1) * gap;
+    const baseX = VIEW_W / 2 - totalW / 2;
+    const sy = VIEW_H - 78;
+    for (let i = 0; i < skills.length; i++) {
+      const s = skills[i]!;
+      const cdMs = Number(cds[s.id] ?? 0);
+      const cdP = Math.min(1, cdMs / s.cdMax);
+      const ready =
+        s.id === "potion"
+          ? Number(blob.potions ?? 0) > 0 && cdMs <= 0
+          : cdMs <= 0;
+      drawSkillSlot(
+        ctx,
+        baseX + i * (slot + gap),
+        sy,
+        slot,
+        s.label,
+        s.key,
+        ready,
+        cdP,
+        s.accent,
+      );
+    }
 
-    // top-left quest + stats
-    ctx.fillStyle = "rgba(8,6,4,0.72)";
-    ctx.fillRect(16, 14, 300, 86);
-    ctx.strokeStyle = "rgba(201,164,108,0.3)";
-    ctx.strokeRect(16.5, 14.5, 299, 85);
+    // mini stats under skills
+    ctx.textAlign = "center";
+    ctx.fillStyle = "#9a8a70";
+    ctx.font = "11px system-ui";
+    ctx.fillText(
+      `DMG ${stats.damage ?? "—"}  ·  ARM ${stats.armor ?? "—"}  ·  CRIT ${Math.round((stats.critChance ?? 0) * 100)}%  ·  F loot  ·  I bag`,
+      VIEW_W / 2,
+      VIEW_H - 12,
+    );
+
+    // top-left character
+    panel(ctx, 14, 12, 320, 102);
     ctx.textAlign = "left";
     ctx.fillStyle = "#c9a46c";
-    ctx.font = "bold 15px Cinzel, Georgia, serif";
-    ctx.fillText(String(blob.areaName), 28, 36);
+    ctx.font = "bold 16px Cinzel, Georgia, serif";
+    ctx.fillText(String(blob.areaName), 26, 36);
     ctx.fillStyle = "#d8d0c0";
     ctx.font = "13px system-ui";
-    ctx.fillText(`Level ${blob.level}   ·   XP ${blob.xp}   ·   Gold ${blob.gold}`, 28, 58);
-    ctx.fillText(`Kills ${blob.kills}   ·   Foes remaining ${blob.livingEnemies}`, 28, 78);
-    // thin XP bar
+    ctx.fillText(
+      `Lv ${blob.level}   XP ${blob.xp}   Gold ${blob.gold}`,
+      26,
+      58,
+    );
+    ctx.fillText(
+      `Kills ${blob.kills}   Foes ${blob.livingEnemies}`,
+      26,
+      78,
+    );
+    // XP bar
     ctx.fillStyle = "#1a1820";
-    ctx.fillRect(28, 88, 260, 5);
-    ctx.fillStyle = "#4a7ab0";
-    ctx.fillRect(28, 88, 260 * 0.45, 5);
+    ctx.fillRect(26, 90, 290, 8);
+    const xpp = xpPct(Number(blob.level ?? 1), Number(blob.xp ?? 0));
+    const xg = ctx.createLinearGradient(26, 90, 26 + 290, 90);
+    xg.addColorStop(0, "#3a6aa0");
+    xg.addColorStop(1, "#80b0e0");
+    ctx.fillStyle = xg;
+    ctx.fillRect(26, 90, 290 * xpp, 8);
+    ctx.strokeStyle = "rgba(201,164,108,0.35)";
+    ctx.strokeRect(26.5, 90.5, 289, 7);
 
-    // objective top-right
-    ctx.fillStyle = "rgba(8,6,4,0.72)";
-    ctx.fillRect(VIEW_W - 250, 14, 234, 64);
-    ctx.strokeStyle = "rgba(201,164,108,0.28)";
-    ctx.strokeRect(VIEW_W - 249.5, 14.5, 233, 63);
+    // quest
+    panel(ctx, VIEW_W - 280, 12, 266, 72);
     ctx.fillStyle = "#c9a46c";
     ctx.font = "bold 11px Cinzel, Georgia, serif";
-    ctx.fillText("QUEST", VIEW_W - 238, 34);
+    ctx.fillText("QUEST — Parish Purge", VIEW_W - 268, 32);
     ctx.fillStyle = "#ddd";
     ctx.font = "13px system-ui";
-    let obj = "Silence the Bellwarden";
-    if (blob.area === "town") obj = "Leave east into Cinder Parish";
-    else if (blob.area === "parish") {
-      obj =
-        (blob.livingEnemies as number) > 0
-          ? "Clear the parish of the dead"
-          : "Exit east into Bellcrypt";
-    }
-    ctx.fillText(obj, VIEW_W - 238, 56);
+    const questText =
+      (blob.quest as string | null) ??
+      (blob.area === "town"
+        ? "Leave east into Cinder Parish"
+        : "Silence the Bellwarden");
+    // wrap-ish
+    const q = String(questText);
+    ctx.fillText(q.length > 34 ? q.slice(0, 34) + "…" : q, VIEW_W - 268, 54);
+    ctx.fillStyle = "#888";
+    ctx.font = "11px system-ui";
+    ctx.fillText("Random packs · multi-type mobs", VIEW_W - 268, 72);
+
     if (blob.exitHint) {
       ctx.fillStyle = "#e88";
+      ctx.font = "bold 13px system-ui";
+      ctx.textAlign = "center";
+      ctx.fillText(String(blob.exitHint), VIEW_W / 2, panelY - 14);
+      ctx.textAlign = "left";
+    }
+
+    // equipped strip
+    const equipped = (blob.equipped as Record<string, string | null>) ?? {};
+    const eqParts = ["weapon", "head", "chest"]
+      .map((s) => equipped[s])
+      .filter(Boolean);
+    if (eqParts.length) {
+      ctx.fillStyle = "rgba(8,6,4,0.65)";
+      ctx.fillRect(14, 122, 320, 28);
+      ctx.fillStyle = "#aaa";
       ctx.font = "12px system-ui";
-      ctx.fillText(String(blob.exitHint), 28, panelY - 12);
+      ctx.fillText(`Gear: ${eqParts.join(" · ")}`, 26, 140);
+    }
+
+    // inventory panel
+    if (blob.inventoryOpen) {
+      const inv = (blob.inventory as Array<{
+        defId: string;
+        name: string;
+        qty: number;
+        rarity?: string;
+        slot?: string;
+      }>) ?? [];
+      const iw = 340;
+      const ih = 380;
+      const ix = VIEW_W / 2 - iw / 2;
+      const iy = VIEW_H / 2 - ih / 2 - 20;
+      ctx.fillStyle = "rgba(0,0,0,0.55)";
+      ctx.fillRect(0, 0, VIEW_W, VIEW_H);
+      panel(ctx, ix, iy, iw, ih);
+      // gold border accent
+      ctx.strokeStyle = "rgba(201,164,108,0.55)";
+      ctx.lineWidth = 2;
+      ctx.strokeRect(ix + 3, iy + 3, iw - 6, ih - 6);
+      ctx.fillStyle = "#c9a46c";
+      ctx.font = "bold 20px Cinzel, Georgia, serif";
+      ctx.textAlign = "center";
+      ctx.fillText("INVENTORY", VIEW_W / 2, iy + 32);
+      ctx.fillStyle = "#9a8a70";
+      ctx.font = "12px system-ui";
+      ctx.fillText(`Gold ${blob.gold}  ·  Press I to close  ·  Best gear auto-equips`, VIEW_W / 2, iy + 52);
+      ctx.textAlign = "left";
+      let row = 0;
+      for (const item of inv) {
+        const yy = iy + 72 + row * 28;
+        if (yy > iy + ih - 40) break;
+        const col = RARITY_COLOR[item.rarity ?? "common"] ?? "#ccc";
+        ctx.fillStyle = row % 2 === 0 ? "rgba(255,255,255,0.03)" : "transparent";
+        ctx.fillRect(ix + 16, yy - 16, iw - 32, 26);
+        ctx.fillStyle = col;
+        ctx.font = "bold 13px system-ui";
+        const qty = item.qty > 1 ? ` ×${item.qty}` : "";
+        const slot = item.slot ? `  [${item.slot}]` : "";
+        ctx.fillText(`${item.name}${qty}${slot}`, ix + 28, yy);
+        row++;
+      }
+      if (inv.length === 0) {
+        ctx.fillStyle = "#666";
+        ctx.font = "14px system-ui";
+        ctx.textAlign = "center";
+        ctx.fillText("Empty — slay the dead for loot", VIEW_W / 2, iy + 160);
+        ctx.textAlign = "left";
+      }
     }
 
     if (blob.victory) {
-      ctx.fillStyle = "rgba(0,0,0,0.8)";
+      ctx.fillStyle = "rgba(0,0,0,0.82)";
       ctx.fillRect(0, 0, VIEW_W, VIEW_H);
       ctx.textAlign = "center";
       ctx.fillStyle = "#c9a46c";
       ctx.font = "bold 48px Cinzel, Georgia, serif";
       ctx.shadowColor = "rgba(201,164,108,0.5)";
       ctx.shadowBlur = 20;
-      ctx.fillText("BELLWARDEN FALLEN", VIEW_W / 2, VIEW_H / 2 - 10);
+      ctx.fillText("BELLWARDEN FALLEN", VIEW_W / 2, VIEW_H / 2 - 20);
       ctx.shadowBlur = 0;
       ctx.fillStyle = "#ccc";
-      ctx.font = "18px 'IM Fell English', Georgia, serif";
-      ctx.fillText(`Gold ${blob.gold}  ·  Kills ${blob.kills}  ·  The bells are still.`, VIEW_W / 2, VIEW_H / 2 + 36);
+      ctx.font = "18px Georgia, serif";
+      ctx.fillText(
+        `Gold ${blob.gold}  ·  Kills ${blob.kills}  ·  Level ${blob.level}  ·  The bells are still.`,
+        VIEW_W / 2,
+        VIEW_H / 2 + 28,
+      );
+      ctx.fillStyle = "#888";
+      ctx.font = "14px system-ui";
+      ctx.fillText("You have purged the parish.", VIEW_W / 2, VIEW_H / 2 + 60);
       ctx.textAlign = "left";
     } else if (blob.lost) {
-      ctx.fillStyle = "rgba(30,0,0,0.75)";
+      ctx.fillStyle = "rgba(30,0,0,0.78)";
       ctx.fillRect(0, 0, VIEW_W, VIEW_H);
       ctx.textAlign = "center";
       ctx.fillStyle = "#e88";
-      ctx.font = "bold 32px Cinzel, Georgia, serif";
+      ctx.font = "bold 36px Cinzel, Georgia, serif";
       ctx.fillText("You have fallen", VIEW_W / 2, VIEW_H / 2 - 8);
       ctx.fillStyle = "#ccc";
       ctx.font = "16px system-ui";
-      ctx.fillText("Press Space to rise in this place", VIEW_W / 2, VIEW_H / 2 + 28);
+      ctx.fillText("Reload the page to rise again at the Lychgate", VIEW_W / 2, VIEW_H / 2 + 28);
       ctx.textAlign = "left";
     }
 

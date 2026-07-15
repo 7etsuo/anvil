@@ -1,0 +1,8 @@
+{
+  "id": "iron_helm",
+  "name": "Iron Helm",
+  "rarity": "common",
+  "slot": "head",
+  "stats": { "armor": 3, "maxHp": 10 },
+  "flavor": "Standard issue. Dented."
+}

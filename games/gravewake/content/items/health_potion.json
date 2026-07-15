@@ -1,0 +1,7 @@
+{
+  "id": "health_potion",
+  "name": "Health Potion",
+  "rarity": "common",
+  "maxStack": 20,
+  "flavor": "Bitter red. It will keep you standing."
+}

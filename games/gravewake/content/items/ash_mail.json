@@ -1,0 +1,8 @@
+{
+  "id": "ash_mail",
+  "name": "Ash Mail",
+  "rarity": "magic",
+  "slot": "chest",
+  "stats": { "armor": 6, "maxHp": 20 },
+  "flavor": "Links blackened by parish fires."
+}

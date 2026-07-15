@@ -76,6 +76,76 @@ export {
 } from "./combat/CombatFeel.js";
 export type { CombatBody } from "./combat/CombatFeel.js";
 
+// Combat events
+export {
+  COMBAT_HIT,
+  COMBAT_KILL,
+  COMBAT_HEAL,
+  COMBAT_CRIT,
+  emitHit,
+  emitKill,
+  emitHeal,
+  onCombatHit,
+  onCombatKill,
+} from "./combat/CombatEvents.js";
+export type {
+  CombatHitEvent,
+  CombatKillEvent,
+  CombatHealEvent,
+} from "./combat/CombatEvents.js";
+
+// View camera
+export { ViewCamera } from "./camera/ViewCamera.js";
+export type { CameraMode, IsoMetrics, ViewCameraOpts } from "./camera/ViewCamera.js";
+
+// Abilities
+export { AbilitySystem } from "./ability/AbilitySystem.js";
+export type {
+  AbilityDef,
+  AbilityTargeting,
+  AbilityCastContext,
+  AbilityCastResult,
+  AbilityCastHandler,
+} from "./ability/AbilitySystem.js";
+
+// Actor animation SM
+export { ActorAnimController } from "./anim/ActorAnim.js";
+export type {
+  ActorAnimState,
+  ActorAnimClips,
+  ActorAnimOpts,
+} from "./anim/ActorAnim.js";
+
+// Spatial hash
+export { SpatialHash } from "./spatial/SpatialHash.js";
+export type { SpatialItem } from "./spatial/SpatialHash.js";
+
+// Tilemap
+export { TileMap } from "./map/TileMap.js";
+export type { TileMapData, TileDef, TileId } from "./map/TileMap.js";
+
+// Loot policy
+export {
+  dropFromTable,
+  LOOT_GOLD_RADIUS,
+  LOOT_ITEM_RADIUS,
+} from "./rpg/LootPolicy.js";
+export type {
+  DropResult,
+  LootPolicyOpts,
+  LootTableLike as LootPolicyTable,
+} from "./rpg/LootPolicy.js";
+
+// Run state save
+export {
+  buildRunState,
+  serializeRunState,
+  parseRunState,
+  saveRunToLocalStorage,
+  loadRunFromLocalStorage,
+} from "./save/runState.js";
+export type { RunStateV1 } from "./save/runState.js";
+
 // Pathfinding + AI
 export { astar, wallsToGrid } from "./path/astar.js";
 export type { Grid, Point } from "./path/astar.js";

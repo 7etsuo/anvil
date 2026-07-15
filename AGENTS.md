@@ -22,7 +22,7 @@ While shipping Gravewake (or any title), **treat missing capability as an engine
 4. **Title-only** logic (lore, specific skill names, map art, balance tables) stays in the game. **Reusable mechanics** promote into Anvil.
 5. Prefer extending existing modules (`@anvil/core`, `@anvil/genre-topdown2d`, …) over parallel reimplementation in the game.
 
-Recent examples of the right loop: `CharacterSheet` / loot, `playerMeleeNearest`, InputMap short-tap latch, particles/quests on `SceneContext`, `autoWinOnClear: false` for multi-area games, `NavGrid` pathfinding, `equippedVisuals()` paper-doll layers, browser `setSkipDefaultDraw`.
+Recent examples of the right loop: `CharacterSheet` / loot, `playerMeleeNearest`, InputMap short-tap latch, particles/quests on `SceneContext`, `autoWinOnClear: false` for multi-area games, `NavGrid` pathfinding, `equippedVisuals()` paper-doll layers, browser `setSkipDefaultDraw`, `ViewCamera`, `AbilitySystem`, combat events, `TileMap`, `SpatialHash`, `ActorAnimController`, `dropFromTable` / run-state save.
 
 ## Anvil work — always read first
 

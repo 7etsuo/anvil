@@ -47,7 +47,11 @@ export const gravewakeModule: GenreModule = {
             content.items,
             content.lootTables,
             ctx.random ?? Math.random,
-            { particles: ctx.particles, quests: ctx.quests },
+            {
+              particles: ctx.particles,
+              quests: ctx.quests,
+              events: ctx.events,
+            },
           );
           activeApi = { game };
           return {

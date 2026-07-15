@@ -193,11 +193,11 @@
     }
   ],
   "respawn": {
-    "intervalMs": 4700,
-    "maxLiving": 24,
+    "intervalMs": 22000,
+    "maxLiving": 8,
     "packSize": [
-      2,
-      5
+      1,
+      2
     ],
     "packTable": [
       "scuttler",
@@ -209,8 +209,8 @@
       "wretch"
     ],
     "initialPack": [
-      8,
-      16
+      5,
+      8
     ]
   },
   "threat": 2,

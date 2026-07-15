@@ -460,11 +460,11 @@
     }
   ],
   "respawn": {
-    "intervalMs": 4500,
-    "maxLiving": 28,
+    "intervalMs": 14000,
+    "maxLiving": 12,
     "packSize": [
-      2,
-      5
+      1,
+      2
     ],
     "packTable": [
       "fallen",
@@ -481,8 +481,8 @@
       "void_shade"
     ],
     "initialPack": [
-      14,
-      20
+      8,
+      11
     ]
   },
   "threat": 1,

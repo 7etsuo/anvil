@@ -241,11 +241,11 @@
     }
   ],
   "respawn": {
-    "intervalMs": 3900,
-    "maxLiving": 32,
+    "intervalMs": 22000,
+    "maxLiving": 8,
     "packSize": [
-      2,
-      7
+      1,
+      2
     ],
     "packTable": [
       "bone_brute",
@@ -257,8 +257,8 @@
       "plague_scuttler"
     ],
     "initialPack": [
-      8,
-      20
+      5,
+      8
     ]
   },
   "threat": 4,

@@ -43,8 +43,10 @@ export class CanvasRenderFacade implements RenderFacade {
     canvas.width = width;
     canvas.height = height;
     canvas.style.display = "block";
-    canvas.style.background = "#111";
-    canvas.style.imageRendering = "pixelated";
+    canvas.style.width = "100%";
+    canvas.style.height = "100%";
+    canvas.style.background = "#000";
+    canvas.tabIndex = 0;
     const parent = this.mount ?? document.body;
     parent.appendChild(canvas);
     this.canvas = canvas;

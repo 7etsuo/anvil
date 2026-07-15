@@ -22,6 +22,37 @@ const SLOT_Z: Partial<Record<EquipSlot, number>> = {
   trinket: 7,
 };
 
+/** Default size vs body — full-body scale was making helms/weapons enormous. */
+const SLOT_SCALE: Partial<Record<EquipSlot, number>> = {
+  weapon: 0.4,
+  offhand: 0.36,
+  head: 0.3,
+  chest: 0.48,
+  hands: 0.22,
+  feet: 0.22,
+  ring: 0.14,
+  amulet: 0.16,
+  trinket: 0.18,
+};
+
+const SLOT_OX: Partial<Record<EquipSlot, number>> = {
+  weapon: 0.34,
+  offhand: -0.3,
+  head: 0,
+  chest: 0,
+  hands: 0.28,
+  feet: 0,
+};
+
+const SLOT_OY: Partial<Record<EquipSlot, number>> = {
+  weapon: 0.02,
+  offhand: 0.05,
+  head: -0.36,
+  chest: 0.04,
+  hands: 0.12,
+  feet: 0.32,
+};
+
 export interface CharacterSheetOpts {
   baseStats?: Stats;
   level?: number;
@@ -137,8 +168,9 @@ export class CharacterSheet {
         slot,
         defId: stack.defId,
         sprite,
-        ox: def?.visual?.ox ?? 0,
-        oy: def?.visual?.oy ?? 0,
+        ox: def?.visual?.ox ?? SLOT_OX[slot] ?? 0,
+        oy: def?.visual?.oy ?? SLOT_OY[slot] ?? 0,
+        scale: def?.visual?.scale ?? SLOT_SCALE[slot] ?? 0.35,
         z: def?.visual?.z ?? SLOT_Z[slot] ?? 20,
       });
     }

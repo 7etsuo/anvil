@@ -58,6 +58,11 @@ export interface ItemVisual {
   /** Offset as fraction of body size (0 = center) */
   ox?: number;
   oy?: number;
+  /**
+   * Scale vs body size (1 = full body — almost never correct).
+   * Typical: weapon ~0.35–0.45, head ~0.25–0.32, chest ~0.4–0.55.
+   */
+  scale?: number;
   /** Draw order — higher on top. Defaults by slot. */
   z?: number;
 }
@@ -89,6 +94,7 @@ export interface EquippedVisualLayer {
   sprite: string;
   ox: number;
   oy: number;
+  scale: number;
   z: number;
 }
 

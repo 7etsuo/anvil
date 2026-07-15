@@ -11,7 +11,8 @@
   "visual": {
     "sprite": "gear/tyrant_plate.png",
     "ox": 0,
-    "oy": 0.05,
+    "oy": 0.04,
+    "scale": 0.5,
     "z": 20
   },
   "icon": "gear/tyrant_plate.png"

@@ -1,11 +1,19 @@
 import type { AbilitySystem } from "../ability/AbilitySystem.js";
 import type { AssetServer } from "../assets/AssetServer.js";
 import type { AudioSystem } from "../audio/AudioSystem.js";
+import type { DeathSystem } from "../combat/DeathSystem.js";
+import type { ProjectileSystem } from "../combat/ProjectileSystem.js";
 import type { StatusSystem } from "../combat/StatusSystem.js";
+import type { ThreatTable } from "../combat/ThreatTable.js";
 import type { EventBus } from "../events/EventBus.js";
+import type { FloatTextSystem } from "../fx/FloatText.js";
 import type { ParticleSystem } from "../fx/ParticleSystem.js";
+import type { ScreenTransition } from "../fx/ScreenTransition.js";
 import type { InputMap } from "../input/InputMap.js";
 import type { QuestSystem } from "../quest/QuestSystem.js";
+import type { ResourcePool } from "../rpg/ResourcePool.js";
+import type { InteractableSystem } from "../world/Interactables.js";
+import type { TriggerSystem } from "../world/Triggers.js";
 import type { World } from "../world/World.js";
 
 export interface SceneContext {
@@ -22,6 +30,14 @@ export interface SceneContext {
   audio?: AudioSystem;
   statuses?: StatusSystem;
   abilities?: AbilitySystem;
+  projectiles?: ProjectileSystem;
+  resources?: ResourcePool;
+  interactables?: InteractableSystem;
+  triggers?: TriggerSystem;
+  floatText?: FloatTextSystem;
+  transitions?: ScreenTransition;
+  threat?: ThreatTable;
+  death?: DeathSystem;
 }
 
 export interface Scene {

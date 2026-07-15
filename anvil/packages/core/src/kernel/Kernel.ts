@@ -131,6 +131,14 @@ export class Kernel implements KernelInternals {
       audio: this.audio,
       statuses: this.statuses,
       abilities: this.abilities,
+      projectiles: this.projectiles,
+      resources: this.resources,
+      interactables: this.interactables,
+      triggers: this.triggers,
+      floatText: this.floatText,
+      transitions: this.transitions,
+      threat: this.threat,
+      death: this.death,
     });
     this.world.setHooks({
       onSpawn: (id) => this.events.emit("entity:spawn", { id }),

@@ -3,17 +3,31 @@ import type {
   AudioSystem,
   CharacterSheet,
   DamageType,
+  DeathSystem,
   EventBus,
+  FloatTextSystem,
   InputMap,
+  InteractableSystem,
   ItemDef,
+  MinimapFog,
   ParticleSystem,
+  ProjectileSystem,
   QuestSystem,
+  ResourcePool,
+  ScreenTransition,
   StatusSystem,
+  ThreatTable,
+  TriggerSystem,
   World,
 } from "@anvil/core";
 import {
   AbilitySystem as Abilities,
   CharacterSheet as Sheet,
+  MinimapFog as FogGrid,
+  SAMPLE_COMBAT_TREE,
+  SkillTree,
+  Vendor,
+  Wallet,
   buildRunState,
   dropFromTable,
   emitHeal,
@@ -26,6 +40,8 @@ import {
   LOOT_ITEM_RADIUS,
   itemPowerScore,
   mitigateDamage,
+  playSpatial,
+  rollEliteAffixes,
   saveRunToLocalStorage,
   tryPickupNearest,
 } from "@anvil/core";
@@ -62,6 +78,14 @@ export interface GravewakeServices {
   abilities?: AbilitySystem;
   audio?: AudioSystem;
   statuses?: StatusSystem;
+  projectiles?: ProjectileSystem;
+  resources?: ResourcePool;
+  interactables?: InteractableSystem;
+  triggers?: TriggerSystem;
+  floatText?: FloatTextSystem;
+  transitions?: ScreenTransition;
+  threat?: ThreatTable;
+  death?: DeathSystem;
 }
 
 const BOSS_IDS = new Set([
@@ -101,6 +125,10 @@ export class GravewakeGame {
   private blockedBannerCd = 0;
   private services: GravewakeServices;
   private abilities: AbilitySystem;
+  private wallet: Wallet;
+  private skillTree: SkillTree;
+  private vendor: Vendor;
+  private fog: MinimapFog | null = null;
   private showInv = false;
   private showStats = false;
   private spawner: PackSpawner | null = null;
@@ -110,6 +138,7 @@ export class GravewakeGame {
   private bossSlainOnce = false;
   private timeAlive = 0;
   private bossesKilled = 0;
+  private areaTransitioning = false;
   fx: FxEvent[] = [];
   kills = 0;
   exitHint = "";
@@ -159,6 +188,8 @@ export class GravewakeGame {
         targeting: "aoe_around_self",
         range: progression.meleeRange * 1.3,
         damageMul: progression.whirlDamageMul ?? 0.78,
+        cost: 18,
+        costResource: "stamina",
         vfx: "whirl",
       },
       {
@@ -168,6 +199,8 @@ export class GravewakeGame {
         targeting: "nearest_enemy",
         range: progression.smiteRange ?? 170,
         damageMul: progression.smiteDamageMul ?? 1.4,
+        cost: 12,
+        costResource: "mana",
         vfx: "smite",
       },
       {
@@ -196,6 +229,28 @@ export class GravewakeGame {
       level: 1,
       xp: 0,
     });
+    this.wallet = new Wallet({
+      gold: progression.startGold,
+      shards: 0,
+    });
+    this.skillTree = new SkillTree(SAMPLE_COMBAT_TREE);
+    this.vendor = new Vendor({
+      id: "ash_shrine",
+      name: "Ash Shrine",
+      sellRatio: 0.35,
+      offers: [
+        {
+          id: "buy_potion",
+          itemId: "health_potion",
+          qty: 1,
+          price: { gold: 25 },
+          stock: 99,
+        },
+      ],
+    });
+    this.services.resources?.attach("player");
+    this.wireProjectiles();
+
     // Starter weapon: level 1 roll (base stats ± variance)
     this.sheet.pickupLeveled("rusty_sword", 1, { rng: this.rng });
     const sword = this.sheet.inventory.findByDef("rusty_sword");
@@ -233,11 +288,84 @@ export class GravewakeGame {
 
     // Try restore run (browser) — non-fatal if missing
     const restored = this.tryRestoreRun();
-    if (!restored) this.enterArea("town");
+    if (!restored) this.enterArea("town", undefined, { fade: false });
+  }
+
+  /** Projectile hit query + damage application (holy smite bolts, etc.). */
+  private wireProjectiles(): void {
+    const proj = this.services.projectiles;
+    if (!proj) return;
+    proj.setHitQuery(() => {
+      const out: Array<{ id: string; x: number; y: number; team?: string }> =
+        [];
+      for (const e of this.world.all()) {
+        if (!e.tags.includes("enemy") || !e.health || e.health.hp <= 0) continue;
+        if (!e.transform) continue;
+        out.push({
+          id: e.id,
+          x: e.transform.x,
+          y: e.transform.y,
+          team: "enemy",
+        });
+      }
+      return out;
+    });
+    proj.setHitHandler((h) => {
+      const e = this.world.get(h.targetId);
+      if (!e?.health || !e.transform) return;
+      e.health.hp = Math.max(0, e.health.hp - h.damage);
+      this.services.floatText?.damage(h.x, h.y, h.damage, false);
+      this.services.threat?.add(h.targetId, h.projectile.ownerId ?? "player", h.damage);
+      this.services.statuses?.apply(h.targetId, "chill", {
+        sourceId: "player",
+      });
+      this.pushFx({
+        kind: "hit",
+        x: h.x,
+        y: h.y,
+        dmg: h.damage,
+        t: 0.7,
+      });
+      const pos = this.sim?.getPlayerPos();
+      if (pos && this.services.audio) {
+        playSpatial(this.services.audio, "spell", pos, { x: h.x, y: h.y });
+      }
+      this.services.events &&
+        emitHit(this.services.events, {
+          attackerId: h.projectile.ownerId ?? "player",
+          targetId: h.targetId,
+          damage: h.damage,
+          x: h.x,
+          y: h.y,
+          abilityId: "smite",
+          damageType: h.projectile.damageType ?? "holy",
+          statuses: ["chill"],
+        });
+    });
+  }
+
+  private syncWalletFromSheet(): void {
+    this.wallet.set("gold", this.sheet.gold);
+  }
+
+  private syncSheetFromWallet(): void {
+    this.sheet.gold = this.wallet.get("gold");
   }
 
   getSheet(): CharacterSheet {
     return this.sheet;
+  }
+
+  getSkillTree(): SkillTree {
+    return this.skillTree;
+  }
+
+  getWallet(): Wallet {
+    return this.wallet;
+  }
+
+  getFog(): MinimapFog | null {
+    return this.fog;
   }
 
   /** Persist sheet + area + position for continue. */
@@ -455,7 +583,34 @@ export class GravewakeGame {
     return area;
   }
 
-  private enterArea(id: AreaId, spawn?: { x: number; y: number }): void {
+  private enterArea(
+    id: AreaId,
+    spawn?: { x: number; y: number },
+    opts?: { fade?: boolean },
+  ): void {
+    const run = () => this.enterAreaNow(id, spawn);
+    const wantFade = opts?.fade !== false && !!this.services.transitions && !!this.sim;
+    if (wantFade && !this.areaTransitioning) {
+      this.areaTransitioning = true;
+      this.services.transitions!.start({
+        label: this.areas[id]?.name ?? id,
+        outMs: 220,
+        holdMs: 80,
+        inMs: 280,
+        onMid: () => {
+          run();
+          this.areaTransitioning = false;
+        },
+        onDone: () => {
+          this.areaTransitioning = false;
+        },
+      });
+      return;
+    }
+    run();
+  }
+
+  private enterAreaNow(id: AreaId, spawn?: { x: number; y: number }): void {
     const base = this.areas[id];
     if (!base) throw new Error(`Unknown area: ${id}`);
     const area = this.materializeArea(base);
@@ -465,6 +620,10 @@ export class GravewakeGame {
     this.exitHint = "";
     this.milestoneBoss = false;
     this.spawner = null;
+    this.services.projectiles?.clear();
+    this.services.interactables?.clear();
+    this.services.triggers?.clear();
+    this.services.floatText?.clear();
 
     for (const e of this.world.all()) this.world.destroy(e.id);
 
@@ -478,19 +637,32 @@ export class GravewakeGame {
       spawns,
       background: area.background,
     };
-    // cache materialized geometry for observe/render (portals still from base)
     this.liveArea = area;
     this.sim = new TopdownSim(this.world, map, this.actors, this.rng, {
       autoWinOnClear: false,
       aiActiveRadius: 560,
     });
 
-    // Scale initial non-player spawns
+    this.fog = new FogGrid({
+      width: Math.max(1, Math.ceil(area.width / 32)),
+      height: Math.max(1, Math.ceil(area.height / 32)),
+      cellSize: 32,
+    });
+
+    // Scale initial non-player spawns + chance of elite flags
     const scale = this.scaleForThreat();
     for (const e of this.world.all()) {
       if (!e.tags.includes("enemy") || !e.health) continue;
       e.health.max = Math.max(1, Math.floor(e.health.max * scale.hpMul));
       e.health.hp = e.health.max;
+      if (this.rng() < 0.06) {
+        const rolled = rollEliteAffixes(1, this.rng);
+        e.data.elite = true;
+        e.data.eliteAffixes = rolled.affixes.map((a) => a.id);
+        e.data.eliteTint = rolled.tint;
+        e.health.max = Math.floor(e.health.max * 1.7);
+        e.health.hp = e.health.max;
+      }
     }
 
     if (spawn) {
@@ -501,6 +673,20 @@ export class GravewakeGame {
       }
     }
     this.syncPlayerFromSheet();
+    this.services.resources?.attach("player");
+    this.services.resources?.fill("player");
+
+    // Interactables + zone triggers
+    this.setupAreaInteractables(area, id);
+    this.services.triggers?.register({
+      id: `zone_${id}`,
+      x: 0,
+      y: 0,
+      w: area.width,
+      h: area.height,
+      tags: ["zone", area.kind ?? "area"],
+      data: { areaId: id },
+    });
 
     if (area.respawn) {
       const r = area.respawn;
@@ -512,23 +698,69 @@ export class GravewakeGame {
           Math.floor(this.rng() * (r.packSize[1] - r.packSize[0] + 1)),
         livingCount: () => this.sim?.livingEnemyCount() ?? 0,
         spawnOne: () => this.spawnRandomEnemy(area),
-        enabled: () => !this.showInv,
+        enabled: () => !this.showInv && !this.areaTransitioning,
       });
     }
 
     this.pushFx({ kind: "banner", text: area.name, t: 2.0 });
     if (id === "wastes") this.services.quests?.setFlag("entered_wastes");
     if (area.kind === "dungeon") this.services.quests?.setFlag("entered_dungeon");
-    // Zone music via combat audio bridge
     this.services.events?.emit("audio:zone_music", {
       zone: area.kind === "dungeon" ? "dungeon" : id === "town" ? "town" : "battle",
     });
     this.services.events?.emit("world:door", {});
-    // autosave on zone change
     try {
       this.saveRun();
     } catch {
       /* headless / no localStorage */
+    }
+  }
+
+  private setupAreaInteractables(area: AreaMapDef, id: AreaId): void {
+    const sys = this.services.interactables;
+    if (!sys) return;
+    if (id === "town") {
+      sys.register({
+        id: "ash_shrine",
+        kind: "shrine",
+        x: 220,
+        y: 160,
+        radius: 70,
+        label: "Ash Shrine",
+        cooldownMs: 400,
+      });
+      sys.register({
+        id: "town_chest",
+        kind: "chest",
+        x: 480,
+        y: 300,
+        radius: 36,
+        label: "Supply Cache",
+        once: true,
+      });
+      sys.register({
+        id: "lychgate",
+        kind: "door",
+        x: area.width - 80,
+        y: area.height / 2,
+        radius: 48,
+        label: "Lychgate",
+      });
+    } else {
+      // dungeon / wastes: a few chests
+      for (let i = 0; i < 2; i++) {
+        const pt = this.randomOpenPoint(area, 100);
+        if (!pt) continue;
+        sys.register({
+          id: `chest_${id}_${i}`,
+          kind: "chest",
+          x: pt.x,
+          y: pt.y,
+          radius: 32,
+          once: true,
+          label: "Bone Chest",
+        });
+      }
     }
   }
 
@@ -611,12 +843,42 @@ export class GravewakeGame {
     const def = this.actors[actorId];
     if (!def) return false;
     const scale = this.scaleForThreat();
-    const elite = this.rng() < 0.05;
-    this.sim.spawnActorPublic(def, pt.x, pt.y, "enemy", {
-      hpMul: scale.hpMul * (elite ? 2.0 : 1),
-      dmgMul: scale.dmgMul * (elite ? 1.4 : 1),
-      speedMul: Math.min(1.15, scale.speedMul),
+    const elite = this.rng() < 0.08;
+    let hpMul = scale.hpMul;
+    let dmgMul = scale.dmgMul;
+    let speedMul = Math.min(1.15, scale.speedMul);
+    let affixIds: string[] = [];
+    let tint: string | undefined;
+    let onHitStatus: string | undefined;
+    if (elite) {
+      const rolled = rollEliteAffixes(1 + (this.rng() < 0.25 ? 1 : 0), this.rng);
+      affixIds = rolled.affixes.map((a) => a.id);
+      tint = rolled.tint;
+      onHitStatus = rolled.onHitStatuses[0];
+      const st = rolled.applyToStats({
+        maxHp: 100,
+        damage: 10,
+        speed: 100,
+        armor: 0,
+        critChance: 0,
+        critMult: 1,
+      });
+      hpMul *= (st.maxHp ?? 100) / 100;
+      dmgMul *= (st.damage ?? 10) / 10;
+      speedMul = Math.min(1.4, speedMul * ((st.speed ?? 100) / 100));
+    }
+    const eid = this.sim.spawnActorPublic(def, pt.x, pt.y, "enemy", {
+      hpMul,
+      dmgMul,
+      speedMul,
     });
+    const ent = this.world.get(eid);
+    if (ent && elite) {
+      ent.data.elite = true;
+      ent.data.eliteAffixes = affixIds;
+      ent.data.eliteTint = tint;
+      if (onHitStatus) ent.data.onHitStatus = onHitStatus;
+    }
     return true;
   }
 
@@ -683,7 +945,16 @@ export class GravewakeGame {
       if (this.showStats) this.showInv = false;
     }
     if (input.isPressed("interact")) {
-      if (!this.tryVendor()) this.tryLoot();
+      this.tryInteract();
+    }
+
+    // Engine fog of war around player
+    const fogPos = this.sim.getPlayerPos();
+    if (fogPos && this.fog) {
+      this.fog.reveal(fogPos.x, fogPos.y, 200);
+    }
+    if (fogPos && this.services.triggers) {
+      this.services.triggers.update({ player: fogPos });
     }
 
     this.autoPickupGold();
@@ -698,22 +969,55 @@ export class GravewakeGame {
       this.sim.purgeDeadEnemies();
     }
 
-    if (this.exitCooldownMs <= 0) {
+    if (this.exitCooldownMs <= 0 && !this.areaTransitioning) {
       this.checkPortals();
       this.checkExits();
     }
   }
 
   private cast(skill: SkillId): void {
-    if (!this.sim || this.cd[skill] > 0) return;
+    if (!this.sim || this.cd[skill] > 0 || this.areaTransitioning) return;
     if (skill === "potion") {
       this.usePotion();
       this.cd.potion = 400;
       return;
     }
+
+    // Resource costs (engine ResourcePool)
+    const res = this.services.resources;
+    if (skill === "whirl" && res && !res.spend("player", "stamina", 18)) {
+      this.pushFx({
+        kind: "float",
+        x: this.sim.getPlayerPos()?.x ?? 0,
+        y: this.sim.getPlayerPos()?.y ?? 0,
+        text: "No stamina",
+        color: "#e88",
+        t: 0.8,
+      });
+      this.services.events?.emit("ui:error", {});
+      return;
+    }
+    if (skill === "smite" && res && !res.spend("player", "mana", 12)) {
+      this.pushFx({
+        kind: "float",
+        x: this.sim.getPlayerPos()?.x ?? 0,
+        y: this.sim.getPlayerPos()?.y ?? 0,
+        text: "No mana",
+        color: "#88e",
+        t: 0.8,
+      });
+      this.services.events?.emit("ui:error", {});
+      return;
+    }
+
+    // Skill-tree bonuses
+    const treeData = this.skillTree.aggregateData() as {
+      damageBonus?: number;
+      unlockAbility?: string;
+    };
     const stats = this.sheet.finalStats();
     const isCrit = this.rng() < stats.critChance;
-    const base = stats.damage;
+    const base = stats.damage + (treeData.damageBonus ?? 0);
     let raw: number;
     let range: number;
     let damageType: DamageType = "physical";
@@ -736,10 +1040,8 @@ export class GravewakeGame {
     const pos = this.sim.getPlayerPos();
     if (!pos) return;
 
-    // Swing SFX before resolve
     this.services.events?.emit("combat:swing", { skill });
 
-    // Mitigate vs generic enemy armor (light) — type resists rare on trash
     const mitigated = mitigateDamage({
       raw,
       type: damageType,
@@ -747,11 +1049,6 @@ export class GravewakeGame {
       resists: {},
     });
     const dmg = mitigated.final;
-
-    const result =
-      skill === "smite"
-        ? this.sim.playerMeleeNearest(range, dmg)
-        : this.sim.playerMelee(range, dmg);
 
     this.lastSkill = skill;
     this.cd[skill] =
@@ -772,30 +1069,46 @@ export class GravewakeGame {
       life: 0.4,
     });
 
-    // Keep AbilitySystem cooldowns in sync for observe / multiplayer later
     this.abilities.tryCast("player", skill, {
       x: pos.x,
       y: pos.y,
       baseDamage: base,
     });
 
-    const statuses: string[] = [];
-    for (const t of result.targets) {
-      // Smite applies chill; whirl can armor-break
-      if (skill === "smite" && this.services.statuses) {
-        for (const e of this.world.all()) {
-          if (!e.tags.includes("enemy") || !e.health || e.health.hp <= 0)
-            continue;
-          const dx = (e.transform?.x ?? 0) - t.x;
-          const dy = (e.transform?.y ?? 0) - t.y;
-          if (dx * dx + dy * dy < 20 * 20) {
-            this.services.statuses.apply(e.id, "chill", {
-              sourceId: "player",
-            });
-            statuses.push("chill");
-          }
+    // Smite: holy projectile toward nearest enemy (engine ProjectileSystem)
+    if (skill === "smite" && this.services.projectiles) {
+      const nearest = this.sim.nearestEnemy(pos.x, pos.y, range);
+      if (nearest) {
+        const te = this.world.get(nearest);
+        if (te?.transform) {
+          this.services.projectiles.spawnToward(
+            pos.x,
+            pos.y,
+            te.transform.x,
+            te.transform.y,
+            {
+              damage: dmg,
+              damageType: "holy",
+              ownerId: "player",
+              team: "player",
+              speed: 420,
+              radius: 10,
+              lifeMs: 900,
+              pierce: 0,
+            },
+          );
         }
       }
+      return;
+    }
+
+    const result =
+      skill === "whirl"
+        ? this.sim.playerMelee(range, dmg)
+        : this.sim.playerMelee(range, dmg);
+
+    const statuses: string[] = [];
+    for (const t of result.targets) {
       if (skill === "whirl" && this.services.statuses) {
         for (const e of this.world.all()) {
           if (!e.tags.includes("enemy") || !e.health || e.health.hp <= 0)
@@ -809,6 +1122,15 @@ export class GravewakeGame {
             statuses.push("armor_break");
           }
         }
+      }
+
+      this.services.floatText?.damage(t.x, t.y, dmg, isCrit);
+      this.services.threat?.add("enemy", "player", dmg);
+      if (this.services.audio) {
+        playSpatial(this.services.audio, isCrit ? "swing" : "hit", pos, {
+          x: t.x,
+          y: t.y,
+        });
       }
 
       this.pushFx({
@@ -838,11 +1160,7 @@ export class GravewakeGame {
         y: t.y,
         count: isCrit ? 14 : 7,
         speed: 100,
-        color: isCrit
-          ? "rgba(255,220,80,1)"
-          : damageType === "holy"
-            ? "rgba(140,180,255,1)"
-            : "rgba(220,40,40,1)",
+        color: isCrit ? "rgba(255,220,80,1)" : "rgba(220,40,40,1)",
         life: 0.3,
       });
     }
@@ -890,33 +1208,95 @@ export class GravewakeGame {
         y: p.transform?.y ?? 0,
       });
     }
+    this.services.floatText?.heal(
+      p.transform?.x ?? 0,
+      p.transform?.y ?? 0,
+      heal,
+    );
   }
 
-  /** Town vendor: buy potions for gold when near the shrine. */
-  private tryVendor(): boolean {
-    if (this.area !== "town") return false;
+  /** Interact: vendor shrine, chests, then loot. */
+  private tryInteract(): void {
     const pos = this.sim?.getPlayerPos();
-    if (!pos) return false;
-    // shrine near NW ruins
-    if (Math.hypot(pos.x - 220, pos.y - 160) > 70) return false;
-    const cost = 25;
-    if (this.sheet.gold < cost) {
+    if (!pos) return;
+    const sys = this.services.interactables;
+    if (sys) {
+      const near = sys.nearest(pos.x, pos.y, 80);
+      if (near) {
+        const r = sys.interact(near.def.id, {
+          hasItem: (itemId) => !!this.sheet.inventory.findByDef(itemId),
+        });
+        if (r.ok) {
+          this.services.events?.emit("ui:confirm", {});
+          if (near.def.kind === "shrine" || near.def.id === "ash_shrine") {
+            this.buyFromVendor(pos.x, pos.y);
+            return;
+          }
+          if (near.def.kind === "chest") {
+            this.dropLoot(near.def.x, near.def.y, "scuttler");
+            this.wallet.add("shards", 1);
+            this.pushFx({
+              kind: "banner",
+              text: near.def.label ?? "Chest opened",
+              t: 1.2,
+            });
+            this.services.floatText?.spawn({
+              x: near.def.x,
+              y: near.def.y,
+              text: "+1 shard",
+              style: "gold",
+              color: "#aaf",
+            });
+            return;
+          }
+          if (near.def.kind === "door") {
+            this.services.events?.emit("world:door", {});
+            this.pushFx({
+              kind: "float",
+              x: pos.x,
+              y: pos.y,
+              text: near.def.label ?? "Door",
+              color: "#ccc",
+              t: 0.8,
+            });
+            return;
+          }
+        } else if (r.reason === "used" || r.reason === "cooldown") {
+          this.services.events?.emit("ui:error", {});
+        }
+      }
+    }
+    // fallback shrine vendor without interactable
+    if (this.tryVendor()) return;
+    this.tryLoot();
+  }
+
+  private buyFromVendor(x: number, y: number): void {
+    this.syncWalletFromSheet();
+    const result = this.vendor.buy("buy_potion", this.wallet, {
+      level: this.sheet.level,
+      grant: (itemId, qty) => {
+        this.sheet.pickup(itemId, qty);
+        return true;
+      },
+    });
+    this.syncSheetFromWallet();
+    if (!result.ok) {
       this.pushFx({
         kind: "float",
-        x: pos.x,
-        y: pos.y,
-        text: "Need 25g",
+        x,
+        y,
+        text: result.reason === "funds" ? "Need 25g" : "Cannot buy",
         color: "#e88",
         t: 1,
       });
-      return true;
+      this.services.events?.emit("ui:error", {});
+      return;
     }
-    this.sheet.addGold(-cost);
-    this.sheet.pickup("health_potion", 1);
     this.pushFx({
       kind: "float",
-      x: pos.x,
-      y: pos.y,
+      x,
+      y,
       text: "Potion −25g",
       color: "#6f6",
       t: 1.1,
@@ -926,6 +1306,15 @@ export class GravewakeGame {
       text: "Ash shrine grants a draught",
       t: 1.4,
     });
+  }
+
+  /** Town vendor: buy potions for gold when near the shrine. */
+  private tryVendor(): boolean {
+    if (this.area !== "town") return false;
+    const pos = this.sim?.getPlayerPos();
+    if (!pos) return false;
+    if (Math.hypot(pos.x - 220, pos.y - 160) > 70) return false;
+    this.buyFromVendor(pos.x, pos.y);
     return true;
   }
 
@@ -941,6 +1330,12 @@ export class GravewakeGame {
         text: "Looted",
         color: "#fc6",
         t: 0.9,
+      });
+      this.services.floatText?.spawn({
+        x: pos.x,
+        y: pos.y,
+        text: "Looted",
+        style: "gold",
       });
       this.services.events?.emit("loot:pickup", { id });
       this.autoEquipBest();
@@ -967,6 +1362,7 @@ export class GravewakeGame {
       if (loot.defId === "gold") {
         if (d > LOOT_GOLD_RADIUS) continue;
         this.sheet.addGold(loot.gold ?? 0);
+        this.syncWalletFromSheet();
         this.world.destroy(e.id);
         this.pushFx({
           kind: "float",
@@ -976,6 +1372,14 @@ export class GravewakeGame {
           color: "#fd4",
           t: 0.8,
         });
+        this.services.floatText?.spawn({
+          x: e.transform.x,
+          y: e.transform.y,
+          text: `+${loot.gold}g`,
+          style: "gold",
+          color: "#fd4",
+        });
+        this.services.events?.emit("loot:pickup", { id: e.id });
         continue;
       }
       // magnetic gear pickup when standing on it
@@ -1049,6 +1453,15 @@ export class GravewakeGame {
       this.services.quests?.addCount("kill", 1);
 
       const isBoss = BOSS_IDS.has(e.actorId);
+      this.services.death?.markDead(e.id, {
+        x: e.x,
+        y: e.y,
+        killerId: "player",
+        corpseMs: isBoss ? 12000 : 5000,
+        canRevive: false,
+        data: { actorId: e.actorId },
+      });
+      this.wallet.add("shards", isBoss ? 5 : this.rng() < 0.2 ? 1 : 0);
       if (isBoss) {
         this.bossesKilled += 1;
         this.services.quests?.setFlag("boss_slain");
@@ -1093,6 +1506,27 @@ export class GravewakeGame {
         if (p?.health) p.health.hp = p.health.max;
         // small potion gift on level
         this.sheet.pickup("health_potion", 1);
+        // Skill tree point + auto-unlock if possible
+        this.skillTree.addPoints(1);
+        for (const node of this.skillTree.getDef().nodes) {
+          if (this.skillTree.canUnlock(node.id, this.sheet.level)) {
+            this.skillTree.unlock(node.id, this.sheet.level);
+            this.pushFx({
+              kind: "banner",
+              text: `Skill: ${node.name}`,
+              t: 1.6,
+            });
+            break;
+          }
+        }
+        this.services.resources?.fill("player");
+        this.services.floatText?.spawn({
+          x: e.x,
+          y: e.y,
+          text: "LEVEL UP",
+          style: "status",
+          color: "#ff0",
+        });
       }
     }
   }
@@ -1267,6 +1701,28 @@ export class GravewakeGame {
       xp: this.sheet.xp,
       level: this.sheet.level,
       gold: this.sheet.gold,
+      wallet: this.wallet.snapshot(),
+      mana: this.services.resources?.get("player", "mana")?.current ?? 0,
+      manaMax: this.services.resources?.get("player", "mana")?.max ?? 50,
+      stamina: this.services.resources?.get("player", "stamina")?.current ?? 0,
+      staminaMax: this.services.resources?.get("player", "stamina")?.max ?? 100,
+      skillTree: this.skillTree.getState(),
+      skillUnlocked: this.skillTree.unlocked().map((u) => ({
+        id: u.node.id,
+        name: u.node.name,
+        rank: u.rank,
+      })),
+      fog: this.fog?.sample(24) ?? null,
+      projectiles: this.services.projectiles?.all().length ?? 0,
+      floatTexts: this.services.floatText?.all().length ?? 0,
+      transition: this.services.transitions?.state ?? null,
+      interactables: this.services.interactables?.all().map((s) => ({
+        id: s.def.id,
+        kind: s.def.kind,
+        used: s.used,
+        x: s.def.x,
+        y: s.def.y,
+      })),
       potions,
       victory: false,
       milestoneBoss: this.milestoneBoss,

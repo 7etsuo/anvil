@@ -53,6 +53,14 @@ export const browserGravewakeModule: GenreModule = {
               audio: ctx.audio,
               statuses: ctx.statuses,
               abilities: ctx.abilities,
+              projectiles: ctx.projectiles,
+              resources: ctx.resources,
+              interactables: ctx.interactables,
+              triggers: ctx.triggers,
+              floatText: ctx.floatText,
+              transitions: ctx.transitions,
+              threat: ctx.threat,
+              death: ctx.death,
             },
           );
           return {

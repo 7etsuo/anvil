@@ -1359,18 +1359,60 @@ async function main(): Promise<void> {
     ctx.lineTo(VIEW_W, panelY + 0.5);
     ctx.stroke();
 
+    const mana = Number(blob.mana ?? 0);
+    const manaMax = Number(blob.manaMax ?? 50) || 50;
+    const stamina = Number(blob.stamina ?? 0);
+    const staminaMax = Number(blob.staminaMax ?? 100) || 100;
+    const manaPct = manaMax > 0 ? mana / manaMax : 0;
+
     drawOrb(ctx, 72, VIEW_H - 52, 36, hpPct, "blood");
-    drawOrb(ctx, VIEW_W - 72, VIEW_H - 52, 36, potPct, "mana");
+    drawOrb(ctx, VIEW_W - 72, VIEW_H - 52, 36, manaPct, "mana");
 
     ctx.fillStyle = "#c9a46c";
     ctx.font = "bold 11px system-ui";
     ctx.textAlign = "center";
     ctx.fillText("LIFE", 72, VIEW_H - 8);
-    ctx.fillText("POTIONS", VIEW_W - 72, VIEW_H - 8);
+    ctx.fillText("MANA", VIEW_W - 72, VIEW_H - 8);
     ctx.fillStyle = "#eee";
     ctx.font = "bold 13px system-ui";
     ctx.fillText(`${Math.ceil(hp)}/${Math.ceil(max)}`, 72, VIEW_H - 48);
-    ctx.fillText(`${blob.potions ?? 0}`, VIEW_W - 72, VIEW_H - 48);
+    ctx.fillText(`${Math.ceil(mana)}/${Math.ceil(manaMax)}`, VIEW_W - 72, VIEW_H - 48);
+
+    // Stamina bar (above panel)
+    const stY = panelY - 14;
+    ctx.fillStyle = "rgba(0,0,0,0.55)";
+    ctx.fillRect(VIEW_W / 2 - 120, stY, 240, 8);
+    ctx.fillStyle = "#c8a040";
+    ctx.fillRect(VIEW_W / 2 - 120, stY, 240 * Math.min(1, stamina / staminaMax), 8);
+    ctx.fillStyle = "#aaa";
+    ctx.font = "10px system-ui";
+    ctx.fillText(`STA ${Math.ceil(stamina)}  ·  pots ${blob.potions ?? 0}`, VIEW_W / 2, stY - 4);
+
+    // Engine float combat text
+    const cam = handle.camera;
+    for (const ft of handle.floatText.all()) {
+      const sp = cam.project(ft.x, ft.y);
+      const a = Math.max(0, ft.life / ft.maxLife);
+      ctx.globalAlpha = a;
+      ctx.fillStyle = ft.color ?? (ft.style === "crit" ? "#ffdd44" : "#ff6666");
+      ctx.font = ft.style === "crit" ? "bold 18px system-ui" : "bold 14px system-ui";
+      ctx.textAlign = "center";
+      ctx.fillText(ft.text, sp.x, sp.y);
+      ctx.globalAlpha = 1;
+    }
+
+    // Zone transition fade
+    const tr = handle.transitions.state;
+    if (tr.phase !== "idle" && tr.alpha > 0) {
+      ctx.fillStyle = `rgba(0,0,0,${tr.alpha})`;
+      ctx.fillRect(0, 0, VIEW_W, VIEW_H);
+      if (tr.label && tr.phase === "hold") {
+        ctx.fillStyle = "#c9a46c";
+        ctx.font = "bold 28px system-ui";
+        ctx.textAlign = "center";
+        ctx.fillText(tr.label, VIEW_W / 2, VIEW_H / 2);
+      }
+    }
 
     // 4 skill slots
     const slot = 54;

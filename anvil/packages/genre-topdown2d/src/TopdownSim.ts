@@ -19,6 +19,18 @@ import {
 
 export type Rng = () => number;
 
+export type DamageSource = "contact" | "melee" | "projectile" | "dot" | "other";
+
+/** Optional hook: turn raw damage into final (armor / resists / skills). */
+export type DamageMitigator = (
+  targetId: string,
+  rawDamage: number,
+  ctx: {
+    attackerId?: string;
+    source: DamageSource;
+  },
+) => number;
+
 export type TopdownSimOptions = {
   /**
    * When true (default for simple demos), clearing all enemies freezes the sim as "won".
@@ -30,6 +42,8 @@ export type TopdownSimOptions = {
    * Default 520. Set 0 to always run all AI.
    */
   aiActiveRadius?: number;
+  /** Apply armor / resists before HP loss. */
+  damageMitigator?: DamageMitigator;
 };
 
 export class TopdownSim {
@@ -53,6 +67,9 @@ export class TopdownSim {
   private aiActiveRadius: number;
   /** Per-actor animation controllers (multi-frame idle/walk/attack/death). */
   private anim = new Map<string, ActorAnimController>();
+  private damageMitigator: DamageMitigator | null = null;
+  /** Base speed (before status/gear mul) keyed by entity id. */
+  private baseSpeed = new Map<string, number>();
 
   constructor(
     world: World,
@@ -68,8 +85,52 @@ export class TopdownSim {
     this.autoWinOnClear = opts.autoWinOnClear !== false;
     this.aiActiveRadius =
       opts.aiActiveRadius === undefined ? 520 : opts.aiActiveRadius;
+    this.damageMitigator = opts.damageMitigator ?? null;
     this.nav = new NavGrid(map.width, map.height, map.walls, 28, 14);
     this.spawnAll();
+  }
+
+  setDamageMitigator(fn: DamageMitigator | null): void {
+    this.damageMitigator = fn;
+  }
+
+  /**
+   * Push combat stats from RPG sheet onto a runtime actor
+   * (speed, armor, resists stored on entity.data for mitigation).
+   */
+  syncActorStats(
+    entityId: string,
+    stats: {
+      speed?: number;
+      armor?: number;
+      maxHp?: number;
+      /** Resist fractions 0–1 */
+      resists?: Record<string, number>;
+      /** Multiplicative speed (status chill etc.) */
+      speedMul?: number;
+    },
+  ): void {
+    const rt = this.actors.get(entityId);
+    const e = this.world.get(entityId);
+    if (!rt || !e) return;
+    if (stats.speed != null && Number.isFinite(stats.speed)) {
+      this.baseSpeed.set(entityId, Math.max(20, stats.speed));
+    }
+    const base = this.baseSpeed.get(entityId) ?? rt.speed;
+    const mul = stats.speedMul ?? Number(e.data.speedMul ?? 1);
+    rt.speed = Math.max(20, base * (Number.isFinite(mul) ? mul : 1));
+    if (stats.armor != null) e.data.armor = stats.armor;
+    if (stats.resists) e.data.resists = { ...stats.resists };
+    if (stats.speedMul != null) e.data.speedMul = stats.speedMul;
+    if (stats.maxHp != null && e.health) {
+      const ratio = e.health.hp / Math.max(1, e.health.max);
+      e.health.max = Math.max(1, Math.floor(stats.maxHp));
+      e.health.hp = Math.max(1, Math.floor(e.health.max * ratio));
+    }
+  }
+
+  getActorRuntime(entityId: string): ActorRuntime | undefined {
+    return this.actors.get(entityId);
   }
 
   /**
@@ -205,6 +266,7 @@ export class TopdownSim {
       repathMs: 0,
     };
     this.actors.set(id, rt);
+    this.baseSpeed.set(id, rt.speed);
     // Multi-frame anim SM from ActorDef.animations
     const clips = {
       idle: def.animations?.idle ?? frames,
@@ -282,8 +344,11 @@ export class TopdownSim {
     const targets: Array<{ x: number; y: number; dmg: number }> = [];
     const hitList = mode === "nearest" ? cands.slice(0, 1) : cands;
     for (const c of hitList) {
-      this.applyDamage(c.rt, damage);
-      targets.push({ x: c.x, y: c.y, dmg: damage });
+      const dealt = this.applyDamage(c.rt, damage, {
+        attackerId: this.playerId ?? undefined,
+        source: "melee",
+      });
+      targets.push({ x: c.x, y: c.y, dmg: dealt });
     }
 
     const face = cands[0] ?? null;
@@ -487,8 +552,9 @@ export class TopdownSim {
       const len = Math.hypot(ix, iy);
       ix /= len;
       iy /= len;
-      rt.vx = ix * rt.speed;
-      rt.vy = iy * rt.speed;
+      const spd = this.effectiveSpeed(rt);
+      rt.vx = ix * spd;
+      rt.vy = iy * spd;
       return;
     }
 
@@ -517,8 +583,9 @@ export class TopdownSim {
       const dx = wp.x - e.transform.x;
       const dy = wp.y - e.transform.y;
       const d = Math.hypot(dx, dy) || 1;
-      rt.vx = (dx / d) * rt.speed;
-      rt.vy = (dy / d) * rt.speed;
+      const spd = this.effectiveSpeed(rt);
+      rt.vx = (dx / d) * spd;
+      rt.vy = (dy / d) * spd;
       return;
     }
 
@@ -669,7 +736,8 @@ export class TopdownSim {
 
     const wlen = Math.hypot(wishX, wishY);
     if (wlen > 1e-4) {
-      const spd = rt.aggro ? rt.speed : rt.speed * 0.45;
+      const baseSpd = this.effectiveSpeed(rt);
+      const spd = rt.aggro ? baseSpd : baseSpd * 0.45;
       rt.vx = (wishX / wlen) * spd;
       rt.vy = (wishY / wlen) * spd;
     } else {
@@ -752,7 +820,10 @@ export class TopdownSim {
           target.transform.y - e.transform.y,
         );
         if (d < rt.radius + pr) {
-          this.applyDamage(rt, damage);
+          this.applyDamage(rt, damage, {
+            attackerId: String(e.data.ownerId ?? ""),
+            source: "projectile",
+          });
           this.world.destroy(e.id);
           break;
         }
@@ -787,15 +858,44 @@ export class TopdownSim {
     // include epsilon so post-separation grazing still damages
     if (d > attacker.radius + defender.radius + 0.5) return;
     if (defender.iframeRemainingMs > 0) return;
-    this.applyDamage(defender, attacker.contactDamage);
+    this.applyDamage(defender, attacker.contactDamage, {
+      attackerId: attacker.entityId,
+      source: "contact",
+    });
     attacker.contactTimerMs = attacker.contactCooldownMs;
     attacker.attackAnimMs = 150;
+    // On-hit status payload from elites etc.
+    const onHit = ea.data.onHitStatus;
+    if (typeof onHit === "string" && onHit) {
+      ed.data.pendingStatus = onHit;
+      ed.data.pendingStatusSource = attacker.entityId;
+    }
   }
 
-  private applyDamage(rt: ActorRuntime, amount: number): void {
+  /**
+   * Apply damage; returns final HP lost after mitigation (0 if dead/immune).
+   */
+  applyDamage(
+    rt: ActorRuntime,
+    amount: number,
+    ctx?: { attackerId?: string; source?: DamageSource },
+  ): number {
     const e = this.world.get(rt.entityId);
-    if (!e?.health || rt.dead) return;
-    e.health.hp = Math.max(0, e.health.hp - amount);
+    if (!e?.health || rt.dead) return 0;
+    let dmg = Math.max(0, amount);
+    if (this.damageMitigator && dmg > 0) {
+      dmg = Math.max(
+        0,
+        this.damageMitigator(rt.entityId, dmg, {
+          attackerId: ctx?.attackerId,
+          source: ctx?.source ?? "other",
+        }),
+      );
+    }
+    if (dmg <= 0) return 0;
+    const before = e.health.hp;
+    e.health.hp = Math.max(0, e.health.hp - dmg);
+    const dealt = before - e.health.hp;
     rt.iframeRemainingMs = rt.iframeMs;
     this.anim.get(rt.entityId)?.setState("hit", { lockMs: 120 });
     if (e.health.hp <= 0) {
@@ -806,6 +906,15 @@ export class TopdownSim {
       this.anim.get(rt.entityId)?.setState("death", { force: true });
       e.tags = e.tags.includes("dead") ? e.tags : [...e.tags, "dead"];
     }
+    return dealt;
+  }
+
+  /** Effective move speed with status speedMul on entity.data. */
+  private effectiveSpeed(rt: ActorRuntime): number {
+    const e = this.world.get(rt.entityId);
+    const base = this.baseSpeed.get(rt.entityId) ?? rt.speed;
+    const mul = Number(e?.data.speedMul ?? 1);
+    return Math.max(20, base * (Number.isFinite(mul) && mul > 0 ? mul : 1));
   }
 
   private checkEnd(): void {

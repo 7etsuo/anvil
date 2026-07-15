@@ -1596,7 +1596,7 @@ async function main(): Promise<void> {
     ctx.fillStyle = "#9a8a70";
     ctx.font = "11px system-ui";
     ctx.fillText(
-      `DMG ${stats.damage ?? "—"}  ·  ARM ${stats.armor ?? "—"}  ·  CRIT ${Math.round((stats.critChance ?? 0) * 100)}%  ·  F interact  ·  I bag  ·  T skills  ·  C char`,
+      `DMG ${stats.damage ?? "—"}  ·  ARM ${stats.armor ?? "—"}  ·  SPD ${Math.round(Number(stats.speed ?? 0))}  ·  CRIT ${Math.round((stats.critChance ?? 0) * 100)}%  ·  F interact  ·  I bag  ·  T skills  ·  C char`,
       VIEW_W / 2,
       VIEW_H - 12,
     );

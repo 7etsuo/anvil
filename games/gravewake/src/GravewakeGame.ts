@@ -319,9 +319,29 @@ export class GravewakeGame {
     proj.setHitHandler((h) => {
       const e = this.world.get(h.targetId);
       if (!e?.health || !e.transform) return;
-      e.health.hp = Math.max(0, e.health.hp - h.damage);
-      this.services.floatText?.damage(h.x, h.y, h.damage, false);
-      this.services.threat?.add(h.targetId, h.projectile.ownerId ?? "player", h.damage);
+      // Holy/elemental: resists only (no physical armor)
+      const dtype = (h.projectile.damageType ?? "holy") as DamageType;
+      e.data.incomingDamageType = dtype;
+      const resists = (e.data.resists as Record<string, number>) ?? {};
+      const mit = mitigateDamage({
+        raw: h.damage,
+        type: dtype,
+        armor: 0,
+        resists: {
+          resistHoly: resists.holy ?? resists.resistHoly ?? 0,
+          resistFire: resists.fire ?? resists.resistFire ?? 0,
+          resistCold: resists.cold ?? resists.resistCold ?? 0,
+          resistPhysical: resists.physical ?? resists.resistPhysical ?? 0,
+        },
+      });
+      const dealt = mit.final;
+      e.health.hp = Math.max(0, e.health.hp - dealt);
+      this.services.floatText?.damage(h.x, h.y, dealt, false);
+      this.services.threat?.add(
+        h.targetId,
+        h.projectile.ownerId ?? "player",
+        dealt,
+      );
       this.services.statuses?.apply(h.targetId, "chill", {
         sourceId: "player",
       });
@@ -329,7 +349,7 @@ export class GravewakeGame {
         kind: "hit",
         x: h.x,
         y: h.y,
-        dmg: h.damage,
+        dmg: dealt,
         t: 0.7,
       });
       const pos = this.sim?.getPlayerPos();
@@ -340,14 +360,50 @@ export class GravewakeGame {
         emitHit(this.services.events, {
           attackerId: h.projectile.ownerId ?? "player",
           targetId: h.targetId,
-          damage: h.damage,
+          damage: dealt,
+          rawDamage: h.damage,
           x: h.x,
           y: h.y,
           abilityId: "smite",
-          damageType: h.projectile.damageType ?? "holy",
+          damageType: dtype,
           statuses: ["chill"],
         });
     });
+  }
+
+  /**
+   * Push status mods into sim: chill → speedMul, pending elite statuses, player buffs.
+   */
+  private syncStatusCombatEffects(): void {
+    if (!this.sim) return;
+    const statuses = this.services.statuses;
+    for (const e of this.world.all()) {
+      if (!e.tags.includes("actor")) continue;
+      // Elite contact on-hit (queued by TopdownSim)
+      const pending = e.data.pendingStatus;
+      if (typeof pending === "string" && statuses) {
+        statuses.apply(e.id, pending, {
+          sourceId: String(e.data.pendingStatusSource ?? "enemy"),
+        });
+        delete e.data.pendingStatus;
+        delete e.data.pendingStatusSource;
+      }
+      if (!statuses) continue;
+      const mods = statuses.aggregateMods(e.id);
+      // speed statMods are flat (chill = -40); convert to mul vs ~120 baseline
+      if (typeof mods.speed === "number") {
+        const mul = Math.max(0.25, 1 + mods.speed / 120);
+        e.data.speedMul = mul;
+        if (e.tags.includes("enemy") || e.id === "player") {
+          this.sim.syncActorStats(e.id, { speedMul: mul });
+        }
+      } else if (e.data.speedMul != null && e.data.speedMul !== 1) {
+        e.data.speedMul = 1;
+        this.sim.syncActorStats(e.id, { speedMul: 1 });
+      }
+    }
+    // Keep player gear/status armor live every tick (cheap)
+    this.syncPlayerFromSheet();
   }
 
   private syncWalletFromSheet(): void {
@@ -466,6 +522,7 @@ export class GravewakeGame {
     if (this.skillTree.getState().points <= 0) {
       this.pendingSkillChoice = false;
     }
+    this.syncPlayerFromSheet(); // armor/damage from tree apply immediately
     try {
       this.saveRun();
     } catch {
@@ -573,13 +630,147 @@ export class GravewakeGame {
     };
   }
 
+  /**
+   * Sheet gear + skill-tree bonuses — what combat actually uses.
+   */
+  private effectivePlayerStats(): {
+    maxHp: number;
+    damage: number;
+    armor: number;
+    speed: number;
+    critChance: number;
+    critMult: number;
+    resistPhysical: number;
+    resistFire: number;
+    resistCold: number;
+    resistLightning: number;
+    resistPoison: number;
+    resistHoly: number;
+    resistArcane: number;
+    [k: string]: number;
+  } {
+    const s = this.sheet.finalStats();
+    const tree = this.skillTree.aggregateData() as {
+      damageBonus?: number;
+      armorBonus?: number;
+    };
+    // Status buffs on player (e.g. blessed)
+    const statusMods = this.services.statuses?.aggregateMods("player") ?? {};
+    return {
+      maxHp: s.maxHp + (statusMods.maxHp ?? 0),
+      damage: s.damage + (tree.damageBonus ?? 0) + (statusMods.damage ?? 0),
+      armor: Math.max(0, s.armor + (tree.armorBonus ?? 0) + (statusMods.armor ?? 0)),
+      speed: Math.max(40, s.speed + (statusMods.speed ?? 0)),
+      critChance: Math.min(1, s.critChance + (statusMods.critChance ?? 0)),
+      critMult: Math.max(1, s.critMult + (statusMods.critMult ?? 0)),
+      resistPhysical: Number(s.resistPhysical ?? 0) + Number(statusMods.resistPhysical ?? 0),
+      resistFire: Number(s.resistFire ?? 0),
+      resistCold: Number(s.resistCold ?? 0),
+      resistLightning: Number(s.resistLightning ?? 0),
+      resistPoison: Number(s.resistPoison ?? 0),
+      resistHoly: Number(s.resistHoly ?? 0),
+      resistArcane: Number(s.resistArcane ?? 0),
+    };
+  }
+
   private syncPlayerFromSheet(): void {
     const p = this.world.get("player");
     if (!p?.health) return;
-    const stats = this.sheet.finalStats();
+    const stats = this.effectivePlayerStats();
     const ratio = p.health.hp / Math.max(1, p.health.max);
     p.health.max = Math.floor(stats.maxHp);
     p.health.hp = Math.max(1, Math.floor(p.health.max * ratio));
+    p.data.armor = stats.armor;
+    p.data.resists = {
+      physical: stats.resistPhysical,
+      fire: stats.resistFire,
+      cold: stats.resistCold,
+      lightning: stats.resistLightning,
+      poison: stats.resistPoison,
+      holy: stats.resistHoly,
+      arcane: stats.resistArcane,
+    };
+    // Push speed/armor into TopdownSim runtime (gear actually moves/blocks)
+    const pid = this.sim?.getPlayerId() ?? "player";
+    this.sim?.syncActorStats(pid, {
+      speed: stats.speed,
+      armor: stats.armor,
+      maxHp: stats.maxHp,
+      resists: {
+        resistPhysical: stats.resistPhysical,
+        resistFire: stats.resistFire,
+        resistCold: stats.resistCold,
+        resistLightning: stats.resistLightning,
+        resistPoison: stats.resistPoison,
+        resistHoly: stats.resistHoly,
+        resistArcane: stats.resistArcane,
+      },
+    });
+  }
+
+  /** Wire armor/resists into the sim so gear is not cosmetic. */
+  private wireCombatStats(sim: TopdownSim): void {
+    sim.setDamageMitigator((targetId, raw, ctx) => {
+      const isPlayer =
+        targetId === "player" || targetId === sim.getPlayerId();
+      if (isPlayer) {
+        const stats = this.effectivePlayerStats();
+        // Contact/melee = physical; elite on-hit may be elemental later
+        const r = mitigateDamage({
+          raw,
+          type: "physical",
+          armor: stats.armor,
+          resists: stats,
+        });
+        const pos = sim.getPlayerPos();
+        if (pos && r.final > 0) {
+          this.services.floatText?.spawn({
+            x: pos.x,
+            y: pos.y - 18,
+            text: `-${r.final}`,
+            style: "damage",
+            color: "#f66",
+          });
+          if (r.mitigated > 0 && this.rng() < 0.35) {
+            this.services.floatText?.spawn({
+              x: pos.x + 12,
+              y: pos.y - 28,
+              text: `block ${r.mitigated}`,
+              style: "info",
+              color: "#8af",
+            });
+          }
+        }
+        return r.final;
+      }
+
+      // Enemies: base armor from threat + entity data; armor_break status shreds it
+      const e = this.world.get(targetId);
+      const threatArmor = 3 + Math.floor(this.threatTier() * 2);
+      let armor = Number(e?.data.armor ?? threatArmor);
+      const br = this.services.statuses
+        ?.getActive(targetId)
+        .find((s) => s.defId === "armor_break");
+      if (br) armor = Math.max(0, armor - br.stacks * 4);
+      const resists =
+        (e?.data.resists as Record<string, number> | undefined) ?? {};
+      // Melee player hits are physical; projectiles set type via separate path
+      const dmgType =
+        (e?.data.incomingDamageType as DamageType | undefined) ?? "physical";
+      const r = mitigateDamage({
+        raw,
+        type: dmgType,
+        armor: dmgType === "physical" ? armor : 0,
+        resists: {
+          resistPhysical: resists.physical ?? resists.resistPhysical ?? 0,
+          resistFire: resists.fire ?? resists.resistFire ?? 0,
+          resistCold: resists.cold ?? resists.resistCold ?? 0,
+          resistHoly: resists.holy ?? resists.resistHoly ?? 0,
+          resistPoison: resists.poison ?? resists.resistPoison ?? 0,
+        },
+      });
+      return r.final;
+    });
   }
 
   /**
@@ -736,6 +927,7 @@ export class GravewakeGame {
       autoWinOnClear: false,
       aiActiveRadius: 560,
     });
+    this.wireCombatStats(this.sim);
 
     this.fog = new FogGrid({
       width: Math.max(1, Math.ceil(area.width / 32)),
@@ -743,19 +935,22 @@ export class GravewakeGame {
       cellSize: 32,
     });
 
-    // Scale initial non-player spawns + chance of elite flags
+    // Scale initial non-player spawns + chance of elite flags + armor
     const scale = this.scaleForThreat();
     for (const e of this.world.all()) {
       if (!e.tags.includes("enemy") || !e.health) continue;
       e.health.max = Math.max(1, Math.floor(e.health.max * scale.hpMul));
       e.health.hp = e.health.max;
+      e.data.armor = Math.floor(4 + this.threatTier() * 2.5);
       if (this.rng() < 0.06) {
         const rolled = rollEliteAffixes(1, this.rng);
         e.data.elite = true;
         e.data.eliteAffixes = rolled.affixes.map((a) => a.id);
         e.data.eliteTint = rolled.tint;
+        e.data.armor = Math.floor(Number(e.data.armor) + 6);
         e.health.max = Math.floor(e.health.max * 1.7);
         e.health.hp = e.health.max;
+        if (rolled.onHitStatuses[0]) e.data.onHitStatus = rolled.onHitStatuses[0];
       }
     }
 
@@ -1045,11 +1240,17 @@ export class GravewakeGame {
       speedMul,
     });
     const ent = this.world.get(eid);
-    if (ent && elite) {
-      ent.data.elite = true;
-      ent.data.eliteAffixes = affixIds;
-      ent.data.eliteTint = tint;
-      if (onHitStatus) ent.data.onHitStatus = onHitStatus;
+    if (ent) {
+      // Baseline enemy armor scales with threat (gear matters more later)
+      ent.data.armor = Math.floor(
+        4 + this.threatTier() * 2.5 + (elite ? 6 : 0),
+      );
+      if (elite) {
+        ent.data.elite = true;
+        ent.data.eliteAffixes = affixIds;
+        ent.data.eliteTint = tint;
+        if (onHitStatus) ent.data.onHitStatus = onHitStatus;
+      }
     }
     return true;
   }
@@ -1164,6 +1365,9 @@ export class GravewakeGame {
       this.services.triggers.update({ player: fogPos });
     }
 
+    // Apply status → combat (chill slows, armor_break shreds, elite on-hit)
+    this.syncStatusCombatEffects();
+
     this.autoPickupGold();
     this.grantXpForKills();
 
@@ -1217,14 +1421,10 @@ export class GravewakeGame {
       return;
     }
 
-    // Skill-tree bonuses
-    const treeData = this.skillTree.aggregateData() as {
-      damageBonus?: number;
-      unlockAbility?: string;
-    };
-    const stats = this.sheet.finalStats();
+    // Gear + skill tree (effectivePlayerStats) — not base sheet alone
+    const stats = this.effectivePlayerStats();
     const isCrit = this.rng() < stats.critChance;
-    const base = stats.damage + (treeData.damageBonus ?? 0);
+    const base = stats.damage;
     let raw: number;
     let range: number;
     let damageType: DamageType = "physical";
@@ -1249,13 +1449,8 @@ export class GravewakeGame {
 
     this.services.events?.emit("combat:swing", { skill });
 
-    const mitigated = mitigateDamage({
-      raw,
-      type: damageType,
-      armor: damageType === "physical" ? 5 : 0,
-      resists: {},
-    });
-    const dmg = mitigated.final;
+    // Raw outgoing; enemy armor/resists applied inside TopdownSim mitigator
+    const dmg = raw;
 
     this.lastSkill = skill;
     this.cd[skill] =
@@ -1288,6 +1483,8 @@ export class GravewakeGame {
       if (nearest) {
         const te = this.world.get(nearest);
         if (te?.transform) {
+          // Holy ignores physical armor in mitigator path (projectile handler)
+          te.data.incomingDamageType = "holy";
           this.services.projectiles.spawnToward(
             pos.x,
             pos.y,
@@ -1309,6 +1506,11 @@ export class GravewakeGame {
       return;
     }
 
+    // Tag targets for physical mitigation
+    for (const e of this.world.all()) {
+      if (e.tags.includes("enemy")) e.data.incomingDamageType = "physical";
+    }
+
     const result =
       skill === "whirl"
         ? this.sim.playerMelee(range, dmg)
@@ -1316,6 +1518,7 @@ export class GravewakeGame {
 
     const statuses: string[] = [];
     for (const t of result.targets) {
+      const dealt = t.dmg; // post-armor from sim mitigator
       if (skill === "whirl" && this.services.statuses) {
         for (const e of this.world.all()) {
           if (!e.tags.includes("enemy") || !e.health || e.health.hp <= 0)
@@ -1331,8 +1534,8 @@ export class GravewakeGame {
         }
       }
 
-      this.services.floatText?.damage(t.x, t.y, dmg, isCrit);
-      this.services.threat?.add("enemy", "player", dmg);
+      this.services.floatText?.damage(t.x, t.y, dealt, isCrit);
+      this.services.threat?.add("enemy", "player", dealt);
       if (this.services.audio) {
         playSpatial(this.services.audio, isCrit ? "swing" : "hit", pos, {
           x: t.x,
@@ -1344,7 +1547,7 @@ export class GravewakeGame {
         kind: "hit",
         x: t.x,
         y: t.y,
-        dmg,
+        dmg: dealt,
         t: isCrit ? 1 : 0.7,
         crit: isCrit,
       });
@@ -1352,7 +1555,7 @@ export class GravewakeGame {
         emitHit(this.services.events, {
           attackerId: "player",
           targetId: "enemy",
-          damage: dmg,
+          damage: dealt,
           rawDamage: raw,
           x: t.x,
           y: t.y,
@@ -1975,7 +2178,8 @@ export class GravewakeGame {
 
   observeBlob(): Record<string, unknown> {
     const simBlob = this.sim?.observeBlob() ?? {};
-    const stats = this.sheet.finalStats();
+    const sheetStats = this.sheet.finalStats();
+    const stats = this.effectivePlayerStats();
     const p = this.world.get("player");
     const potions =
       this.sheet.inventory.findByDef("health_potion")?.qty ?? 0;
@@ -2066,6 +2270,10 @@ export class GravewakeGame {
       inventory: inv,
       equipped,
       stats,
+      /** Sheet final without skill tree (C panel base) */
+      sheetStats,
+      /** Combat-effective (gear + tree + status) */
+      combatStats: stats,
       /** Base vs gear vs final for character sheet UI */
       statBreakdown: this.sheet.statBreakdown(),
       hp: p?.health?.hp ?? 0,

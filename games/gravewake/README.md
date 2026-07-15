@@ -25,16 +25,19 @@ Boss kills are **milestones**, not the end of the game. Packs keep spawning; thr
 
 ### Controls
 
-| Key | Action |
-|-----|--------|
-| **WASD** | Move |
-| **Space / LMB** | Slash |
+| Input | Action |
+|-------|--------|
+| **LMB** | Click-to-move / click enemy to chase+attack (Diablo) |
+| **RMB** or **Space** | Slash |
+| **WASD** | Keyboard move (cancels path) |
 | **2** | Whirl |
 | **3** | Smite |
 | **1** | Potion |
-| **F** | Loot |
+| **F** | Loot / shrine |
 | **I** | Inventory |
-| Walk into **portals** / map edges | Travel |
+| Portals / map edges | Travel |
+
+Engine: A* pathfinding (`NavGrid`), click pathing, AI path around walls.
 
 ### Art
 

@@ -4,6 +4,7 @@ import {
   resolveCircleCircle,
   resolveCircleWall,
 } from "./collision.js";
+import { NavGrid, type PathPoint } from "./pathfind.js";
 import {
   CONTACT_COOLDOWN_MS,
   DEFAULT_RADIUS,
@@ -37,6 +38,13 @@ export class TopdownSim {
   private lost = false;
   private mapId: string;
   private autoWinOnClear: boolean;
+  private nav: NavGrid;
+  /** Click-to-move destination (Diablo-style). */
+  private moveTarget: PathPoint | null = null;
+  private playerPath: PathPoint[] = [];
+  private playerPathI = 0;
+  /** When true, auto-slash nearest enemy in melee while pathing. */
+  private autoEngage = false;
 
   constructor(
     world: World,
@@ -50,7 +58,42 @@ export class TopdownSim {
     this.mapId = map.id;
     this.actorDefs = actorDefs;
     this.autoWinOnClear = opts.autoWinOnClear !== false;
+    this.nav = new NavGrid(map.width, map.height, map.walls, 28, 14);
     this.spawnAll();
+  }
+
+  /**
+   * Diablo click-to-move. Optional autoEngage: chase and attack when close.
+   */
+  setMoveTarget(x: number, y: number, opts?: { autoEngage?: boolean }): void {
+    const p = this.getPlayerPos();
+    if (!p) return;
+    this.moveTarget = {
+      x: Math.max(8, Math.min(this.map.width - 8, x)),
+      y: Math.max(8, Math.min(this.map.height - 8, y)),
+    };
+    this.autoEngage = opts?.autoEngage === true;
+    this.playerPath = this.nav.findPath(p.x, p.y, this.moveTarget.x, this.moveTarget.y);
+    this.playerPathI = 0;
+  }
+
+  clearMoveTarget(): void {
+    this.moveTarget = null;
+    this.playerPath = [];
+    this.playerPathI = 0;
+    this.autoEngage = false;
+  }
+
+  getMoveTarget(): PathPoint | null {
+    return this.moveTarget;
+  }
+
+  isAutoEngage(): boolean {
+    return this.autoEngage;
+  }
+
+  getPlayerPath(): PathPoint[] {
+    return this.playerPath;
   }
 
   private spawnAll(): void {
@@ -147,6 +190,9 @@ export class TopdownSim {
       aggro: team === "player",
       wanderMs: 0,
       wanderAng: Math.random() * Math.PI * 2,
+      path: [],
+      pathI: 0,
+      repathMs: 0,
     };
     this.actors.set(id, rt);
     if (team === "player") this.playerId = id;
@@ -397,15 +443,65 @@ export class TopdownSim {
     if (input.isDown("move_up") || input.isDown("move_forward")) iy -= 1;
     if (input.isDown("move_down") || input.isDown("move_back")) iy += 1;
     if (ix !== 0 || iy !== 0) {
+      // Keyboard overrides click path (classic hybrid control)
+      this.clearMoveTarget();
       const len = Math.hypot(ix, iy);
       ix /= len;
       iy /= len;
       rt.vx = ix * rt.speed;
       rt.vy = iy * rt.speed;
-    } else {
-      rt.vx = 0;
-      rt.vy = 0;
+      return;
     }
+
+    // Follow click-to-move path
+    if (this.moveTarget && this.playerPath.length) {
+      const e = this.world.get(rt.entityId);
+      if (!e?.transform) {
+        rt.vx = 0;
+        rt.vy = 0;
+        return;
+      }
+      // advance waypoints
+      while (this.playerPathI < this.playerPath.length) {
+        const wp = this.playerPath[this.playerPathI]!;
+        const d = Math.hypot(wp.x - e.transform.x, wp.y - e.transform.y);
+        if (d < 14) this.playerPathI++;
+        else break;
+      }
+      if (this.playerPathI >= this.playerPath.length) {
+        this.clearMoveTarget();
+        rt.vx = 0;
+        rt.vy = 0;
+        return;
+      }
+      const wp = this.playerPath[this.playerPathI]!;
+      const dx = wp.x - e.transform.x;
+      const dy = wp.y - e.transform.y;
+      const d = Math.hypot(dx, dy) || 1;
+      rt.vx = (dx / d) * rt.speed;
+      rt.vy = (dy / d) * rt.speed;
+      return;
+    }
+
+    rt.vx = 0;
+    rt.vy = 0;
+  }
+
+  /** Nearest living enemy to point (for click-on-enemy). */
+  nearestEnemy(x: number, y: number, maxDist = 48): string | null {
+    let best: string | null = null;
+    let bestD = maxDist;
+    for (const rt of this.actors.values()) {
+      if (rt.dead || rt.team !== "enemy") continue;
+      const e = this.world.get(rt.entityId);
+      if (!e?.transform) continue;
+      const d = Math.hypot(e.transform.x - x, e.transform.y - y);
+      if (d < bestD) {
+        bestD = d;
+        best = rt.entityId;
+      }
+    }
+    return best;
   }
 
   /**
@@ -459,14 +555,32 @@ export class TopdownSim {
         wishY = Math.sin(rt.wanderAng) * 0.35;
       }
     } else if (rt.ai === "chase_melee") {
-      if (dist > rt.meleeRange * 0.85) {
-        wishX = dx / dist;
-        wishY = dy / dist;
+      if (dist > rt.meleeRange * 0.9) {
+        // Path around walls instead of sliding into them
+        rt.repathMs -= dtMs;
+        if (rt.repathMs <= 0 || rt.path.length === 0) {
+          rt.path = this.nav.findPath(
+            me.transform.x,
+            me.transform.y,
+            pe.transform.x,
+            pe.transform.y,
+          );
+          rt.pathI = 0;
+          rt.repathMs = 280 + Math.random() * 120;
+        }
+        const steer = this.followPath(rt, me.transform.x, me.transform.y);
+        if (steer) {
+          wishX = steer.x;
+          wishY = steer.y;
+        } else {
+          wishX = dx / dist;
+          wishY = dy / dist;
+        }
       } else {
-        // strafe slightly so they don't freeze as a stack
         wishX = -dy / dist * 0.25;
         wishY = dx / dist * 0.25;
         rt.attackAnimMs = Math.max(rt.attackAnimMs, 120);
+        rt.path = [];
       }
     } else if (rt.ai === "keep_distance_ranged") {
       const lo = rt.preferredRange - rt.preferredRangeBand;
@@ -523,6 +637,28 @@ export class TopdownSim {
       rt.vx = 0;
       rt.vy = 0;
     }
+  }
+
+  private followPath(
+    rt: ActorRuntime,
+    x: number,
+    y: number,
+  ): { x: number; y: number } | null {
+    if (!rt.path.length) return null;
+    while (rt.pathI < rt.path.length) {
+      const wp = rt.path[rt.pathI]!;
+      if (Math.hypot(wp.x - x, wp.y - y) < 16) rt.pathI++;
+      else break;
+    }
+    if (rt.pathI >= rt.path.length) {
+      rt.path = [];
+      return null;
+    }
+    const wp = rt.path[rt.pathI]!;
+    const dx = wp.x - x;
+    const dy = wp.y - y;
+    const d = Math.hypot(dx, dy) || 1;
+    return { x: dx / d, y: dy / d };
   }
 
   private spawnProjectile(from: ActorRuntime, nx: number, ny: number): void {

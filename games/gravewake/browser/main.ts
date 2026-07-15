@@ -11,10 +11,10 @@ import { browserGravewakeModule, getBrowserGravewake } from "./browserModule.js"
 import { embeddedAreas } from "./contentEmbed.js";
 import type { FxEvent } from "../src/GravewakeGame.js";
 
-/** World→screen scale. Lower = more Diablo zoom-out, less chunky tiles. */
-const SCALE = 1.05;
-/** Floor grain size in world units — larger = less “Nintendo tile” grid. */
-const FLOOR_TILE_WORLD = 180;
+/** Diablo-like zoomed-out battlefield. */
+const SCALE = 0.95;
+/** Wall “height” in screen px for fake 3/4 extrusion. */
+const WALL_Z = 22;
 /** Full-window logical resolution (updated on resize). */
 let VIEW_W = 1280;
 let VIEW_H = 720;
@@ -327,14 +327,73 @@ async function main(): Promise<void> {
   });
 
   let clickSlash = false;
+  /** Screen → world click for Diablo pathing */
+  const onWorldClick = (clientX: number, clientY: number, button: number) => {
+    const gw = getBrowserGravewake();
+    if (!gw || !started) return;
+    const rect = canvas?.getBoundingClientRect();
+    if (!rect || !canvas) return;
+    const sx = ((clientX - rect.left) / rect.width) * VIEW_W;
+    const sy = ((clientY - rect.top) / rect.height) * VIEW_H;
+    const wx = (sx + camX) / SCALE;
+    const wy = (sy + camY) / SCALE;
+    if (button === 0) {
+      // LMB: move / engage (Diablo)
+      gw.clickWorld(wx, wy);
+    } else if (button === 2) {
+      // RMB: slash toward mouse
+      clickSlash = true;
+    }
+  };
   mount.addEventListener("mousedown", (e) => {
-    if (e.button === 0) clickSlash = true;
+    if (!started) {
+      if (e.button === 0) clickSlash = true;
+      return;
+    }
+    if (e.button === 0 || e.button === 2) {
+      e.preventDefault();
+      onWorldClick(e.clientX, e.clientY, e.button);
+    }
   });
+  mount.addEventListener("contextmenu", (e) => e.preventDefault());
 
-  const floor = images.get("env/floor.png")!;
+  const floorSrc = images.get("env/floor.png")!;
   const wallTex = images.get("env/wall.png")!;
   const portalImg = images.get("fx/portal.png") ?? null;
   const lootImg = images.get("fx/loot_pile.png") ?? null;
+
+  // Build a large seamless-looking dirt plate (Diablo ground, not 32px tiles)
+  const groundPlate = document.createElement("canvas");
+  groundPlate.width = 1024;
+  groundPlate.height = 1024;
+  {
+    const g = groundPlate.getContext("2d")!;
+    g.fillStyle = "#1a1612";
+    g.fillRect(0, 0, 1024, 1024);
+    // soft mottling
+    for (let i = 0; i < 4200; i++) {
+      const x = Math.random() * 1024;
+      const y = Math.random() * 1024;
+      const r = 8 + Math.random() * 48;
+      const a = 0.02 + Math.random() * 0.06;
+      const c = 18 + Math.floor(Math.random() * 28);
+      g.fillStyle = `rgba(${c + 10},${c},${c - 4},${a})`;
+      g.beginPath();
+      g.arc(x, y, r, 0, Math.PI * 2);
+      g.fill();
+    }
+    // faint ash scratches
+    g.globalAlpha = 0.08;
+    g.drawImage(floorSrc, 0, 0, 1024, 1024);
+    g.globalAlpha = 1;
+    // vignette dirt
+    const vg = g.createRadialGradient(512, 512, 80, 512, 512, 700);
+    vg.addColorStop(0, "rgba(0,0,0,0)");
+    vg.addColorStop(1, "rgba(0,0,0,0.35)");
+    g.fillStyle = vg;
+    g.fillRect(0, 0, 1024, 1024);
+  }
+  const floor = groundPlate;
 
   const ash: Particle[] = [];
   for (let i = 0; i < 70; i++) {
@@ -495,14 +554,14 @@ async function main(): Promise<void> {
       ctx.fillStyle = "#888";
       ctx.font = "13px system-ui";
       ctx.fillText(
-        "WASD move  ·  Space Slash  ·  2 Whirl  ·  3 Smite  ·  1 Potion  ·  F Loot  ·  I Inventory",
+        "LMB move / engage  ·  RMB or Space slash  ·  2 Whirl  ·  3 Smite  ·  1 Potion  ·  F loot  ·  I bag",
         VIEW_W / 2,
         VIEW_H / 2 + 86,
       );
       ctx.fillStyle = "#666";
       ctx.font = "12px system-ui";
       ctx.fillText(
-        "Explore the Wastes  ·  Enter dungeons  ·  Clear packs  ·  Hunt forever",
+        "WASD also works  ·  Click enemies to chase  ·  Delve dungeons  ·  Endless hunt",
         VIEW_W / 2,
         VIEW_H / 2 + 112,
       );
@@ -608,115 +667,113 @@ async function main(): Promise<void> {
       lastPlayerY = player.transform.y;
     }
 
-    // --- WORLD FLOOR (screen fill, world-locked pattern — fixes sliding "double floor") ---
+    // --- DIABLO GROUND (continuous dirt plate, world-locked) ---
     if (area) {
-      // base undercolor so empty never flashes
-      ctx.fillStyle =
-        blob.areaKind === "dungeon"
-          ? "#0a090c"
-          : blob.area === "town"
-            ? "#12100e"
-            : "#0e0c0a";
+      ctx.fillStyle = "#080706";
       ctx.fillRect(0, 0, VIEW_W, VIEW_H);
-
       const pat = ctx.createPattern(floor, "repeat");
       if (pat && typeof (pat as CanvasPattern).setTransform === "function") {
-        // World-locked primary grain
-        const tilePx = FLOOR_TILE_WORLD * SCALE;
-        const sx = tilePx / floor.naturalWidth;
-        const sy = tilePx / floor.naturalHeight;
+        // ~220 world units per plate → soft continuous ground
+        const tilePx = 220 * SCALE;
+        const s = tilePx / 1024;
         const m = new DOMMatrix()
           .translate(-viewCamX, -viewCamY)
-          .scale(sx, sy);
+          .scale(s, s);
         (pat as CanvasPattern).setTransform(m);
         ctx.fillStyle = pat;
-        ctx.globalAlpha = 0.88;
         ctx.fillRect(0, 0, VIEW_W, VIEW_H);
-        // Second pass, offset + larger scale breaks the obvious tile lattice
-        const pat2 = ctx.createPattern(floor, "repeat");
-        if (pat2 && typeof pat2.setTransform === "function") {
-          const m2 = new DOMMatrix()
-            .translate(-viewCamX + 47, -viewCamY + 31)
-            .scale(sx * 1.37, sy * 1.37)
-            .rotate(17);
-          pat2.setTransform(m2);
-          ctx.fillStyle = pat2;
-          ctx.globalAlpha = 0.28;
-          ctx.fillRect(0, 0, VIEW_W, VIEW_H);
-        }
-        ctx.globalAlpha = 1;
       }
-
-      // soft vignette dirt, not a second "floor layer"
-      const wash =
+      // zone mood only (single wash)
+      ctx.fillStyle =
         blob.areaKind === "dungeon"
-          ? "rgba(12,8,22,0.32)"
+          ? "rgba(18,10,28,0.35)"
           : blob.area === "wastes"
-            ? "rgba(22,14,8,0.22)"
-            : "rgba(0,0,0,0.1)";
-      ctx.fillStyle = wash;
+            ? "rgba(40,22,10,0.2)"
+            : "rgba(20,14,10,0.12)";
       ctx.fillRect(0, 0, VIEW_W, VIEW_H);
     }
 
-    // player torch + ambient
-    if (player?.transform) {
-      const lx = player.transform.x * SCALE - viewCamX;
-      const ly = player.transform.y * SCALE - viewCamY;
-      const dark =
-        blob.areaKind === "dungeon" ? 0.7 : blob.area === "wastes" ? 0.5 : 0.38;
-      const lightR = blob.areaKind === "dungeon" ? 280 : 380;
-      const core = ctx.createRadialGradient(lx, ly, 10, lx, ly, 110);
-      core.addColorStop(0, "rgba(255,200,130,0.14)");
-      core.addColorStop(1, "rgba(0,0,0,0)");
-      ctx.fillStyle = core;
-      ctx.fillRect(0, 0, VIEW_W, VIEW_H);
-      const light = ctx.createRadialGradient(lx, ly, 40, lx, ly, lightR);
-      light.addColorStop(0, "rgba(0,0,0,0)");
-      light.addColorStop(0.55, "rgba(0,0,0,0.12)");
-      light.addColorStop(1, `rgba(0,0,0,${dark})`);
-      ctx.fillStyle = light;
-      ctx.fillRect(0, 0, VIEW_W, VIEW_H);
+    // click path + destination (Diablo green ghost)
+    {
+      const sim = gw.getSim();
+      const path = sim?.getPlayerPath() ?? [];
+      const tgt = sim?.getMoveTarget();
+      if (path.length > 1) {
+        ctx.strokeStyle = "rgba(80,200,90,0.35)";
+        ctx.lineWidth = 2;
+        ctx.setLineDash([6, 8]);
+        ctx.beginPath();
+        for (let i = 0; i < path.length; i++) {
+          const p = path[i]!;
+          const sx = p.x * SCALE - viewCamX;
+          const sy = p.y * SCALE - viewCamY;
+          if (i === 0) ctx.moveTo(sx, sy);
+          else ctx.lineTo(sx, sy);
+        }
+        ctx.stroke();
+        ctx.setLineDash([]);
+      }
+      if (tgt) {
+        const sx = tgt.x * SCALE - viewCamX;
+        const sy = tgt.y * SCALE - viewCamY;
+        ctx.strokeStyle = "rgba(100,255,120,0.7)";
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.arc(sx, sy, 10 + Math.sin(now / 120) * 2, 0, Math.PI * 2);
+        ctx.stroke();
+        ctx.fillStyle = "rgba(80,220,100,0.25)";
+        ctx.beginPath();
+        ctx.arc(sx, sy, 6, 0, Math.PI * 2);
+        ctx.fill();
+      }
     }
 
-    // walls — solid mass with soft edge (not tiny Nintendo brick spam)
+    // walls — extruded 3/4 “height” (Diablo dungeon blocks)
     if (area) {
-      for (const w of area.walls) {
+      // sort walls by y for crude painter
+      const walls = [...area.walls].sort((a, b) => a.y + a.h - (b.y + b.h));
+      for (const w of walls) {
         const x = w.x * SCALE - viewCamX;
         const y = w.y * SCALE - viewCamY;
         const ww = w.w * SCALE;
         const hh = w.h * SCALE;
-        // skip off-screen
-        if (x + ww < -40 || y + hh < -40 || x > VIEW_W + 40 || y > VIEW_H + 40)
+        if (x + ww < -50 || y + hh < -50 || x > VIEW_W + 50 || y > VIEW_H + 80)
           continue;
 
-        // soft ground shadow under wall
-        ctx.fillStyle = "rgba(0,0,0,0.45)";
-        ctx.fillRect(x + 4, y + 4, ww, hh);
+        // south face (vertical)
+        const faceGrad = ctx.createLinearGradient(x, y, x, y + hh + WALL_Z);
+        faceGrad.addColorStop(0, "#3a342e");
+        faceGrad.addColorStop(0.45, "#221e1a");
+        faceGrad.addColorStop(1, "#0c0a08");
+        ctx.fillStyle = faceGrad;
+        ctx.fillRect(x, y - WALL_Z * 0.15, ww, hh + WALL_Z * 0.35);
 
-        // rock fill (world-locked pattern at large grain)
+        // top cap
+        ctx.fillStyle = "#4a433a";
+        ctx.beginPath();
+        ctx.moveTo(x, y - WALL_Z * 0.15);
+        ctx.lineTo(x + ww, y - WALL_Z * 0.15);
+        ctx.lineTo(x + ww - 3, y - WALL_Z);
+        ctx.lineTo(x + 3, y - WALL_Z);
+        ctx.closePath();
+        ctx.fill();
+        // rock noise on face
         const wp = ctx.createPattern(wallTex, "repeat");
         if (wp && typeof wp.setTransform === "function") {
           const m = new DOMMatrix()
             .translate(x, y)
-            .scale((96 * SCALE) / wallTex.naturalWidth);
+            .scale((140 * SCALE) / wallTex.naturalWidth);
           wp.setTransform(m);
+          ctx.globalAlpha = 0.35;
           ctx.fillStyle = wp;
-        } else {
-          ctx.fillStyle = "#2a2622";
+          ctx.fillRect(x, y - WALL_Z * 0.1, ww, hh + WALL_Z * 0.25);
+          ctx.globalAlpha = 1;
         }
-        ctx.fillRect(x, y, ww, hh);
-
-        // top highlight / bottom occlusion (depth)
-        const edge = Math.min(6, Math.min(ww, hh) * 0.15);
-        ctx.fillStyle = "rgba(255,240,200,0.06)";
-        ctx.fillRect(x, y, ww, edge);
-        ctx.fillStyle = "rgba(0,0,0,0.45)";
-        ctx.fillRect(x, y + hh - edge, ww, edge);
-        ctx.fillStyle = "rgba(0,0,0,0.25)";
-        ctx.fillRect(x + ww - edge, y, edge, hh);
-        ctx.strokeStyle = "rgba(0,0,0,0.7)";
-        ctx.lineWidth = 1.5;
-        ctx.strokeRect(x + 0.5, y + 0.5, ww - 1, hh - 1);
+        // rim light
+        ctx.strokeStyle = "rgba(255,220,160,0.08)";
+        ctx.strokeRect(x + 1, y - WALL_Z * 0.12, ww - 2, 2);
+        ctx.fillStyle = "rgba(0,0,0,0.5)";
+        ctx.fillRect(x, y + hh - 3, ww, 4);
       }
 
       // town ash shrine (vendor)
@@ -1138,20 +1195,30 @@ async function main(): Promise<void> {
       ctx.fillRect(p.x, p.y, p.r, p.r);
     }
 
-    // vignette
-    const vig = ctx.createRadialGradient(
-      VIEW_W / 2,
-      VIEW_H / 2,
-      VIEW_H * 0.12,
-      VIEW_W / 2,
-      VIEW_H / 2,
-      VIEW_H * 0.82,
-    );
-    vig.addColorStop(0, "rgba(0,0,0,0)");
-    vig.addColorStop(0.65, "rgba(0,0,0,0.15)");
-    vig.addColorStop(1, "rgba(0,0,0,0.72)");
-    ctx.fillStyle = vig;
-    ctx.fillRect(0, 0, VIEW_W, VIEW_H);
+    // --- DIABLO DARKNESS (hard light radius around player) ---
+    if (player?.transform) {
+      const lx = player.transform.x * SCALE - viewCamX;
+      const ly = player.transform.y * SCALE - viewCamY;
+      const r =
+        blob.areaKind === "dungeon" ? 210 : blob.area === "wastes" ? 280 : 320;
+      // warm torch core
+      const core = ctx.createRadialGradient(lx, ly, 12, lx, ly, r * 0.45);
+      core.addColorStop(0, "rgba(255,190,110,0.12)");
+      core.addColorStop(1, "rgba(0,0,0,0)");
+      ctx.fillStyle = core;
+      ctx.fillRect(0, 0, VIEW_W, VIEW_H);
+      // pitch beyond sight — signature Diablo look
+      const fog = ctx.createRadialGradient(lx, ly, r * 0.35, lx, ly, r * 1.15);
+      fog.addColorStop(0, "rgba(0,0,0,0)");
+      fog.addColorStop(0.55, "rgba(0,0,0,0.35)");
+      fog.addColorStop(0.85, "rgba(0,0,0,0.78)");
+      fog.addColorStop(1, "rgba(0,0,0,0.94)");
+      ctx.fillStyle = fog;
+      ctx.fillRect(0, 0, VIEW_W, VIEW_H);
+    } else {
+      ctx.fillStyle = "rgba(0,0,0,0.75)";
+      ctx.fillRect(0, 0, VIEW_W, VIEW_H);
+    }
 
     // --- DIABLO HUD ---
     const hp = Number(blob.hp ?? player?.health?.hp ?? 0);

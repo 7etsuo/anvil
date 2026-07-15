@@ -82,6 +82,10 @@ export interface ActorRuntime {
   /** Idle wander phase (ms) */
   wanderMs: number;
   wanderAng: number;
+  /** Path follow (world waypoints) */
+  path: Array<{ x: number; y: number }>;
+  pathI: number;
+  repathMs: number;
 }
 
 export const DEFAULT_RADIUS = 12;

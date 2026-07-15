@@ -2,7 +2,7 @@ import type { EquipSlot, ItemStack } from "./types.js";
 import { EQUIP_SLOTS } from "./types.js";
 import type { Inventory } from "./Inventory.js";
 import type { ItemDef } from "./types.js";
-import { canEquipAtLevel, stackReqLevel } from "./itemLevel.js";
+import { canEquipAtLevel, stackReqLevel } from "./itemization.js";
 
 export type ItemDefLookup = (defId: string) => ItemDef | undefined;
 

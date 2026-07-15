@@ -83,14 +83,19 @@ describe("Inventory + Equipment + CharacterSheet", () => {
       id: "mail",
       name: "Mail",
       slot: "chest" as const,
+      rarity: "magic" as const,
       stats: { armor: 6, maxHp: 20 },
       itemLevel: 1,
     };
-    const l1 = rollItemInstance(def, 1, { rng: () => 0.5, variance: 0 });
-    const l10 = rollItemInstance(def, 10, { rng: () => 0.5, variance: 0 });
+    // fixedQuality 1 = mid roll (no variance noise)
+    const l1 = rollItemInstance(def, 1, { fixedQuality: 1 });
+    const l10 = rollItemInstance(def, 10, { fixedQuality: 1 });
     expect(l1.reqLevel).toBe(1);
     expect(l10.reqLevel).toBe(10);
+    // L10 armor ≈ 6 * (1 + 0.12*9) * slot * rarity > L1
     expect((l10.rolledStats.armor ?? 0) > (l1.rolledStats.armor ?? 0)).toBe(true);
+    expect((l10.minStats.armor ?? 0) <= (l10.rolledStats.armor ?? 0)).toBe(true);
+    expect((l10.maxStats.armor ?? 0) >= (l10.rolledStats.armor ?? 0)).toBe(true);
     expect(canEquipAtLevel(5, l10)).toBe(false);
     expect(canEquipAtLevel(10, l10)).toBe(true);
     expect(canEquipAtLevel(12, l10)).toBe(true);
@@ -117,6 +122,9 @@ describe("Inventory + Equipment + CharacterSheet", () => {
     expect(r.ok).toBe(false);
     expect(r.error).toBe("level_req");
     sheet.level = 10;
+    expect(sheet.equip(uid).ok).toBe(true);
+    // level 11 still ok
+    sheet.level = 11;
     expect(sheet.equip(uid).ok).toBe(true);
   });
 

@@ -136,13 +136,21 @@ export type {
   LootTableLike as LootPolicyTable,
 } from "./rpg/LootPolicy.js";
 export {
+  DEFAULT_ITEMIZATION,
+  itemPowerFactor,
   scaleStatsForItemLevel,
   rollDropItemLevel,
+  computeReqLevel,
   rollItemInstance,
   stackReqLevel,
   canEquipAtLevel,
-} from "./rpg/itemLevel.js";
-export type { ItemLevelOpts, RolledItemInstance } from "./rpg/itemLevel.js";
+  itemPowerScore,
+} from "./rpg/itemization.js";
+export type {
+  ItemizationConfig,
+  ScaleItemStatsOpts,
+  RolledItemInstance,
+} from "./rpg/itemization.js";
 
 // Run state save
 export {

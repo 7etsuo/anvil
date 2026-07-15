@@ -1,6 +1,6 @@
 import { Equipment, type ItemDefLookup } from "./Equipment.js";
 import { Inventory } from "./Inventory.js";
-import { rollItemInstance } from "./itemLevel.js";
+import { rollItemInstance } from "./itemization.js";
 import { addStats, computeFinalStats, emptyStats } from "./stats.js";
 import type {
   CharacterSaveBlob,

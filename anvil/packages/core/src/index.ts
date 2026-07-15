@@ -38,5 +38,10 @@ export {
   saveGame,
   loadGame,
   setGenreStateHooks,
+  setCharacterSaveHooks,
+  setZoneSaveHooks,
 } from "./save/saveGame.js";
 export type { SaveGame } from "./save/saveGame.js";
+
+// RPG systems (inventory, equip, stats, loot, zones)
+export * from "./rpg/index.js";

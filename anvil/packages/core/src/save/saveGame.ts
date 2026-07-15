@@ -8,22 +8,37 @@ import {
 } from "../createGame.js";
 import type { Entity } from "../world/World.js";
 
+import type { CharacterSaveBlob, ZoneGraphState } from "../rpg/types.js";
+
 export interface SaveGame {
-  v: 1;
+  /** v1 original; v2 adds character + zones */
+  v: 1 | 2;
   gameId: string;
   scene: string;
   seed: number;
   tick: number;
   entities: Entity[];
   genreState: Record<string, unknown>;
+  /** RPG character sheet (inventory, equip, stats) */
+  character?: CharacterSaveBlob;
+  /** Zone graph progress */
+  zones?: ZoneGraphState;
   savedAt: string;
 }
 
 export type GenreStateProvider = () => Record<string, unknown>;
 export type GenreStateApplier = (state: Record<string, unknown>) => void;
+export type CharacterProvider = () => CharacterSaveBlob | undefined;
+export type CharacterApplier = (data: CharacterSaveBlob) => void;
+export type ZonesProvider = () => ZoneGraphState | undefined;
+export type ZonesApplier = (data: ZoneGraphState) => void;
 
 const providers = new WeakMap<GameHandle, GenreStateProvider>();
 const appliers = new WeakMap<GameHandle, GenreStateApplier>();
+const charProviders = new WeakMap<GameHandle, CharacterProvider>();
+const charAppliers = new WeakMap<GameHandle, CharacterApplier>();
+const zoneProviders = new WeakMap<GameHandle, ZonesProvider>();
+const zoneAppliers = new WeakMap<GameHandle, ZonesApplier>();
 
 export function setGenreStateHooks(
   handle: GameHandle,
@@ -32,6 +47,26 @@ export function setGenreStateHooks(
 ): void {
   providers.set(handle, get);
   appliers.set(handle, apply);
+}
+
+/** Hook character sheet into save/load (inventory, equip, stats, xp). */
+export function setCharacterSaveHooks(
+  handle: GameHandle,
+  get: CharacterProvider,
+  apply: CharacterApplier,
+): void {
+  charProviders.set(handle, get);
+  charAppliers.set(handle, apply);
+}
+
+/** Hook zone graph into save/load. */
+export function setZoneSaveHooks(
+  handle: GameHandle,
+  get: ZonesProvider,
+  apply: ZonesApplier,
+): void {
+  zoneProviders.set(handle, get);
+  zoneAppliers.set(handle, apply);
 }
 
 function slotPath(root: string, slot = "slot0"): string {
@@ -67,14 +102,20 @@ export async function saveGame(
 
 function buildSave(handle: GameHandle): SaveGame {
   const get = providers.get(handle);
+  const getChar = charProviders.get(handle);
+  const getZones = zoneProviders.get(handle);
+  const character = getChar?.();
+  const zones = getZones?.();
   return {
-    v: 1,
+    v: character || zones ? 2 : 1,
     gameId: handle.game.id,
     scene: handle.scenes.current() ?? handle.game.entryScene,
     seed: handle.getSeed(),
     tick: handle.getTick(),
     entities: handle.world.all().map(cloneEntity),
     genreState: get ? get() : {},
+    character,
+    zones,
     savedAt: new Date().toISOString(),
   };
 }
@@ -120,10 +161,14 @@ export async function loadGame(
     });
   }
 
-  if (data.v !== 1 || !data.gameId || !Array.isArray(data.entities)) {
+  if (
+    (data.v !== 1 && data.v !== 2) ||
+    !data.gameId ||
+    !Array.isArray(data.entities)
+  ) {
     throw Object.assign(new Error("Invalid save schema"), {
       anvilError: err("SCHEMA_INVALID", "Invalid save schema", {
-        hint: "Expected SaveGame v1",
+        hint: "Expected SaveGame v1 or v2",
       }),
     });
   }
@@ -167,6 +212,12 @@ export async function loadGame(
 
   const apply = appliers.get(handle);
   if (apply && data.genreState) apply(data.genreState);
+
+  const applyChar = charAppliers.get(handle);
+  if (applyChar && data.character) applyChar(data.character);
+
+  const applyZones = zoneAppliers.get(handle);
+  if (applyZones && data.zones) applyZones(data.zones);
 
   return handle;
 }

@@ -102,6 +102,8 @@ export type {
   ItemDefLike,
   LootTableLike,
 } from "./content/validateContent.js";
+export { validateContentTree } from "./content/validateContentTree.js";
+export type { ContentValidateResult } from "./content/validateContentTree.js";
 
 // Plugins
 export { PluginRegistry } from "./plugins/PluginRegistry.js";

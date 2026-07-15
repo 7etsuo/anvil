@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.5.2 — Content tree Zod validation
+
+- Full Zod schemas for items, loot, quests, actors, maps/areas, cards, audio
+- `validateContentTree` wired into `anvil validate` / `validateProject`
+- Loot → item REF_MISSING warnings when item catalog present
+
 ## 0.5.0 — Agent-native ACI
 
 ### Engine

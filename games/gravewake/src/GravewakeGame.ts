@@ -148,7 +148,7 @@ export class GravewakeGame {
     }
   }
 
-  private checkPortals(input: InputMap): void {
+  private checkPortals(): void {
     const area = this.areas[this.area];
     if (!area?.portals?.length || !this.sim) return;
     const p = this.world.get("player");

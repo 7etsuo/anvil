@@ -1,34 +1,23 @@
 # Anvil
 
-Agent-native multi-genre game engine / SDK.
+**Agent-native multi-genre TypeScript game engine.**  
+**Priority: engine quality.** Games sit under `../games/`.
 
-## Documentation (canonical)
+**Start here for the engine surface:** **[ENGINE.md](./ENGINE.md)**
 
-# → **[docs/design/README.md](./docs/design/README.md)** ← start here always
+## Documentation
 
 | Need | Doc |
 |------|-----|
-| Master map + is planning complete? | [docs/design/README.md](./docs/design/README.md) |
-| Honest gaps | [docs/design/16_PLANNING_STATUS_AND_GAPS.md](./docs/design/16_PLANNING_STATUS_AND_GAPS.md) |
+| **Engine API map** | [ENGINE.md](./ENGINE.md) |
+| Full design set | [docs/design/README.md](./docs/design/README.md) |
 | AI session boot | [docs/design/AGENTS.md](./docs/design/AGENTS.md) |
-| Diagram inventory | [docs/design/diagrams/DIAGRAM_INDEX.md](./docs/design/diagrams/DIAGRAM_INDEX.md) |
-| Research PDFs | [docs/research/papers/](./docs/research/papers/) |
+| RPG systems | [docs/design/specs/S-RPG.md](./docs/design/specs/S-RPG.md) |
+| Engine extras | [docs/design/specs/S-ENGINE_EXTRAS.md](./docs/design/specs/S-ENGINE_EXTRAS.md) |
 
 ## Status
 
-| Phase | State |
-|-------|--------|
-| Planning (full engine M1–M9) | **Complete** |
-| **M1 code** | **Done** |
-| **M2 code** | **Done** |
-| **M3 code** | **Done** (genre-card, hello-card, recipes) |
-| **M4 code** | **Done** (genre-topdown2d, hello-topdown, recipes) |
-| **M5 code** | **Done** (genre-vn, genre-shmup, recipes ≥15) |
-| **M6 code** | **Done** (AGENTS, CI matrix, errors, build, perf) |
-| **M7 code** | **Done** (genre-fps2, hello-fps2, starter) |
-| **M8 code** | **Done** (genre-net loopback spike) |
-| **M9 code** | **Done** (Gravewake greybox vertical slice) |
-| Next | Polish / content / art packs (post-milestone) |
+Engine milestones M1–M9 **code complete**, plus RPG systems + engine extras (UI, AI, path, quests, audio bus, Phaser, WS server, Electron shell). Ongoing work: harden core, not feature theater.
 
 ## Quick start (dev)
 

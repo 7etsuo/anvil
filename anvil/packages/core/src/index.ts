@@ -32,7 +32,7 @@ export type {
 } from "./render/RenderFacade.js";
 export { NullRenderFacade } from "./render/RenderFacade.js";
 export { CanvasRenderFacade } from "./render/CanvasRenderFacade.js";
-export { Kernel } from "./kernel/Kernel.js";
+export { ANVIL_VERSION, Kernel } from "./kernel/Kernel.js";
 export type { GenreModule, KernelInternals } from "./modules/ModuleRegistry.js";
 export { ModuleRegistry } from "./modules/ModuleRegistry.js";
 export { AudioSystem } from "./audio/AudioSystem.js";
@@ -46,6 +46,10 @@ export {
   setZoneSaveHooks,
 } from "./save/saveGame.js";
 export type { SaveGame } from "./save/saveGame.js";
+export {
+  attachCharacterSheet,
+  attachZoneGraph,
+} from "./engine/attach.js";
 
 // RPG systems (inventory, equip, stats, loot, zones)
 export * from "./rpg/index.js";

@@ -11,9 +11,10 @@ import { browserGravewakeModule, getBrowserGravewake } from "./browserModule.js"
 import { embeddedAreas } from "./contentEmbed.js";
 import type { FxEvent } from "../src/GravewakeGame.js";
 
-const SCALE = 1.2;
-const VIEW_W = 1120;
-const VIEW_H = 680;
+const SCALE = 1.25;
+/** Full-window logical resolution (updated on resize). */
+let VIEW_W = 1280;
+let VIEW_H = 720;
 
 const ASSET_URLS: Record<string, string> = {
   "actors/gravewarden.png": "/assets/actors/gravewarden.png",
@@ -168,8 +169,6 @@ function drawSkillSlot(
 
 async function main(): Promise<void> {
   const mount = document.getElementById("mount");
-  const hudEl = document.getElementById("hud");
-  const loading = document.getElementById("loading");
   if (!mount) throw new Error("#mount missing");
 
   const images = new Map<string, HTMLImageElement>();
@@ -179,9 +178,17 @@ async function main(): Promise<void> {
     }),
   );
 
+  const dpr = Math.min(window.devicePixelRatio || 1, 2);
+  VIEW_W = Math.max(960, Math.floor(window.innerWidth));
+  VIEW_H = Math.max(600, Math.floor(window.innerHeight));
+
   const renderer = new CanvasRenderFacade(mount);
-  await renderer.init(VIEW_W, VIEW_H);
-  loading?.classList.add("hidden");
+  await renderer.init(Math.floor(VIEW_W * dpr), Math.floor(VIEW_H * dpr));
+  // Draw in CSS-pixel space while backing store is HiDPI
+  const rawCtx = renderer.getContext();
+  if (rawCtx) rawCtx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  renderer.resize(Math.floor(VIEW_W * dpr), Math.floor(VIEW_H * dpr));
+  if (rawCtx) rawCtx.setTransform(dpr, 0, 0, dpr, 0, 0);
 
   const handle = await createGame({
     root: "/",
@@ -215,11 +222,20 @@ async function main(): Promise<void> {
 
   const canvas = renderer.getCanvas();
   if (canvas) {
-    canvas.tabIndex = 0;
     canvas.style.outline = "none";
     canvas.focus();
     mount.addEventListener("click", () => canvas.focus());
   }
+
+  const applySize = () => {
+    VIEW_W = Math.max(960, Math.floor(window.innerWidth));
+    VIEW_H = Math.max(600, Math.floor(window.innerHeight));
+    const d = Math.min(window.devicePixelRatio || 1, 2);
+    renderer.resize(Math.floor(VIEW_W * d), Math.floor(VIEW_H * d));
+    const c = renderer.getContext();
+    if (c) c.setTransform(d, 0, 0, d, 0, 0);
+  };
+  window.addEventListener("resize", applySize);
 
   const keysHeld = new Set<string>();
   const syncMove = () => {
@@ -524,41 +540,7 @@ async function main(): Promise<void> {
         ctx.strokeRect(x + 2, y + 2, Math.max(0, ww - 4), Math.max(0, hh - 4));
       }
 
-      // Edge exits: subtle doorway light on open wall gaps (not arcade portals)
-      for (const ex of area.exits ?? []) {
-        const locked =
-          ex.requireClear && (blob.livingEnemies as number) > 0;
-        const pulse = 0.4 + 0.3 * Math.sin(now / 400);
-        let x = 0;
-        let y = 0;
-        let ww = 18;
-        let hh = 80;
-        if (ex.edge === "east") {
-          x = area.width * SCALE - 18 - viewCamX;
-          y = area.height * SCALE * 0.5 - 50 - viewCamY;
-          ww = 16;
-          hh = 100;
-        } else if (ex.edge === "west") {
-          x = 2 - viewCamX;
-          y = area.height * SCALE * 0.5 - 50 - viewCamY;
-          ww = 16;
-          hh = 100;
-        } else if (ex.edge === "north") {
-          x = area.width * SCALE * 0.5 - 50 - viewCamX;
-          y = 2 - viewCamY;
-          ww = 100;
-          hh = 16;
-        } else {
-          x = area.width * SCALE * 0.5 - 50 - viewCamX;
-          y = area.height * SCALE - 18 - viewCamY;
-          ww = 100;
-          hh = 16;
-        }
-        ctx.fillStyle = locked
-          ? `rgba(120,30,30,${0.15 + pulse * 0.1})`
-          : `rgba(200,160,80,${0.12 + pulse * 0.12})`;
-        ctx.fillRect(x, y, ww, hh);
-      }
+      // Zone changes: walk through wall gaps only — no door chrome drawn.
     }
 
     // entities
@@ -859,10 +841,6 @@ async function main(): Promise<void> {
       ctx.textAlign = "left";
     }
 
-    if (hudEl) {
-      hudEl.textContent = `${blob.areaName} · ${blob.livingEnemies} foes · ${blob.gold} gold`;
-    }
-
     requestAnimationFrame(frame);
   }
 
@@ -873,5 +851,5 @@ async function main(): Promise<void> {
 
 main().catch((e) => {
   console.error(e);
-  document.getElementById("loading")!.textContent = String(e);
+  document.body.innerHTML = `<pre style="color:#f66;padding:24px;font:14px monospace">${String(e?.stack ?? e)}</pre>`;
 });

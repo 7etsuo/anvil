@@ -1,0 +1,8 @@
+{
+  "id": "tyrant_plate",
+  "name": "Tyrant Plate",
+  "rarity": "rare",
+  "slot": "chest",
+  "stats": { "armor": 14, "maxHp": 40 },
+  "flavor": "Rib-forged plate of the Bonekeep."
+}

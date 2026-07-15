@@ -13,8 +13,19 @@ import {
   spawnGroundLoot,
   tryPickupNearest,
 } from "@anvil/core";
-import { TopdownSim, type ActorDef, type MapDef } from "@anvil/genre-topdown2d";
-import type { AreaId, AreaMapDef, ProgressionDef, SkillId } from "./types.js";
+import {
+  PackSpawner,
+  TopdownSim,
+  type ActorDef,
+  type MapDef,
+} from "@anvil/genre-topdown2d";
+import type {
+  AreaId,
+  AreaMapDef,
+  PortalDef,
+  ProgressionDef,
+  SkillId,
+} from "./types.js";
 
 export type FxEvent =
   | { kind: "slash"; x: number; y: number; t: number; skill: SkillId }
@@ -31,9 +42,14 @@ export interface GravewakeServices {
   quests?: QuestSystem;
 }
 
+const BOSS_IDS = new Set([
+  "bellwarden",
+  "death_knight",
+  "bone_tyrant",
+]);
+
 /**
- * Diablo-like Gravewake on Anvil: CharacterSheet, loot, equip, multi-skill combat,
- * random packs, quests, particles.
+ * Endless Diablo-like Gravewake: open wastes, dungeons, timed packs, scaling threat.
  */
 export class GravewakeGame {
   private world: World;
@@ -41,11 +57,16 @@ export class GravewakeGame {
   private areas: Record<string, AreaMapDef>;
   private progression: ProgressionDef;
   private items: Record<string, ItemDef>;
-  private lootTables: Record<string, { id: string; entries: Array<{ item: string; weight: number; min?: number; max?: number }> }>;
+  private lootTables: Record<
+    string,
+    {
+      id: string;
+      entries: Array<{ item: string; weight: number; min?: number; max?: number }>;
+    }
+  >;
   private sim: TopdownSim | null = null;
   private area: AreaId = "town";
   private sheet: CharacterSheet;
-  private victory = false;
   private killed = new Set<string>();
   private cd: Record<SkillId, number> = {
     slash: 0,
@@ -58,10 +79,16 @@ export class GravewakeGame {
   private blockedBannerCd = 0;
   private services: GravewakeServices;
   private showInv = false;
+  private spawner: PackSpawner | null = null;
+  private bossSlainOnce = false;
+  private timeAlive = 0;
+  private bossesKilled = 0;
   fx: FxEvent[] = [];
   kills = 0;
   exitHint = "";
   lastSkill: SkillId = "slash";
+  /** Never freezes the game — true only as a one-shot milestone flag for UI. */
+  milestoneBoss = false;
 
   constructor(
     world: World,
@@ -71,7 +98,10 @@ export class GravewakeGame {
     items: Record<string, ItemDef> = {},
     lootTables: Record<
       string,
-      { id: string; entries: Array<{ item: string; weight: number; min?: number; max?: number }> }
+      {
+        id: string;
+        entries: Array<{ item: string; weight: number; min?: number; max?: number }>;
+      }
     > = {},
     rng: () => number = Math.random,
     services: GravewakeServices = {},
@@ -88,33 +118,49 @@ export class GravewakeGame {
     this.sheet = new Sheet({
       itemDefs: items,
       gold: progression.startGold,
-      inventoryCapacity: 24,
+      inventoryCapacity: 32,
       baseStats: {
-        maxHp: 120,
+        maxHp: 130,
         damage: progression.meleeDamage,
         armor: 2,
-        speed: 200,
+        speed: 205,
         critChance: 0.08,
-        critMult: 1.75,
+        critMult: 1.8,
       },
       level: 1,
       xp: 0,
     });
-    // starter gear
     this.sheet.pickup("rusty_sword");
     const sword = this.sheet.inventory.findByDef("rusty_sword");
     if (sword) this.sheet.equip(sword.uid);
-    this.sheet.pickup("health_potion", 3);
+    this.sheet.pickup("health_potion", 5);
 
     this.services.quests?.register({
-      id: "parish_purge",
-      title: "Purge the Parish",
+      id: "wake_of_ashes",
+      title: "Wake of Ashes",
       autoStart: true,
       steps: [
-        { id: "enter", description: "Enter Cinder Parish", completeFlag: "entered_parish" },
-        { id: "slay", description: "Slay the dead", countKey: "kill", countTarget: 8 },
-        { id: "crypt", description: "Enter Bellcrypt", completeFlag: "entered_crypt" },
-        { id: "boss", description: "Silence the Bellwarden", completeFlag: "bellwarden_dead" },
+        {
+          id: "leave",
+          description: "Leave the Lychgate into the Wastes",
+          completeFlag: "entered_wastes",
+        },
+        {
+          id: "slay",
+          description: "Slay the dead",
+          countKey: "kill",
+          countTarget: 15,
+        },
+        {
+          id: "dungeon",
+          description: "Enter any dungeon",
+          completeFlag: "entered_dungeon",
+        },
+        {
+          id: "boss",
+          description: "Fell a dungeon lord",
+          completeFlag: "boss_slain",
+        },
       ],
     });
 
@@ -133,17 +179,43 @@ export class GravewakeGame {
     return this.area;
   }
 
+  /** Infinite game — never “won”. Kept for tests. */
   isVictory(): boolean {
-    return this.victory;
+    return false;
   }
 
   getSim(): TopdownSim | null {
     return this.sim;
   }
 
+  getPortals(): PortalDef[] {
+    return this.areas[this.area]?.portals ?? [];
+  }
+
   private pushFx(ev: FxEvent): void {
     this.fx.push(ev);
-    if (this.fx.length > 120) this.fx.splice(0, this.fx.length - 120);
+    if (this.fx.length > 140) this.fx.splice(0, this.fx.length - 140);
+  }
+
+  private threatTier(): number {
+    const areaThreat = this.areas[this.area]?.threat ?? 0;
+    const perLv = this.progression.threatPerLevel ?? 0.12;
+    const perKill = this.progression.threatPerKills ?? 0.02;
+    return (
+      areaThreat +
+      Math.max(0, this.sheet.level - 1) * perLv +
+      this.kills * perKill +
+      this.bossesKilled * 0.25
+    );
+  }
+
+  private scaleForThreat(): { hpMul: number; dmgMul: number; speedMul: number } {
+    const t = this.threatTier();
+    return {
+      hpMul: 1 + t * 0.35,
+      dmgMul: 1 + t * 0.18,
+      speedMul: 1 + Math.min(0.35, t * 0.04),
+    };
   }
 
   private syncPlayerFromSheet(): void {
@@ -153,7 +225,6 @@ export class GravewakeGame {
     const ratio = p.health.hp / Math.max(1, p.health.max);
     p.health.max = Math.floor(stats.maxHp);
     p.health.hp = Math.max(1, Math.floor(p.health.max * ratio));
-    // speed on actor runtime is private — damage used at skill time
   }
 
   private enterArea(id: AreaId, spawn?: { x: number; y: number }): void {
@@ -161,12 +232,14 @@ export class GravewakeGame {
     if (!area) throw new Error(`Unknown area: ${id}`);
     this.area = id;
     this.killed.clear();
-    this.exitCooldownMs = 700;
+    this.exitCooldownMs = 800;
     this.exitHint = "";
+    this.milestoneBoss = false;
+    this.spawner = null;
 
     for (const e of this.world.all()) this.world.destroy(e.id);
 
-    const spawns = this.buildSpawns(area);
+    const spawns = this.buildInitialSpawns(area);
     const map: MapDef = {
       id: area.id,
       width: area.width,
@@ -179,6 +252,14 @@ export class GravewakeGame {
       autoWinOnClear: false,
     });
 
+    // Scale initial non-player spawns
+    const scale = this.scaleForThreat();
+    for (const e of this.world.all()) {
+      if (!e.tags.includes("enemy") || !e.health) continue;
+      e.health.max = Math.max(1, Math.floor(e.health.max * scale.hpMul));
+      e.health.hp = e.health.max;
+    }
+
     if (spawn) {
       const p = this.world.get("player");
       if (p?.transform) {
@@ -188,41 +269,113 @@ export class GravewakeGame {
     }
     this.syncPlayerFromSheet();
 
-    const names: Record<AreaId, string> = {
-      town: "Ashen Lychgate",
-      parish: "Cinder Parish",
-      crypt: "Bellcrypt",
-    };
-    this.pushFx({ kind: "banner", text: names[id], t: 2.0 });
-    if (id === "parish") this.services.quests?.setFlag("entered_parish");
-    if (id === "crypt") this.services.quests?.setFlag("entered_crypt");
+    if (area.respawn) {
+      const r = area.respawn;
+      this.spawner = new PackSpawner({
+        intervalMs: r.intervalMs,
+        maxLiving: r.maxLiving,
+        packSize: () =>
+          r.packSize[0] +
+          Math.floor(this.rng() * (r.packSize[1] - r.packSize[0] + 1)),
+        livingCount: () => this.sim?.livingEnemyCount() ?? 0,
+        spawnOne: () => this.spawnRandomEnemy(area),
+        enabled: () => !this.showInv,
+      });
+    }
+
+    this.pushFx({ kind: "banner", text: area.name, t: 2.0 });
+    if (id === "wastes") this.services.quests?.setFlag("entered_wastes");
+    if (area.kind === "dungeon") this.services.quests?.setFlag("entered_dungeon");
   }
 
-  private buildSpawns(area: AreaMapDef): MapDef["spawns"] {
+  private buildInitialSpawns(area: AreaMapDef): MapDef["spawns"] {
     const base = area.spawns.filter(
-      (s) => s.team === "player" || s.actor === "gravewarden" || s.actor === "bellwarden",
+      (s) =>
+        s.team === "player" ||
+        s.actor === "gravewarden" ||
+        BOSS_IDS.has(s.actor),
     );
     const out = [...base];
-    const table = area.packTable;
-    const range = area.packCount;
-    if (!table?.length || !range) return out;
+
+    const packTable = area.respawn?.packTable ?? area.packTable;
+    const range = area.respawn?.initialPack ?? area.packCount;
+    if (!packTable?.length || !range) return out;
 
     const [lo, hi] = range;
     const count = lo + Math.floor(this.rng() * (hi - lo + 1));
     let placed = 0;
     let guard = 0;
-    while (placed < count && guard++ < count * 20) {
-      const x = 60 + this.rng() * (area.width - 120);
-      const y = 60 + this.rng() * (area.height - 120);
-      if (this.hitsWall(area, x, y, 14)) continue;
-      // keep away from player spawn
-      const ps = base.find((s) => s.team === "player" || s.actor === "gravewarden");
-      if (ps && Math.hypot(x - ps.x, y - ps.y) < 100) continue;
-      const actor = table[Math.floor(this.rng() * table.length)]!;
-      out.push({ actor, x, y, team: "enemy" });
+    while (placed < count && guard++ < count * 30) {
+      const pt = this.randomOpenPoint(area, 120);
+      if (!pt) break;
+      const actor = packTable[Math.floor(this.rng() * packTable.length)]!;
+      out.push({ actor, x: pt.x, y: pt.y, team: "enemy" });
       placed++;
     }
     return out;
+  }
+
+  private randomOpenPoint(
+    area: AreaMapDef,
+    minPlayerDist: number,
+  ): { x: number; y: number } | null {
+    const p = this.world.get("player")?.transform;
+    for (let i = 0; i < 40; i++) {
+      const x = 70 + this.rng() * (area.width - 140);
+      const y = 70 + this.rng() * (area.height - 140);
+      if (this.hitsWall(area, x, y, 16)) continue;
+      if (p && Math.hypot(x - p.x, y - p.y) < minPlayerDist) continue;
+      return { x, y };
+    }
+    return null;
+  }
+
+  private spawnRandomEnemy(area: AreaMapDef): boolean {
+    if (!this.sim) return false;
+    const table = area.respawn?.packTable ?? area.packTable;
+    if (!table?.length) return false;
+    // Prefer spawn near player but not on top — ring around camera
+    const p = this.sim.getPlayerPos();
+    let pt: { x: number; y: number } | null = null;
+    if (p) {
+      for (let i = 0; i < 24; i++) {
+        const ang = this.rng() * Math.PI * 2;
+        const dist = 220 + this.rng() * 380;
+        const x = p.x + Math.cos(ang) * dist;
+        const y = p.y + Math.sin(ang) * dist;
+        if (x < 60 || y < 60 || x > area.width - 60 || y > area.height - 60)
+          continue;
+        if (this.hitsWall(area, x, y, 16)) continue;
+        pt = { x, y };
+        break;
+      }
+    }
+    if (!pt) pt = this.randomOpenPoint(area, 160);
+    if (!pt) return false;
+    const actorId = table[Math.floor(this.rng() * table.length)]!;
+    const def = this.actors[actorId];
+    if (!def) return false;
+    const scale = this.scaleForThreat();
+    // rare elite
+    const elite = this.rng() < 0.08;
+    const id = this.sim.spawnActorPublic(def, pt.x, pt.y, "enemy", {
+      hpMul: scale.hpMul * (elite ? 2.2 : 1),
+      dmgMul: scale.dmgMul * (elite ? 1.5 : 1),
+      speedMul: scale.speedMul * (elite ? 1.1 : 1),
+    });
+    if (elite) {
+      const e = this.world.get(id);
+      if (e) e.data.elite = true;
+      this.pushFx({
+        kind: "float",
+        x: pt.x,
+        y: pt.y - 24,
+        text: "Elite!",
+        color: "#f84",
+        t: 1.2,
+      });
+    }
+    return true;
   }
 
   private hitsWall(
@@ -240,8 +393,8 @@ export class GravewakeGame {
   }
 
   update(dt: number, input: InputMap): void {
-    if (this.victory) return;
     if (!this.sim) return;
+    this.timeAlive += dt;
 
     const dtMs = dt * 1000;
     for (const k of Object.keys(this.cd) as SkillId[]) {
@@ -254,37 +407,43 @@ export class GravewakeGame {
 
     this.sim.update(dt, input);
 
-    // Skills
-    if (input.isPressed("shoot") || input.isPressed("confirm")) {
-      this.cast("slash");
-    }
-    if (input.isPressed("play_card_2") || input.isPressed("choice_2")) {
+    // skills
+    if (input.isPressed("shoot") || input.isPressed("confirm")) this.cast("slash");
+    if (input.isPressed("play_card_2") || input.isPressed("choice_2"))
       this.cast("whirl");
-    }
-    if (input.isPressed("play_card_3") || input.isPressed("choice_3")) {
+    if (input.isPressed("play_card_3") || input.isPressed("choice_3"))
       this.cast("smite");
-    }
-    if (input.isPressed("choice_1") || input.isPressed("play_card_1")) {
+    if (input.isPressed("choice_1") || input.isPressed("play_card_1"))
       this.cast("potion");
-    }
-    if (input.isPressed("inventory") || input.isPressed("map")) {
-      // map key as alt — use inventory key
-    }
-    if (input.isPressed("inventory")) {
-      this.showInv = !this.showInv;
-    }
-    // Digit 0..9 equip from inventory when inv open is handled by browser UI;
-    // F / interact = loot
-    if (input.isPressed("interact")) {
-      this.tryLoot();
-    }
+    if (input.isPressed("inventory")) this.showInv = !this.showInv;
+    if (input.isPressed("interact")) this.tryLoot();
 
-    // auto-pickup gold in range
     this.autoPickupGold();
-
     this.grantXpForKills();
-    if (this.exitCooldownMs <= 0) this.checkExits();
-    this.checkVictory();
+
+    // timed packs
+    if (this.spawner) {
+      const placed = this.spawner.update(dtMs);
+      if (placed > 0 && this.rng() < 0.35) {
+        this.pushFx({
+          kind: "float",
+          x: this.sim.getPlayerPos()?.x ?? 0,
+          y: (this.sim.getPlayerPos()?.y ?? 0) - 40,
+          text: "The dead stir…",
+          color: "#c88",
+          t: 1.0,
+        });
+      }
+    }
+    // corpse cleanup every few seconds worth of frames
+    if (this.killed.size > 40) {
+      this.sim.purgeDeadEnemies();
+    }
+
+    if (this.exitCooldownMs <= 0) {
+      this.checkPortals();
+      this.checkExits();
+    }
   }
 
   private cast(skill: SkillId): void {
@@ -305,7 +464,7 @@ export class GravewakeGame {
     } else if (skill === "whirl") {
       const mul = this.progression.whirlDamageMul ?? 0.75;
       dmg = Math.floor(base * mul * (isCrit ? stats.critMult : 1));
-      range = this.progression.meleeRange * 1.25;
+      range = this.progression.meleeRange * 1.3;
     } else {
       const mul = this.progression.smiteDamageMul ?? 1.35;
       dmg = Math.floor(base * mul * (isCrit ? stats.critMult : 1));
@@ -322,14 +481,14 @@ export class GravewakeGame {
 
     this.lastSkill = skill;
     this.cd[skill] =
-      skill === "slash" ? 280 : skill === "whirl" ? 850 : 650;
+      skill === "slash" ? 260 : skill === "whirl" ? 800 : 620;
 
     this.pushFx({ kind: "slash", x: pos.x, y: pos.y, t: 0.28, skill });
     this.services.particles?.burst({
       x: pos.x,
       y: pos.y,
-      count: skill === "whirl" ? 28 : skill === "smite" ? 16 : 12,
-      speed: skill === "smite" ? 180 : skill === "whirl" ? 140 : 100,
+      count: skill === "whirl" ? 30 : 14,
+      speed: skill === "smite" ? 180 : 110,
       color:
         skill === "smite"
           ? "rgba(120,180,255,1)"
@@ -337,7 +496,6 @@ export class GravewakeGame {
             ? "rgba(255,160,60,1)"
             : "rgba(255,210,100,1)",
       life: 0.4,
-      size: skill === "whirl" ? 3 : 2,
     });
 
     for (const t of result.targets) {
@@ -346,37 +504,24 @@ export class GravewakeGame {
         x: t.x,
         y: t.y,
         dmg,
-        t: isCrit ? 1.0 : 0.75,
+        t: isCrit ? 1 : 0.7,
         crit: isCrit,
       });
       this.services.particles?.burst({
         x: t.x,
         y: t.y,
-        count: isCrit ? 14 : 8,
-        speed: isCrit ? 140 : 90,
+        count: isCrit ? 14 : 7,
+        speed: 100,
         color: isCrit ? "rgba(255,220,80,1)" : "rgba(220,40,40,1)",
-        life: 0.35,
+        life: 0.3,
       });
-      if (skill === "smite") {
-        // bolt line from player to target
-        this.pushFx({
-          kind: "float",
-          x: t.x,
-          y: t.y - 20,
-          text: isCrit ? "SMITE!" : "Smite",
-          color: "#8cf",
-          t: 0.7,
-        });
-      }
     }
     if (result.hits > 0) {
       this.pushFx({
         kind: "shake",
-        mag: (isCrit ? 5 : 3) + result.hits * 2,
-        t: 0.14,
+        mag: (isCrit ? 5 : 3) + result.hits,
+        t: 0.12,
       });
-    } else if (skill === "slash" || skill === "whirl") {
-      // still spent the swing
     }
   }
 
@@ -394,18 +539,15 @@ export class GravewakeGame {
       return;
     }
     const p = this.world.get("player");
-    if (!p?.health) return;
-    if (p.health.hp >= p.health.max) return;
+    if (!p?.health || p.health.hp >= p.health.max) return;
     this.sheet.inventory.remove(stack.uid, 1);
-    p.health.hp = Math.min(
-      p.health.max,
-      p.health.hp + this.progression.potionHeal,
-    );
+    const heal = this.progression.potionHeal;
+    p.health.hp = Math.min(p.health.max, p.health.hp + heal);
     this.pushFx({
       kind: "float",
       x: p.transform?.x ?? 0,
       y: p.transform?.y ?? 0,
-      text: `+${this.progression.potionHeal}`,
+      text: `+${heal}`,
       color: "#6f6",
       t: 1,
     });
@@ -414,7 +556,7 @@ export class GravewakeGame {
   private tryLoot(): void {
     const pos = this.sim?.getPlayerPos();
     if (!pos) return;
-    const id = tryPickupNearest(this.world, pos.x, pos.y, 48, this.sheet);
+    const id = tryPickupNearest(this.world, pos.x, pos.y, 52, this.sheet);
     if (id) {
       this.pushFx({
         kind: "float",
@@ -436,7 +578,7 @@ export class GravewakeGame {
       if (!e.tags.includes("loot") || !e.transform) continue;
       const loot = e.data.loot as { defId?: string; gold?: number } | undefined;
       if (!loot || loot.defId !== "gold") continue;
-      if (Math.hypot(e.transform.x - pos.x, e.transform.y - pos.y) > 36)
+      if (Math.hypot(e.transform.x - pos.x, e.transform.y - pos.y) > 40)
         continue;
       this.sheet.addGold(loot.gold ?? 0);
       this.world.destroy(e.id);
@@ -462,13 +604,12 @@ export class GravewakeGame {
       }
       const cur = this.sheet.inventory.get(curUid);
       const curDef = cur ? this.items[cur.defId] : undefined;
-      const curDmg = curDef?.stats?.damage ?? 0;
-      const newDmg = def.stats?.damage ?? 0;
-      const curArm = curDef?.stats?.armor ?? 0;
-      const newArm = def.stats?.armor ?? 0;
-      if (newDmg > curDmg || newArm > curArm) {
-        this.sheet.equip(stack.uid);
-      }
+      const score = (d?: ItemDef) =>
+        (d?.stats?.damage ?? 0) * 3 +
+        (d?.stats?.armor ?? 0) * 2 +
+        (d?.stats?.maxHp ?? 0) * 0.5 +
+        (d?.stats?.critChance ?? 0) * 40;
+      if (score(def) > score(curDef)) this.sheet.equip(stack.uid);
     }
   }
 
@@ -489,48 +630,76 @@ export class GravewakeGame {
       this.killed.add(e.id);
       this.kills += 1;
       this.services.quests?.addCount("kill", 1);
-      if (e.actorId === "bellwarden") {
+
+      const isBoss = BOSS_IDS.has(e.actorId);
+      if (isBoss) {
+        this.bossesKilled += 1;
+        this.services.quests?.setFlag("boss_slain");
         this.services.quests?.setFlag("bellwarden_dead");
+        this.milestoneBoss = true;
+        this.bossSlainOnce = true;
+        this.pushFx({
+          kind: "banner",
+          text: `${this.actors[e.actorId]?.name ?? "Lord"} slain — the hunt continues`,
+          t: 3.2,
+        });
+        // boss loot burst
+        for (let i = 0; i < 4; i++) {
+          this.dropLoot(
+            e.x + (this.rng() - 0.5) * 40,
+            e.y + (this.rng() - 0.5) * 40,
+            e.actorId,
+          );
+        }
+        this.sheet.addGold(80 + Math.floor(this.rng() * 120));
       }
 
-      const xp = this.progression.xpPerKill[e.actorId] ?? 10;
+      let xp = this.progression.xpPerKill[e.actorId] ?? 10;
+      const ent = this.world.get(e.id);
+      if (ent?.data.elite) xp = Math.floor(xp * 2.5);
       const leveled = this.sheet.addXp(xp, this.progression.xpToLevel);
-      this.dropLoot(e.x, e.y, e.actorId);
-      this.pushFx({ kind: "kill", x: e.x, y: e.y, gold: 0, t: 0.5 });
-      this.pushFx({ kind: "shake", mag: 3, t: 0.1 });
+      if (!isBoss) this.dropLoot(e.x, e.y, e.actorId);
+      this.pushFx({ kind: "kill", x: e.x, y: e.y, gold: 0, t: 0.45 });
       if (leveled) {
         this.pushFx({ kind: "levelup", t: 1.5 });
         this.syncPlayerFromSheet();
         const p = this.world.get("player");
         if (p?.health) p.health.hp = p.health.max;
+        // small potion gift on level
+        this.sheet.pickup("health_potion", 1);
       }
     }
   }
 
   private dropLoot(x: number, y: number, actorId: string): void {
+    const area = this.areas[this.area];
     const tableId =
-      this.area === "crypt" || actorId === "bellwarden" || actorId === "crypt_guard"
-        ? "crypt_pack"
-        : "parish_pack";
-    const table = this.lootTables[tableId];
+      BOSS_IDS.has(actorId) || (area?.threat ?? 0) >= 3
+        ? area?.lootTable === "boss_pack"
+          ? "boss_pack"
+          : (area?.lootTable ?? "crypt_pack")
+        : (area?.lootTable ?? "wastes_pack");
+    // bosses always use boss_pack when available
+    const useId = BOSS_IDS.has(actorId)
+      ? this.lootTables.boss_pack
+        ? "boss_pack"
+        : tableId
+      : tableId;
+    const table = this.lootTables[useId] ?? this.lootTables.wastes_pack;
     if (!table) {
-      spawnGoldPile(this.world, x, y, 3 + Math.floor(this.rng() * 8));
+      spawnGoldPile(this.world, x, y, 4 + Math.floor(this.rng() * 12));
       return;
     }
     const roll = rollLootTable(table, this.rng);
     if (!roll) return;
-    const jx = x + (this.rng() - 0.5) * 20;
-    const jy = y + (this.rng() - 0.5) * 20;
+    const jx = x + (this.rng() - 0.5) * 24;
+    const jy = y + (this.rng() - 0.5) * 24;
     if (roll.item === "gold") {
-      const g = roll.qty * (5 + Math.floor(this.rng() * 10));
+      const g =
+        roll.qty * (4 + Math.floor(this.rng() * 12)) *
+        (1 + Math.floor(this.threatTier()));
       spawnGoldPile(this.world, jx, jy, g);
-      this.pushFx({
-        kind: "loot",
-        x: jx,
-        y: jy,
-        name: `${g} gold`,
-        t: 1.2,
-      });
+      this.pushFx({ kind: "loot", x: jx, y: jy, name: `${g} gold`, t: 1.1 });
       return;
     }
     spawnGroundLoot(this.world, jx, jy, {
@@ -538,7 +707,34 @@ export class GravewakeGame {
       qty: roll.qty,
     });
     const name = this.items[roll.item]?.name ?? roll.item;
-    this.pushFx({ kind: "loot", x: jx, y: jy, name, t: 1.4 });
+    this.pushFx({ kind: "loot", x: jx, y: jy, name, t: 1.3 });
+  }
+
+  private pointInPortal(px: number, py: number, portal: PortalDef): boolean {
+    return (
+      px >= portal.x &&
+      px <= portal.x + portal.w &&
+      py >= portal.y &&
+      py <= portal.y + portal.h
+    );
+  }
+
+  private checkPortals(): void {
+    const area = this.areas[this.area];
+    if (!this.sim || !area?.portals?.length) return;
+    const p = this.world.get("player");
+    if (!p?.transform) return;
+    const living = this.sim.livingEnemyCount();
+    for (const portal of area.portals) {
+      if (!this.pointInPortal(p.transform.x, p.transform.y, portal)) continue;
+      if (portal.requireClear && living > 0) {
+        this.exitHint = `Clear ${living} foes first`;
+        continue;
+      }
+      this.exitHint = "";
+      this.enterArea(portal.to, { x: portal.spawnX, y: portal.spawnY });
+      return;
+    }
   }
 
   private checkExits(): void {
@@ -548,8 +744,19 @@ export class GravewakeGame {
     if (!p?.transform) return;
     const px = p.transform.x;
     const py = p.transform.y;
-    const margin = 22;
+    const margin = 28;
     const living = this.sim.livingEnemyCount();
+
+    // near portal: show hint without edge exit
+    for (const portal of area.portals ?? []) {
+      const cx = portal.x + portal.w / 2;
+      const cy = portal.y + portal.h / 2;
+      if (Math.hypot(px - cx, py - cy) < 90) {
+        this.exitHint = portal.label
+          ? `Enter ${portal.label}`
+          : "Enter portal";
+      }
+    }
 
     for (const ex of area.exits ?? []) {
       let hit = false;
@@ -560,10 +767,10 @@ export class GravewakeGame {
       if (!hit) continue;
 
       if (ex.requireClear && living > 0) {
-        this.exitHint = `Slay ${living} remaining before you leave`;
+        this.exitHint = `Slay ${living} remaining`;
         if (this.blockedBannerCd <= 0) {
-          this.pushFx({ kind: "banner", text: this.exitHint, t: 1.4 });
-          this.blockedBannerCd = 1800;
+          this.pushFx({ kind: "banner", text: this.exitHint, t: 1.2 });
+          this.blockedBannerCd = 1600;
         }
         if (ex.edge === "east") p.transform.x = area.width - margin - 4;
         if (ex.edge === "west") p.transform.x = margin + 4;
@@ -572,14 +779,6 @@ export class GravewakeGame {
       this.exitHint = "";
       this.enterArea(ex.to, { x: ex.spawnX, y: ex.spawnY });
       return;
-    }
-  }
-
-  private checkVictory(): void {
-    if (this.area !== "crypt" || !this.sim) return;
-    if (this.sim.livingEnemyCount() === 0 && this.killed.size > 0) {
-      // require boss dead flag or all clear
-      this.victory = true;
     }
   }
 
@@ -609,25 +808,27 @@ export class GravewakeGame {
         : null;
     }
     const questObj =
-      this.services.quests?.currentObjective("parish_purge") ?? null;
+      this.services.quests?.currentObjective("wake_of_ashes") ?? null;
+    const area = this.areas[this.area];
 
     return {
       title: "Gravewake",
       area: this.area,
-      areaName:
-        this.area === "town"
-          ? "Ashen Lychgate"
-          : this.area === "parish"
-            ? "Cinder Parish"
-            : "Bellcrypt",
+      areaName: area?.name ?? this.area,
+      areaKind: area?.kind ?? "hub",
+      threat: Math.round(this.threatTier() * 10) / 10,
       xp: this.sheet.xp,
       level: this.sheet.level,
       gold: this.sheet.gold,
       potions,
-      victory: this.victory,
+      victory: false,
+      milestoneBoss: this.milestoneBoss,
+      bossSlainOnce: this.bossSlainOnce,
+      bossesKilled: this.bossesKilled,
       lost: this.sim?.isLost() ?? false,
       livingEnemies: this.sim?.livingEnemyCount() ?? 0,
       kills: this.kills,
+      timeAlive: Math.floor(this.timeAlive),
       exitHint: this.exitHint,
       inventoryOpen: this.showInv,
       inventory: inv,
@@ -638,6 +839,17 @@ export class GravewakeGame {
       cds: { ...this.cd },
       lastSkill: this.lastSkill,
       quest: questObj,
+      portals: (area?.portals ?? []).map((pr) => ({
+        x: pr.x,
+        y: pr.y,
+        w: pr.w,
+        h: pr.h,
+        label: pr.label,
+        kind: pr.kind,
+        to: pr.to,
+      })),
+      mapW: area?.width ?? 0,
+      mapH: area?.height ?? 0,
       topdown: simBlob,
     };
   }

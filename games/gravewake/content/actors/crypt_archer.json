@@ -1,0 +1,17 @@
+{
+  "id": "crypt_archer",
+  "name": "Crypt Archer",
+  "hp": 40,
+  "speed": 90,
+  "ai": "keep_distance_ranged",
+  "team": "enemy",
+  "radius": 11,
+  "contactDamage": 4,
+  "preferredRange": 150,
+  "preferredRangeBand": 35,
+  "projectileDamage": 14,
+  "projectileSpeed": 280,
+  "projectileCooldownMs": 600,
+  "projectileFireMs": 1800,
+  "animations": { "idle": ["actors/wretch.png"], "walk": ["actors/wretch.png"] }
+}

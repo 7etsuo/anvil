@@ -1,0 +1,12 @@
+{
+  "id": "hell_raider",
+  "name": "Hell Raider",
+  "hp": 70,
+  "speed": 115,
+  "ai": "chase_melee",
+  "team": "enemy",
+  "radius": 13,
+  "contactDamage": 14,
+  "meleeRange": 42,
+  "animations": { "idle": ["actors/crypt_guard.png"], "walk": ["actors/crypt_guard.png"] }
+}

@@ -1,0 +1,12 @@
+{
+  "id": "ash_ghoul",
+  "name": "Ash Ghoul",
+  "hp": 48,
+  "speed": 88,
+  "ai": "chase_melee",
+  "team": "enemy",
+  "radius": 12,
+  "contactDamage": 11,
+  "meleeRange": 40,
+  "animations": { "idle": ["actors/wretch.png"], "walk": ["actors/wretch.png"] }
+}

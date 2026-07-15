@@ -1,30 +1,12 @@
 {
-  "id": "parish_purge",
-  "title": "Purge the Parish",
-  "description": "Clear the walking dead from Cinder Parish.",
+  "id": "wake_of_ashes",
+  "title": "Wake of Ashes",
+  "description": "The wastes never empty. Hunt, delve, survive.",
   "autoStart": true,
   "steps": [
-    {
-      "id": "enter",
-      "description": "Enter Cinder Parish",
-      "completeFlag": "entered_parish"
-    },
-    {
-      "id": "slay",
-      "description": "Slay the dead",
-      "countKey": "kill",
-      "countTarget": 8
-    },
-    {
-      "id": "crypt",
-      "description": "Descend into Bellcrypt",
-      "completeFlag": "entered_crypt"
-    },
-    {
-      "id": "boss",
-      "description": "Silence the Bellwarden",
-      "completeFlag": "bellwarden_dead"
-    }
-  ],
-  "rewards": { "xp": 50, "gold": 40 }
+    { "id": "leave", "description": "Leave the Lychgate into the Wastes", "completeFlag": "entered_wastes" },
+    { "id": "slay", "description": "Slay the dead", "countKey": "kill", "countTarget": 15 },
+    { "id": "dungeon", "description": "Enter any dungeon", "completeFlag": "entered_dungeon" },
+    { "id": "boss", "description": "Fell a dungeon lord", "completeFlag": "boss_slain" }
+  ]
 }

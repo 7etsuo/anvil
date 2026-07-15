@@ -1,7 +1,7 @@
 {
-  "id": "enter_parish",
+  "id": "enter_wastes",
   "seed": 1,
-  "maxTicks": 250,
+  "maxTicks": 350,
   "steps": [
     {
       "tick": 0,
@@ -12,11 +12,11 @@
       "setDown": { "move_right": true }
     },
     {
-      "tick": 200,
-      "assert": { "path": "genre.gravewake.area", "eq": "parish" }
+      "tick": 280,
+      "assert": { "path": "genre.gravewake.area", "eq": "wastes" }
     },
     {
-      "tick": 200,
+      "tick": 280,
       "assert": { "path": "genre.gravewake.livingEnemies", "gte": 1 }
     }
   ]

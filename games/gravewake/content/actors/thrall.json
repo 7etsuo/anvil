@@ -1,0 +1,12 @@
+{
+  "id": "thrall",
+  "name": "Ash Thrall",
+  "hp": 32,
+  "speed": 100,
+  "ai": "chase_melee",
+  "team": "enemy",
+  "radius": 10,
+  "contactDamage": 7,
+  "meleeRange": 38,
+  "animations": { "idle": ["actors/scuttler.png"], "walk": ["actors/scuttler.png"] }
+}

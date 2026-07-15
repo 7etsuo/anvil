@@ -1,0 +1,12 @@
+{
+  "id": "bone_brute",
+  "name": "Bone Brute",
+  "hp": 110,
+  "speed": 70,
+  "ai": "chase_melee",
+  "team": "enemy",
+  "radius": 16,
+  "contactDamage": 16,
+  "meleeRange": 46,
+  "animations": { "idle": ["actors/crypt_guard.png"], "walk": ["actors/crypt_guard.png"] }
+}

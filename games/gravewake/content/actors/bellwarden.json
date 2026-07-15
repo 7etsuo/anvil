@@ -1,25 +1,17 @@
 {
   "id": "bellwarden",
   "name": "The Bellwarden",
-  "hp": 60,
-  "speed": 70,
+  "hp": 280,
+  "speed": 78,
   "ai": "chase_melee",
   "team": "enemy",
   "radius": 18,
   "contactDamage": 18,
-  "meleeRange": 48,
+  "meleeRange": 50,
   "animations": {
-    "idle": [
-      "actors/bellwarden.png"
-    ],
-    "walk": [
-      "actors/bellwarden.png"
-    ],
-    "attack": [
-      "actors/bellwarden.png"
-    ],
-    "death": [
-      "actors/bellwarden.png"
-    ]
+    "idle": ["actors/bellwarden.png"],
+    "walk": ["actors/bellwarden.png"],
+    "attack": ["actors/bellwarden.png"],
+    "death": ["actors/bellwarden.png"]
   }
 }

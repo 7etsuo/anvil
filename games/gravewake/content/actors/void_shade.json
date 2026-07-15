@@ -1,0 +1,17 @@
+{
+  "id": "void_shade",
+  "name": "Void Shade",
+  "hp": 34,
+  "speed": 75,
+  "ai": "keep_distance_ranged",
+  "team": "enemy",
+  "radius": 10,
+  "contactDamage": 0,
+  "preferredRange": 130,
+  "preferredRangeBand": 28,
+  "projectileDamage": 12,
+  "projectileSpeed": 240,
+  "projectileCooldownMs": 700,
+  "projectileLifetimeMs": 2100,
+  "animations": { "idle": ["actors/wretch.png"], "walk": ["actors/wretch.png"] }
+}

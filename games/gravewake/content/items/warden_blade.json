@@ -3,6 +3,16 @@
   "name": "Warden Blade",
   "rarity": "rare",
   "slot": "weapon",
-  "stats": { "damage": 14, "critChance": 0.04 },
-  "flavor": "Ash-runed steel of the Gravewarden oath."
+  "stats": {
+    "damage": 14,
+    "critChance": 0.04
+  },
+  "flavor": "Ash-runed steel of the Gravewarden oath.",
+  "visual": {
+    "sprite": "gear/warden_blade.png",
+    "ox": 0.3,
+    "oy": -0.05,
+    "z": 40
+  },
+  "icon": "gear/warden_blade.png"
 }

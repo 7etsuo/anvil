@@ -3,6 +3,16 @@
   "name": "Iron Helm",
   "rarity": "common",
   "slot": "head",
-  "stats": { "armor": 3, "maxHp": 10 },
-  "flavor": "Standard issue. Dented."
+  "stats": {
+    "armor": 3,
+    "maxHp": 10
+  },
+  "flavor": "Standard issue. Dented.",
+  "visual": {
+    "sprite": "gear/iron_helm.png",
+    "ox": 0,
+    "oy": -0.32,
+    "z": 30
+  },
+  "icon": "gear/iron_helm.png"
 }

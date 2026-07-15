@@ -3,6 +3,16 @@
   "name": "Bone Cleaver",
   "rarity": "magic",
   "slot": "weapon",
-  "stats": { "damage": 9, "critChance": 0.05 },
-  "flavor": "Serrated with crypt bone."
+  "stats": {
+    "damage": 9,
+    "critChance": 0.05
+  },
+  "flavor": "Serrated with crypt bone.",
+  "visual": {
+    "sprite": "gear/bone_cleaver.png",
+    "ox": 0.3,
+    "oy": -0.05,
+    "z": 40
+  },
+  "icon": "gear/bone_cleaver.png"
 }

@@ -44,16 +44,24 @@ const ACTOR_IDS = [
 const ASSET_URLS: Record<string, string> = {
   "env/floor.png": "/assets/env/floor.png",
   "env/wall.png": "/assets/env/wall.png",
+  "env/ruin_pillar.png": "/assets/env/ruin_pillar.png",
+  "env/ruin_arch.png": "/assets/env/ruin_arch.png",
   "fx/portal.png": "/assets/fx/portal.png",
   "fx/loot_pile.png": "/assets/fx/loot_pile.png",
+  "gear/rusty_sword.png": "/assets/gear/rusty_sword.png",
+  "gear/bone_cleaver.png": "/assets/gear/bone_cleaver.png",
+  "gear/warden_blade.png": "/assets/gear/warden_blade.png",
+  "gear/ash_mail.png": "/assets/gear/ash_mail.png",
+  "gear/tyrant_plate.png": "/assets/gear/tyrant_plate.png",
+  "gear/iron_helm.png": "/assets/gear/iron_helm.png",
 };
 for (const id of ACTOR_IDS) {
   ASSET_URLS[`actors/${id}.png`] = `/assets/actors/${id}.png`;
   ASSET_URLS[`actors/${id}_down.png`] = `/assets/actors/${id}_down.png`;
   ASSET_URLS[`actors/${id}_right.png`] = `/assets/actors/${id}_right.png`;
 }
-// hero up sheet
 ASSET_URLS["actors/gravewarden_up.png"] = "/assets/actors/gravewarden_up.png";
+ASSET_URLS["actors/gravewarden_body.png"] = "/assets/actors/gravewarden_body.png";
 
 /** Identity map — each mob uses its own sheet. */
 const ACTOR_SHEET: Record<string, string> = Object.fromEntries(
@@ -369,8 +377,10 @@ async function main(): Promise<void> {
   const wallTex = images.get("env/wall.png") ?? null;
   const portalImg = images.get("fx/portal.png") ?? null;
   const lootImg = images.get("fx/loot_pile.png") ?? null;
+  const ruinPillar = images.get("env/ruin_pillar.png") ?? null;
+  const ruinArch = images.get("env/ruin_arch.png") ?? null;
 
-  // Readable dirt plate (NOT near-black — that made the whole game invisible)
+  // Ground: prefer full Imagine floor tile, softly blended
   const groundPlate = document.createElement("canvas");
   groundPlate.width = 512;
   groundPlate.height = 512;
@@ -378,20 +388,18 @@ async function main(): Promise<void> {
     const g = groundPlate.getContext("2d")!;
     g.fillStyle = "#3a3228";
     g.fillRect(0, 0, 512, 512);
-    for (let i = 0; i < 1800; i++) {
+    if (floorSrc) {
+      g.drawImage(floorSrc, 0, 0, 512, 512);
+    }
+    // soft multi-scale noise to break seams
+    for (let i = 0; i < 900; i++) {
       const x = Math.random() * 512;
       const y = Math.random() * 512;
-      const r = 6 + Math.random() * 36;
-      const c = 40 + Math.floor(Math.random() * 40);
-      g.fillStyle = `rgba(${c + 16},${c + 8},${c},${0.08 + Math.random() * 0.12})`;
+      const r = 10 + Math.random() * 40;
+      g.fillStyle = `rgba(20,16,12,${0.03 + Math.random() * 0.06})`;
       g.beginPath();
       g.arc(x, y, r, 0, Math.PI * 2);
       g.fill();
-    }
-    if (floorSrc) {
-      g.globalAlpha = 0.22;
-      g.drawImage(floorSrc, 0, 0, 512, 512);
-      g.globalAlpha = 1;
     }
   }
   const floor = groundPlate;
@@ -803,6 +811,37 @@ async function main(): Promise<void> {
         ctx.strokeRect(x + 1, y - WALL_Z + 1, ww - 2, 2);
       }
 
+      // decorative ruins (environment redo props)
+      const decor =
+        blob.area === "town"
+          ? [
+              { x: 380, y: 180, kind: "arch" as const },
+              { x: 520, y: 420, kind: "pillar" as const },
+            ]
+          : blob.area === "wastes"
+            ? [
+                { x: 600, y: 900, kind: "pillar" as const },
+                { x: 1400, y: 700, kind: "arch" as const },
+                { x: 2000, y: 1400, kind: "pillar" as const },
+                { x: 1100, y: 1600, kind: "arch" as const },
+                { x: 2500, y: 1100, kind: "pillar" as const },
+              ]
+            : [
+                { x: 300, y: 200, kind: "pillar" as const },
+                { x: 700, y: 400, kind: "arch" as const },
+              ];
+      for (const d of decor) {
+        const img = d.kind === "arch" ? ruinArch : ruinPillar;
+        if (!img) continue;
+        const sx = d.x * SCALE - viewCamX;
+        const sy = d.y * SCALE - viewCamY;
+        if (sx < -80 || sy < -80 || sx > VIEW_W + 80 || sy > VIEW_H + 80) continue;
+        const sz = (d.kind === "arch" ? 110 : 90) * SCALE;
+        ctx.globalAlpha = 0.92;
+        ctx.drawImage(img, sx - sz / 2, sy - sz * 0.85, sz, sz);
+        ctx.globalAlpha = 1;
+      }
+
       // town ash shrine (vendor)
       if (blob.area === "town") {
         const sx = 220 * SCALE - viewCamX;
@@ -979,6 +1018,25 @@ async function main(): Promise<void> {
           ctx.drawImage(img, -dw / 2, 0, dw, dh);
         } else {
           ctx.drawImage(img, -dw / 2, 0, dw, dh);
+        }
+        // Diablo paper-doll: equipped gear layers from CharacterSheet
+        if (e.tags.includes("player")) {
+          const layers = (blob.visualLayers as Array<{
+            sprite: string;
+            ox: number;
+            oy: number;
+            z: number;
+          }>) ?? [];
+          for (const layer of layers) {
+            const gimg = images.get(layer.sprite);
+            if (!gimg) continue;
+            const gw = dw * 0.92;
+            const gh = dh * 0.92;
+            // flipX already applied to context — ox is toward "weapon hand"
+            const ox = layer.ox * dw;
+            const oy = layer.oy * dh;
+            ctx.drawImage(gimg, -gw / 2 + ox, oy + dh * 0.08, gw, gh);
+          }
         }
         ctx.restore();
         if (tint) {

@@ -77,6 +77,35 @@ describe("Inventory + Equipment + CharacterSheet", () => {
     expect(inv.findByDef("potion")!.qty).toBe(8);
   });
 
+  it("equippedVisuals returns paper-doll layers from gear", () => {
+    const sheet = new CharacterSheet({
+      itemDefs: {
+        rusty_sword: {
+          id: "rusty_sword",
+          name: "Rusty Sword",
+          slot: "weapon",
+          stats: { damage: 5 },
+          visual: { sprite: "gear/rusty_sword.png", z: 40 },
+        },
+        iron_helm: {
+          id: "iron_helm",
+          name: "Iron Helm",
+          slot: "head",
+          stats: { armor: 2 },
+          visual: { sprite: "gear/iron_helm.png", oy: -0.3, z: 30 },
+        },
+      },
+    });
+    sheet.pickup("rusty_sword");
+    sheet.pickup("iron_helm");
+    sheet.equip(sheet.inventory.findByDef("rusty_sword")!.uid);
+    sheet.equip(sheet.inventory.findByDef("iron_helm")!.uid);
+    const layers = sheet.equippedVisuals();
+    expect(layers.map((l) => l.defId)).toEqual(["iron_helm", "rusty_sword"]);
+    expect(layers[0]!.sprite).toBe("gear/iron_helm.png");
+    expect(layers[1]!.z).toBe(40);
+  });
+
   it("full inventory rejects", () => {
     const inv = new Inventory(1);
     expect(inv.add("rusty_sword")).not.toBeNull();

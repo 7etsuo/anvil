@@ -4,72 +4,170 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Gravewake</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@500;700&family=IM+Fell+English:ital@0;1&display=swap" rel="stylesheet" />
     <style>
+      :root {
+        --bg: #07060a;
+        --panel: #121018;
+        --gold: #c9a gener;
+        --gold: #c9a46c;
+        --gold-dim: #8a7348;
+        --blood: #8b1e1e;
+        --text: #e6dcc8;
+        --muted: #8a8274;
+      }
       * { box-sizing: border-box; }
       html, body {
         margin: 0;
         height: 100%;
-        background: #0a0a0e;
-        color: #e8e0d4;
-        font-family: "Segoe UI", system-ui, sans-serif;
+        background:
+          radial-gradient(ellipse at 50% 20%, #1a1410 0%, var(--bg) 55%);
+        color: var(--text);
+        font-family: "IM Fell English", Georgia, serif;
+        overflow: hidden;
       }
-      #wrap {
-        min-height: 100%;
+      body::before {
+        content: "";
+        position: fixed;
+        inset: 0;
+        pointer-events: none;
+        background:
+          radial-gradient(ellipse at center, transparent 40%, rgba(0,0,0,0.55) 100%);
+        z-index: 5;
+      }
+      #app {
+        height: 100%;
+        display: grid;
+        grid-template-rows: auto 1fr auto;
+        max-width: 1280px;
+        margin: 0 auto;
+        padding: 10px 16px 8px;
+        gap: 8px;
+      }
+      header {
         display: flex;
-        flex-direction: column;
-        align-items: center;
-        padding: 12px 12px 24px;
-        gap: 10px;
+        align-items: baseline;
+        justify-content: space-between;
+        border-bottom: 1px solid rgba(201,164,108,0.25);
+        padding-bottom: 6px;
       }
-      h1 {
+      header h1 {
         margin: 0;
-        font-size: 1.35rem;
-        letter-spacing: 0.08em;
-        font-weight: 600;
-        color: #c4a882;
+        font-family: Cinzel, Georgia, serif;
+        font-weight: 700;
+        letter-spacing: 0.22em;
+        font-size: 1.15rem;
+        color: var(--gold);
+        text-shadow: 0 0 18px rgba(201,164,108,0.35);
       }
-      #help {
-        max-width: 960px;
+      header .sub {
+        color: var(--muted);
         font-size: 0.85rem;
-        opacity: 0.85;
-        text-align: center;
-        line-height: 1.4;
+        font-style: italic;
+      }
+      #stage-wrap {
+        position: relative;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        min-height: 0;
+      }
+      #frame {
+        position: relative;
+        padding: 10px;
+        background:
+          linear-gradient(160deg, #2a2218 0%, #15120e 40%, #0c0a08 100%);
+        border: 1px solid rgba(201,164,108,0.35);
+        box-shadow:
+          0 0 0 1px rgba(0,0,0,0.8),
+          0 12px 50px rgba(0,0,0,0.75),
+          inset 0 0 40px rgba(0,0,0,0.45);
+      }
+      #frame::before {
+        content: "";
+        position: absolute;
+        inset: 3px;
+        border: 1px solid rgba(201,164,108,0.12);
+        pointer-events: none;
       }
       #mount {
-        border: 2px solid #5a4838;
-        box-shadow: 0 0 60px rgba(0,0,0,0.75), inset 0 0 0 1px rgba(196,168,130,0.15);
-        background: #111;
+        position: relative;
+        line-height: 0;
         cursor: crosshair;
+        background: #000;
       }
-      #mount:focus-within {
-        border-color: #8a7050;
+      #mount canvas {
+        display: block;
+        image-rendering: auto;
       }
-      #hud {
-        font-family: ui-monospace, monospace;
-        font-size: 13px;
-        color: #d0c4b0;
-        min-height: 1.2em;
+      footer {
+        display: grid;
+        grid-template-columns: 1fr auto 1fr;
+        align-items: end;
+        gap: 12px;
+        padding-top: 4px;
+        border-top: 1px solid rgba(201,164,108,0.18);
+        font-size: 0.8rem;
+        color: var(--muted);
       }
-      kbd {
-        background: #2a2420;
-        border: 1px solid #5a4a38;
-        border-radius: 3px;
-        padding: 0 5px;
-        font-size: 0.8em;
+      footer .keys kbd {
+        display: inline-block;
+        min-width: 1.4em;
+        text-align: center;
+        padding: 1px 6px;
+        margin: 0 1px;
+        border: 1px solid var(--gold-dim);
+        border-radius: 2px;
+        color: var(--gold);
+        background: rgba(0,0,0,0.35);
+        font-family: system-ui, sans-serif;
+        font-size: 0.75rem;
       }
+      footer .status {
+        text-align: right;
+        color: var(--text);
+        opacity: 0.85;
+      }
+      #loading {
+        position: absolute;
+        inset: 0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: rgba(0,0,0,0.85);
+        color: var(--gold);
+        font-family: Cinzel, serif;
+        letter-spacing: 0.15em;
+        z-index: 3;
+      }
+      #loading.hidden { display: none; }
     </style>
   </head>
   <body>
-    <div id="wrap">
-      <h1>GRAVEWAKE</h1>
-      <div id="help">
-        <kbd>WASD</kbd> move ·
-        <kbd>Space</kbd> / click Rite Slash ·
-        <kbd>1</kbd> potion ·
-        Walk into glowing portals: Town → Parish → Crypt · Clear Parish for crypt gate · Kill Bellwarden to win
+    <div id="app">
+      <header>
+        <h1>GRAVEWAKE</h1>
+        <div class="sub">The parish no longer answers the bells</div>
+      </header>
+      <div id="stage-wrap">
+        <div id="frame">
+          <div id="mount">
+            <div id="loading">BINDING THE ASH…</div>
+          </div>
+        </div>
       </div>
-      <div id="mount"></div>
-      <div id="hud">Loading…</div>
+      <footer>
+        <div class="keys">
+          <kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> move
+          · <kbd>Space</kbd> Rite Slash
+          · <kbd>1</kbd> potion
+          · portals east
+        </div>
+        <div></div>
+        <div class="status" id="hud">—</div>
+      </footer>
     </div>
     <script type="module" src="/browser/main.ts"></script>
   </body>

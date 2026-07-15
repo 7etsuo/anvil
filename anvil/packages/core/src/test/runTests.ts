@@ -10,6 +10,18 @@ export interface TestOpts {
   modules?: GenreModule[];
 }
 
+export interface TestDiagnosis {
+  /** One-line world state at failure */
+  summary: string;
+  /** Assert path + actual value */
+  path?: string;
+  actual?: unknown;
+  /** Agent-oriented next step */
+  hint: string;
+  /** Compact entity list (id, tags, hp) */
+  entities?: Array<{ id: string; tags: string[]; hp?: number }>;
+}
+
 export interface TestReport {
   ok: boolean;
   results: Array<{
@@ -17,6 +29,8 @@ export interface TestReport {
     pass: boolean;
     ticks?: number;
     error?: { code: string; message: string; path?: string };
+    /** Present on failure — agents should read this before raw dumps */
+    diagnosis?: TestDiagnosis;
   }>;
 }
 
@@ -126,6 +140,7 @@ async function runScenario(
           const snap = await observe(handle);
           const check = checkAssert(snap, step.assert);
           if (!check.ok) {
+            const diagnosis = buildDiagnosis(snap, step.assert, check.message);
             handle.dispose();
             return {
               id: scenario.id,
@@ -136,6 +151,7 @@ async function runScenario(
                 message: check.message,
                 path: step.assert.path,
               },
+              diagnosis,
             };
           }
         }
@@ -147,6 +163,16 @@ async function runScenario(
     }
 
     if (stepIdx < steps.length) {
+      const snap = await observe(handle);
+      const diagnosis: TestDiagnosis = {
+        summary: snap.summary,
+        hint: `Scenario timed out at tick ${tick} with steps remaining. Raise maxTicks or fix stuck state. See summary.`,
+        entities: snap.entities.slice(0, 24).map((e) => ({
+          id: e.id,
+          tags: e.tags,
+          hp: e.hp,
+        })),
+      };
       handle.dispose();
       return {
         id: scenario.id,
@@ -156,6 +182,7 @@ async function runScenario(
           code: "TEST_TIMEOUT",
           message: `Exceeded maxTicks=${maxTicks}`,
         },
+        diagnosis,
       };
     }
 
@@ -215,6 +242,32 @@ function applyStep(handle: GameHandle, step: TestStep): void {
   if (step.wait && step.wait > 0) {
     for (let i = 0; i < step.wait; i++) handle.tick(1 / 60);
   }
+}
+
+function buildDiagnosis(
+  snap: Awaited<ReturnType<typeof observe>>,
+  assertion: Assertion,
+  message: string,
+): TestDiagnosis {
+  const actual = getPath(snap, assertion.path);
+  let hint = `Assertion failed on '${assertion.path}'. ${message}. Fix content/logic so the path matches, then re-run anvil test.`;
+  if (assertion.eq !== undefined) {
+    hint = `Expected ${assertion.path} == ${JSON.stringify(assertion.eq)} but got ${JSON.stringify(actual)}. Adjust content or scenario steps; re-test.`;
+  }
+  if (assertion.gt !== undefined || assertion.lt !== undefined) {
+    hint = `Numeric assert on ${assertion.path} failed (value=${JSON.stringify(actual)}). Check movement/combat timing or maxTicks.`;
+  }
+  return {
+    summary: snap.summary,
+    path: assertion.path,
+    actual,
+    hint,
+    entities: snap.entities.slice(0, 24).map((e) => ({
+      id: e.id,
+      tags: e.tags,
+      hp: e.hp,
+    })),
+  };
 }
 
 function checkAssert(

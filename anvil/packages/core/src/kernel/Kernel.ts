@@ -21,7 +21,7 @@ import { World } from "../world/World.js";
 import { SeededRng } from "./SeededRng.js";
 
 /** Engine semver exposed on observe / GameHandle */
-export const ANVIL_VERSION = "0.5.0";
+export const ANVIL_VERSION = "0.5.1";
 
 export interface SystemEntry {
   name: string;
@@ -56,6 +56,11 @@ export class Kernel implements KernelInternals {
   private disposed = false;
   private clearColor = "#1a1a2e";
   private genreObserve: () => Record<string, unknown> = () => ({});
+  /** Soft entity budget (observe warns; does not hard-fail). */
+  readonly entityBudget = 500;
+  private lastTickMs = 0;
+  private tickMsEma = 0;
+  private budgetWarned = false;
 
   constructor(opts: {
     gameRoot: string;
@@ -184,6 +189,8 @@ export class Kernel implements KernelInternals {
 
   tick(dtWallSeconds: number): void {
     if (this.disposed) return;
+    const t0 =
+      typeof performance !== "undefined" ? performance.now() : Date.now();
     this.accumulator += Math.min(dtWallSeconds, 0.25);
     let steps = 0;
     while (this.accumulator >= this.fixedDt && steps < this.maxDtSteps) {
@@ -205,6 +212,21 @@ export class Kernel implements KernelInternals {
       this.renderer.clear(this.clearColor);
       this.drawEntities();
       this.renderer.endFrame();
+    }
+    const t1 =
+      typeof performance !== "undefined" ? performance.now() : Date.now();
+    this.lastTickMs = t1 - t0;
+    this.tickMsEma =
+      this.tickMsEma === 0
+        ? this.lastTickMs
+        : this.tickMsEma * 0.9 + this.lastTickMs * 0.1;
+    const n = this.world.all().length;
+    if (!this.budgetWarned && n > this.entityBudget) {
+      this.budgetWarned = true;
+      this.events.emit("engine:budget_warn", {
+        entities: n,
+        budget: this.entityBudget,
+      });
     }
   }
 
@@ -232,6 +254,7 @@ export class Kernel implements KernelInternals {
 
   /** Snapshot of first-class engine services (for observe / agents). */
   engineSnapshot(): Record<string, unknown> {
+    const entities = this.world.all().length;
     return {
       version: ANVIL_VERSION,
       modules: this.modules.list(),
@@ -240,6 +263,13 @@ export class Kernel implements KernelInternals {
       questsActive: this.quests.listActive().map((q) => q.defId),
       questsCompleted: this.quests.listCompleted().map((q) => q.defId),
       systems: this.systems.map((s) => s.name),
+      metrics: {
+        lastTickMs: Math.round(this.lastTickMs * 1000) / 1000,
+        tickMsEma: Math.round(this.tickMsEma * 1000) / 1000,
+        entities,
+        entityBudget: this.entityBudget,
+        overEntityBudget: entities > this.entityBudget,
+      },
     };
   }
 

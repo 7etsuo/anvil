@@ -44,9 +44,41 @@ anvil doctor         → one-shot health
 | `anvil observe` | includes `summary` |
 | `anvil test` | unchanged primary gate |
 
+## Test failure diagnosis (agent-critical)
+
+On `TEST_FAIL` / `TEST_TIMEOUT`, `runTests` attaches:
+
+```json
+{
+  "diagnosis": {
+    "summary": "scene=main tick=12 …",
+    "path": "genre.foo",
+    "actual": null,
+    "hint": "Expected … Fix … re-test.",
+    "entities": [{ "id": "player", "tags": ["player"], "hp": 10 }]
+  }
+}
+```
+
+Agents should read **diagnosis before** re-running observe dumps.
+
+## Metrics on observe.engine
+
+```json
+"metrics": {
+  "lastTickMs": 0.4,
+  "tickMsEma": 0.5,
+  "entities": 12,
+  "entityBudget": 500,
+  "overEntityBudget": false
+}
+```
+
 ## Rules for implementers
 
 1. Do **not** grow CLI past ~15 agent-facing tools without strong need.  
 2. Prefer **content JSON** edits over new TypeScript for balance/content.  
 3. Errors always `{ ok:false, errors:[{ code, message, path?, hint? }] }`.  
 4. Screenshots optional; JSON is the default sense channel.  
+5. Test failures must include **diagnosis** for agents.  
+

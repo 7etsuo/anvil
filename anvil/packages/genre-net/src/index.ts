@@ -1,5 +1,10 @@
 export type { Transport } from "./transport.js";
 export { LoopbackTransport } from "./transport.js";
+export {
+  MemoryHub,
+  MemoryTransport,
+  WebSocketTransport,
+} from "./MemoryTransport.js";
 export type { NetMessage, NetEntitySnapshot } from "./messages.js";
 export { encodeMessage, decodeMessage } from "./messages.js";
 export { NetRoom } from "./NetRoom.js";

@@ -25,7 +25,11 @@ export {
   collectRequiredAssets,
   listMissingAssets,
 } from "./assets/scanMissing.js";
-export type { RenderFacade } from "./render/RenderFacade.js";
+export type {
+  RenderFacade,
+  DrawSpriteOpts,
+  DrawTextOpts,
+} from "./render/RenderFacade.js";
 export { NullRenderFacade } from "./render/RenderFacade.js";
 export { CanvasRenderFacade } from "./render/CanvasRenderFacade.js";
 export { Kernel } from "./kernel/Kernel.js";
@@ -45,3 +49,67 @@ export type { SaveGame } from "./save/saveGame.js";
 
 // RPG systems (inventory, equip, stats, loot, zones)
 export * from "./rpg/index.js";
+
+// UI
+export { UiKit, DEFAULT_UI_THEME } from "./ui/UiKit.js";
+export type { UiRect, UiPointer, UiTheme } from "./ui/UiKit.js";
+
+// FX
+export { ParticleSystem } from "./fx/ParticleSystem.js";
+export type { Particle, ParticleBurstOpts } from "./fx/ParticleSystem.js";
+
+// Combat feel
+export {
+  applyHitstun,
+  applyIframes,
+  applyKnockback,
+  tickCombatBody,
+  canBeHit,
+  registerHit,
+} from "./combat/CombatFeel.js";
+export type { CombatBody } from "./combat/CombatFeel.js";
+
+// Pathfinding + AI
+export { astar, wallsToGrid } from "./path/astar.js";
+export type { Grid, Point } from "./path/astar.js";
+export { createAiAgent, tickAi } from "./ai/AiHelpers.js";
+export type { AiAgent, AiMode } from "./ai/AiHelpers.js";
+
+// Quests
+export { QuestSystem } from "./quest/QuestSystem.js";
+export type {
+  QuestDef,
+  QuestStep,
+  QuestStatus,
+  QuestRuntime,
+} from "./quest/QuestSystem.js";
+
+// Content pipeline
+export {
+  validateItemDefs,
+  validateLootTables,
+  rollLootTable,
+} from "./content/validateContent.js";
+export type {
+  ValidationIssue,
+  ItemDefLike,
+  LootTableLike,
+} from "./content/validateContent.js";
+
+// Plugins
+export { PluginRegistry } from "./plugins/PluginRegistry.js";
+export type { AnvilPlugin, PluginApi } from "./plugins/PluginRegistry.js";
+
+// Map builder
+export { MapBuilder } from "./map/MapBuilder.js";
+export type { BuiltMap, MapWall, MapSpawn } from "./map/MapBuilder.js";
+
+// Platform packaging
+export {
+  createPackageManifest,
+  electronMainTemplate,
+} from "./platform/packageGame.js";
+export type { GamePackageManifest } from "./platform/packageGame.js";
+
+// Audio channel type
+export type { AudioChannel, AudioCues } from "./audio/AudioSystem.js";

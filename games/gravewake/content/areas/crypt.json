@@ -1,0 +1,29 @@
+{
+  "id": "crypt",
+  "width": 360,
+  "height": 280,
+  "walls": [
+    { "x": 0, "y": 0, "w": 360, "h": 16 },
+    { "x": 0, "y": 264, "w": 360, "h": 16 },
+    { "x": 0, "y": 0, "w": 16, "h": 280 },
+    { "x": 344, "y": 0, "w": 16, "h": 280 },
+    { "x": 120, "y": 60, "w": 20, "h": 60 },
+    { "x": 220, "y": 140, "w": 20, "h": 60 }
+  ],
+  "spawns": [
+    { "actor": "gravewarden", "x": 48, "y": 140, "team": "player" },
+    { "actor": "crypt_guard", "x": 160, "y": 100, "team": "enemy" },
+    { "actor": "bellwarden", "x": 280, "y": 140, "team": "enemy" }
+  ],
+  "portals": [
+    {
+      "x": 16,
+      "y": 100,
+      "w": 28,
+      "h": 80,
+      "to": "parish",
+      "spawnX": 400,
+      "spawnY": 160
+    }
+  ]
+}

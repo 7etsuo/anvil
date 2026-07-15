@@ -1,0 +1,16 @@
+{
+  "id": "wretch",
+  "name": "Ash Wretch",
+  "hp": 22,
+  "speed": 95,
+  "ai": "keep_distance_ranged",
+  "team": "enemy",
+  "radius": 10,
+  "contactDamage": 0,
+  "preferredRange": 100,
+  "preferredRangeBand": 25,
+  "projectileDamage": 9,
+  "projectileSpeed": 220,
+  "projectileCooldownMs": 1300,
+  "projectileLifetimeMs": 2500
+}

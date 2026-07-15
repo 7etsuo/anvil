@@ -1,0 +1,23 @@
+{
+  "id": "enter_parish",
+  "seed": 1,
+  "maxTicks": 200,
+  "steps": [
+    {
+      "tick": 0,
+      "assert": { "path": "genre.gravewake.area", "eq": "town" }
+    },
+    {
+      "tick": 1,
+      "setDown": { "move_right": true }
+    },
+    {
+      "tick": 150,
+      "assert": { "path": "genre.gravewake.area", "eq": "parish" }
+    },
+    {
+      "tick": 150,
+      "assert": { "path": "genre.gravewake.livingEnemies", "gte": 1 }
+    }
+  ]
+}

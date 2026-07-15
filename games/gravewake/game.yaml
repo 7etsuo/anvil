@@ -1,0 +1,8 @@
+id: gravewake
+title: Gravewake
+genre: none
+modules:
+  - ./dist/module.js
+entryScene: main
+seed: 1
+schemaVersion: 1

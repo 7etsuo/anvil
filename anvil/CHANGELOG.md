@@ -1,14 +1,14 @@
 # Changelog
 
-## 0.1.0 — M8 net spike
+## 0.1.0 — M9 Gravewake unpark
 
 ### Added
-- `@anvil/genre-net`: `Transport`, loopback pair, host-authoritative `NetRoom`, transform+hp replication
-- `examples/hello-net` + `packages/genre-net/SPIKE.md`
-- Recipe `meta.net-loopback`
-- Prior: genres card/topdown2d/vn/shmup/fps2, recipes, build, error tests, perf smoke
+- **Gravewake** greybox vertical slice under `games/gravewake/` (Anvil APIs only)
+- Relative game modules (`./dist/module.js`) via CLI loadModules
+- `TopdownSim.playerMelee` / `livingEnemyCount` for game-layer combat
+- Prior: full genre suite M1–M8, net spike, recipes, CI matrix
 
 ### Docs
-- S-NET extended with implementation pointers; AGENTS through M8
+- Gravewake UNPARKED; AGENTS/task breakdown M1–M9 complete
 
 

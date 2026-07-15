@@ -1,42 +1,45 @@
 # Gravewake
 
-Top-down **Diablo-like ARPG** for the web.
+Top-down **Diablo-like ARPG** on **Anvil**.
 
-**Ashen Lychgate** (town) → **Cinder Parish** (open grind) → **Bellcrypt** (dungeon) → **Bellwarden**.
+**Ashen Lychgate** (town) → **Cinder Parish** (grind) → **Bellcrypt** (boss).
 
 | | |
 |--|--|
-| Engine/SDK | **Anvil** (this monorepo) → Phaser 3 + TypeScript + Vite |
-| Art | Grok Imagine (frames, plates, cinematics) |
-| Progression | XP levels 1–20 + gear |
-| Status | **PARKED** — design complete; implement only after Anvil engine is ready ([PARKED.md](./PARKED.md)) |
+| Engine | **Anvil** (`@anvil/core` + topdown sim) |
+| Status | **M9 unparked** — greybox vertical slice |
+| Art | Greybox; Imagine packs later |
+
+## Run / test (from repo)
+
+```bash
+# build Anvil + game module
+cd anvil && pnpm -r run build
+cd ../games/gravewake && pnpm install && pnpm run build
+pnpm test          # anvil CLI headless scenarios
+pnpm validate
+```
+
+Or from `anvil/`:
+
+```bash
+node packages/cli/dist/index.js validate ../games/gravewake
+node packages/cli/dist/index.js test ../games/gravewake
+```
 
 ## Docs
 
-Start at **[docs/INDEX.md](docs/INDEX.md)**.
+Full design: **[docs/INDEX.md](docs/INDEX.md)**.  
+Slice notes: **[UNPARKED.md](./UNPARKED.md)**.
 
-| Doc | |
-|-----|--|
-| [GDD](docs/GDD.md) | Locked design |
-| [Progression](docs/PROGRESSION.md) | XP & levels |
-| [Overworld](docs/OVERWORLD_CINDER_PARISH.md) | Open world grind |
-| [Dungeon](docs/DUNGEON_BELLCRYPT.md) | Bellcrypt rooms |
-| [Content Bible](docs/CONTENT_BIBLE.md) | Entities & abilities |
-| [Tiles & Env](docs/TILES_AND_ENV.md) | Plates & props |
-| [Items & Loot](docs/ITEMS_AND_LOOT.md) | Gear & tables |
-| [Combat Balance](docs/COMBAT_BALANCE.md) | Numbers |
-| [Systems](docs/SYSTEMS.md) | Code architecture |
-| [Audio](docs/AUDIO.md) | Sound cues |
-| [Asset Pipeline](docs/ASSET_PIPELINE.md) | Imagine workflow |
-| [Asset Checklist](docs/ASSET_CHECKLIST.md) | Every file |
-| [Plan](docs/PLAN.md) | Build phases |
+## Controls (slice)
 
-## Run (after scaffold)
-
-```bash
-npm install
-npm run dev
-```
+| Input | Action |
+|-------|--------|
+| WASD | Move |
+| Space / shoot | Rite Slash (melee) |
+| Digit 1 | Potion |
+| Walk into portal zones | Change area |
 
 ## License
 

@@ -1,0 +1,9 @@
+# Greybox / Imagine pack list — files optional until art pipeline
+required: []
+optional:
+  - actors/gravewarden.png
+  - actors/scuttler.png
+  - actors/bellwarden.png
+  - env/lychgate.png
+  - env/cinder_parish.png
+  - env/bellcrypt.png

@@ -40,6 +40,12 @@ jobs:
         run: node packages/cli/dist/index.js build examples/hello-empty --out examples/hello-empty/dist
       - name: Build data package (hello-card)
         run: node packages/cli/dist/index.js build examples/hello-card --out examples/hello-card/dist
+      - name: Build Gravewake game module
+        run: pnpm --filter gravewake run build
+      - name: Validate + test Gravewake
+        run: |
+          node packages/cli/dist/index.js validate ../games/gravewake
+          node packages/cli/dist/index.js test ../games/gravewake
 
   examples:
     runs-on: ubuntu-latest

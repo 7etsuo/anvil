@@ -131,16 +131,16 @@ Format inspired by GitHub Spec Kit `tasks` phase + SDD (arXiv:2602.00180).
 
 ## M7 — genre-fps2
 
-| ID | Task | Depends | Spec |
-|----|------|---------|------|
-| T-M7-001 | `@anvil/genre-fps2` package | M6 | S-FPS2 |
-| T-M7-002 | Grid map + DDA raycast walls | T-M7-001 | S-FPS2 |
-| T-M7-003 | Player move + yaw | T-M7-002 | S-FPS2 |
-| T-M7-004 | Billboard enemies | T-M7-003 | S-FPS2 |
-| T-M7-005 | Hitscan weapon | T-M7-004 | S-FPS2 |
-| T-M7-006 | hello-fps2 + tests | T-M7-005 | 18 |
-| T-M7-007 | template fps2-starter | T-M7-006 | 11 |
-| T-M7-008 | M7 acceptance | T-M7-007 | 14 |
+| ID | Task | Depends | Spec | Status |
+|----|------|---------|------|--------|
+| T-M7-001 | `@anvil/genre-fps2` package | M6 | S-FPS2 | **[x]** |
+| T-M7-002 | Grid map + DDA raycast walls | T-M7-001 | S-FPS2 | **[x]** |
+| T-M7-003 | Player move + yaw | T-M7-002 | S-FPS2 | **[x]** |
+| T-M7-004 | Billboard enemies | T-M7-003 | S-FPS2 | **[x]** |
+| T-M7-005 | Hitscan weapon | T-M7-004 | S-FPS2 | **[x]** |
+| T-M7-006 | hello-fps2 + tests | T-M7-005 | 18 | **[x]** |
+| T-M7-007 | template fps2-starter | T-M7-006 | 11 | **[x]** |
+| T-M7-008 | M7 acceptance | T-M7-007 | 14 | **[x]** |
 
 ---
 

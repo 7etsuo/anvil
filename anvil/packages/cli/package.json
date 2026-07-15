@@ -18,6 +18,7 @@
     "@anvil/genre-topdown2d": "workspace:*",
     "@anvil/genre-vn": "workspace:*",
     "@anvil/genre-shmup": "workspace:*",
+    "@anvil/genre-fps2": "workspace:*",
     "@anvil/recipes": "workspace:*",
     "yaml": "^2.6.1"
   },

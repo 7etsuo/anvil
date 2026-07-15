@@ -1,0 +1,25 @@
+{
+  "id": "shoot_enemy",
+  "seed": 1,
+  "maxTicks": 40,
+  "steps": [
+    {
+      "tick": 0,
+      "assert": { "path": "genre.fps2.billboards.0.hp", "eq": 2 }
+    },
+    { "tick": 1, "action": "shoot" },
+    {
+      "tick": 3,
+      "assert": { "path": "genre.fps2.billboards.0.hp", "lt": 2 }
+    },
+    { "tick": 5, "action": "shoot" },
+    {
+      "tick": 10,
+      "assert": { "path": "genre.fps2.enemyCount", "eq": 0 }
+    },
+    {
+      "tick": 10,
+      "assert": { "path": "genre.fps2.won", "eq": true }
+    }
+  ]
+}

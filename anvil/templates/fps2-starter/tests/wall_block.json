@@ -1,0 +1,19 @@
+{
+  "id": "wall_block",
+  "seed": 1,
+  "maxTicks": 90,
+  "steps": [
+    {
+      "tick": 0,
+      "assert": { "path": "genre.fps2.player.x", "eq": 1.5 }
+    },
+    {
+      "tick": 1,
+      "setDown": { "move_back": true }
+    },
+    {
+      "tick": 60,
+      "assert": { "path": "genre.fps2.player.x", "gte": 1.1 }
+    }
+  ]
+}

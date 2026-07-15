@@ -25,7 +25,8 @@ Agent-native multi-genre game engine / SDK.
 | **M4 code** | **Done** (genre-topdown2d, hello-topdown, recipes) |
 | **M5 code** | **Done** (genre-vn, genre-shmup, recipes ≥15) |
 | **M6 code** | **Done** (AGENTS, CI matrix, errors, build, perf) |
-| Next | **M7** genre-fps2 |
+| **M7 code** | **Done** (genre-fps2, hello-fps2, starter) |
+| Next | **M8** net spike |
 
 ## Quick start (dev)
 

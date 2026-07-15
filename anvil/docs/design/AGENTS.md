@@ -4,7 +4,7 @@
 
 Anvil is a multi-genre agent-native game engine. Specs in `docs/design/` are source of truth. Code implements `20_FULL_TASK_BREAKDOWN.md`.
 
-**Status:** M1–M6 done. Next: M7 genre-fps2.
+**Status:** M1–M7 done. Next: M8 net spike.
 
 ## 2. Commands (live)
 
@@ -21,7 +21,7 @@ pnpm test:examples
 
 # CLI (built bin)
 pnpm anvil version
-pnpm anvil new my-game --genre card|topdown2d|vn|shmup|none
+pnpm anvil new my-game --genre card|topdown2d|vn|shmup|fps2|none
 pnpm anvil validate examples/hello-empty
 pnpm anvil test examples/hello-card
 pnpm anvil observe --root examples/hello-empty --json
@@ -44,10 +44,11 @@ Equivalent: `node packages/cli/dist/index.js <cmd> …`
 | `examples/hello-topdown` | topdown2d |
 | `examples/hello-vn` | vn |
 | `examples/hello-shmup` | shmup |
+| `examples/hello-fps2` | fps2 |
 
 ### Allowed genres for `anvil new`
 
-`none`, `card`, `topdown2d`, `vn`, `shmup` (fps2 after M7).
+`none`, `card`, `topdown2d`, `vn`, `shmup`, `fps2`.
 
 Full CLI: `specs/S-CLI.md`. Errors: `specs/S-ERRORS.md`.
 

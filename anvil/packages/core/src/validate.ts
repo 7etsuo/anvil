@@ -10,6 +10,7 @@ import {
   normalizeModules,
 } from "@anvil/schema";
 import yaml from "yaml";
+import { validateContentTree } from "./content/validateContentTree.js";
 
 export async function validateProject(root: string): Promise<ValidationResult> {
   const errors: AnvilError[] = [];
@@ -137,28 +138,10 @@ export async function validateProject(root: string): Promise<ValidationResult> {
     }
   }
 
-  // content/audio.json optional shape
-  const audioPath = path.join(abs, game.contentRoot, "audio.json");
-  if (fs.existsSync(audioPath)) {
-    try {
-      const a = JSON.parse(fs.readFileSync(audioPath, "utf8")) as {
-        cues?: unknown;
-      };
-      if (a.cues !== undefined && (typeof a.cues !== "object" || a.cues === null)) {
-        errors.push(
-          err("SCHEMA_INVALID", "audio.json cues must be object", {
-            path: audioPath,
-          }),
-        );
-      }
-    } catch (e) {
-      errors.push(
-        err("SCHEMA_INVALID", `audio.json parse error: ${e}`, {
-          path: audioPath,
-        }),
-      );
-    }
-  }
+  // Full content tree validation (items, loot, quests, actors, maps, …)
+  const content = validateContentTree(abs, game.contentRoot);
+  errors.push(...content.errors);
+  warnings.push(...content.warnings);
 
   if (errors.length) return { ok: false, errors };
   return warnings.length ? { ok: true, warnings } : { ok: true };

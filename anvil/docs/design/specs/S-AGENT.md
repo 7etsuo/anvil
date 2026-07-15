@@ -74,6 +74,22 @@ Agents should read **diagnosis before** re-running observe dumps.
 }
 ```
 
+## Content schemas (validate)
+
+`anvil validate` walks `content/**/*.json` and applies Zod schemas by folder:
+
+| Folder | Schema |
+|--------|--------|
+| `items/` | ItemDef |
+| `loot/` | LootTable (+ warn unknown item ids) |
+| `quests/` | QuestDef |
+| `actors/` | ActorDef |
+| `maps/` / `areas/` | Map / Area |
+| `cards/` | CardDef |
+| `audio.json` | cues map |
+
+Errors use `SCHEMA_INVALID` / `REF_MISSING` with `path` + `hint` for agents.
+
 ## Rules for implementers
 
 1. Do **not** grow CLI past ~15 agent-facing tools without strong need.  

@@ -1,9 +1,10 @@
-# Spec: genre-net (spike only — complete for M8 scope)
+# Spec: genre-net (legacy spike)
 
-**Milestone:** M8  
-**Not a production MMO.**
+**Not production multiplayer.**  
+**Use `@anvil/net-colyseus` → [S-NET-COLYSEUS.md](./S-NET-COLYSEUS.md).**
 
-**Implementation:** `@anvil/genre-net` · harness notes `packages/genre-net/SPIKE.md` · demo `examples/hello-net`
+**Milestone:** M8 spike only.  
+**Implementation:** `@anvil/genre-net` · `packages/genre-net/SPIKE.md` · `examples/hello-net`
 
 ## 1. Goals
 

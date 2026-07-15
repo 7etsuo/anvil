@@ -101,4 +101,10 @@ export const AGENT_TOOL_CATALOG: AgentToolDef[] = [
     description: "Emit this catalog as JSON (self-describing ACI).",
     cli: "anvil tools [--json]",
   },
+  {
+    name: "net_health",
+    description: "Probe Colyseus multiplayer /health (ops).",
+    cli: "anvil net health [--url http://127.0.0.1:2567]",
+    params: { url: { type: "string", required: false } },
+  },
 ];

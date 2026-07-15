@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.5.3 — Net ops + desktop polish
+
+- Colyseus: Redis presence/driver (optional), `/metrics`, richer `/health`, SIGTERM shutdown
+- Reconnect seats (`allowReconnection`) + client `reconnect()` with backoff
+- Deploy: `nginx-wss.conf`, Redis `docker-compose.yml`
+- CLI: `anvil net health`
+- Desktop: single-instance lock, sandbox, menu, ANVIL_DEV_URL, dist auto-detect
+
 ## 0.5.2 — Content tree Zod validation
 
 - Full Zod schemas for items, loot, quests, actors, maps/areas, cards, audio

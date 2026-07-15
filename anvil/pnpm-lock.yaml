@@ -270,6 +270,13 @@ importers:
       express:
         specifier: ^4.21.2
         version: 4.22.2
+    optionalDependencies:
+      '@colyseus/redis-driver':
+        specifier: ^0.16.0
+        version: 0.16.1(@colyseus/schema@3.0.76)(@pm2/io@6.1.0)
+      '@colyseus/redis-presence':
+        specifier: ^0.16.0
+        version: 0.16.4(@colyseus/schema@3.0.76)(@pm2/io@6.1.0)
     devDependencies:
       '@types/express':
         specifier: ^5.0.0

@@ -67,8 +67,22 @@ const net = await connectAnvilNet({
 net.sendInput(["move_right"], 1); // input only — server owns x/y/hp
 ```
 
-Legacy spike (not for production): `@anvil/genre-net` loopback / raw WS relay.  
-Spec: `docs/design/specs/S-NET-COLYSEUS.md`.
+### Ops
+
+```bash
+# Redis multi-node (optional)
+docker compose -f packages/net-colyseus/deploy/docker-compose.yml up -d
+REDIS_URL=redis://127.0.0.1:6379 pnpm --filter @anvil/net-colyseus dev:server
+
+# Health / metrics
+curl http://127.0.0.1:2567/health
+curl http://127.0.0.1:2567/metrics
+anvil net health --url http://127.0.0.1:2567
+```
+
+WSS: terminate TLS at nginx (`packages/net-colyseus/deploy/nginx-wss.conf`), set `ANVIL_TRUST_PROXY=1`.  
+Client reconnect: `net.reconnect()` within server seat window.  
+Legacy spike only: `@anvil/genre-net`. Spec: `docs/design/specs/S-NET-COLYSEUS.md`.
 
 ## Desktop
 

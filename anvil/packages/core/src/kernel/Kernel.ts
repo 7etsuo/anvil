@@ -21,7 +21,7 @@ import { World } from "../world/World.js";
 import { SeededRng } from "./SeededRng.js";
 
 /** Engine semver exposed on observe / GameHandle */
-export const ANVIL_VERSION = "0.4.0";
+export const ANVIL_VERSION = "0.5.0";
 
 export interface SystemEntry {
   name: string;

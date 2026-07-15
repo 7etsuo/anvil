@@ -3,22 +3,40 @@
 Anvil is a **TypeScript game engine** for browser and headless (tests/agents).  
 Priority: **engine quality first**. Games live under `../games/`.
 
-## How you use it
+## Agent-first usage (preferred)
+
+Research basis: SWE-agent (small tool surface), ReAct (act→observe), GameCraft (verify with tests).
 
 ```ts
-import { createGame, observe, CharacterSheet, attachCharacterSheet } from "@anvil/core";
+import {
+  createGame, observe, agentStep, observeDiff, ReplayRecorder, playReplay,
+} from "@anvil/core";
 
+const handle = await createGame({ root: "./my-game", headless: true, seed: 1 });
+
+// Structured actions — no KeyW
+agentStep(handle, { type: "move", dir: "right" }, 30);
+agentStep(handle, { type: "tap", action: "shoot" });
+
+const a = await observe(handle);
+// Prefer a.summary in prompts; full JSON only when debugging
+const b = await observe(handle);
+const delta = observeDiff(a, b); // compact change list
+
+// CLI for agents
+// anvil tools --json     → catalog
+// anvil doctor [path]    → validate + test one-shot
+// anvil observe --json   → state + summary
+// anvil test             → primary success signal
+```
+
+### Human / runtime usage
+
+```ts
 const handle = await createGame({ root: "./my-game", headless: true });
-// First-class services on the handle:
-handle.world
-handle.input
-handle.audio
-handle.particles
-handle.quests
-handle.plugins
-handle.ui
-handle.cinema
-handle.tick(1/60)
+handle.world; handle.input; handle.audio; handle.particles;
+handle.quests; handle.plugins; handle.ui; handle.cinema;
+handle.tick(1/60);
 ```
 
 ## Packages

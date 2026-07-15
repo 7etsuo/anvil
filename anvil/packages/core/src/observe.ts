@@ -1,5 +1,6 @@
 import fs from "node:fs";
 import path from "node:path";
+import { observeSummary } from "./agent/observeDiff.js";
 import type { GameHandle } from "./createGame.js";
 
 export interface ObserveOpts {
@@ -29,6 +30,13 @@ export interface ObserveSnapshot {
   genre: Record<string, unknown>;
   /** First-class engine services snapshot */
   engine: Record<string, unknown>;
+  /**
+   * Short LLM-friendly line (agent-native).
+   * Prefer this over dumping full JSON into a prompt.
+   */
+  summary: string;
+  /** Discrete actions agents can send via agentStep */
+  allowedActions: string[];
   screenshot?: string;
 }
 
@@ -58,7 +66,20 @@ export async function observe(
     ui: {},
     genre: handle.kernel.getGenreObserve(),
     engine: handle.kernel.engineSnapshot(),
+    summary: "",
+    allowedActions: [
+      "move_up",
+      "move_down",
+      "move_left",
+      "move_right",
+      "shoot",
+      "confirm",
+      "interact",
+      "cancel",
+      "inventory",
+    ],
   };
+  snap.summary = observeSummary(snap);
 
   if (opts.shot) {
     const bytes = await handle.kernel.renderer.captureScreenshot();

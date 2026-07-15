@@ -51,6 +51,9 @@ export {
   attachZoneGraph,
 } from "./engine/attach.js";
 
+// Agent-native ACI (structured act / observe / replay)
+export * from "./agent/index.js";
+
 // RPG systems (inventory, equip, stats, loot, zones)
 export * from "./rpg/index.js";
 

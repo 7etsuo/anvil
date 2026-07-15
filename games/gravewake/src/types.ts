@@ -1,3 +1,12 @@
+import type {
+  EquipSlot,
+  EquippedVisualLayer,
+  ItemRarity,
+  LevelProgress,
+  StatBreakdown,
+  Stats,
+} from "@anvil/core";
+
 export type AreaId = string;
 
 export type AreaKind = "hub" | "overworld" | "dungeon";
@@ -83,3 +92,145 @@ export interface ProgressionDef {
 }
 
 export type SkillId = "slash" | "whirl" | "smite" | "potion";
+
+export interface GravewakeCombatStats extends Stats {
+  resistPhysical: number;
+  resistFire: number;
+  resistCold: number;
+  resistLightning: number;
+  resistPoison: number;
+  resistHoly: number;
+  resistArcane: number;
+}
+
+export interface GravewakeInventoryRow {
+  uid: string;
+  defId: string;
+  name: string;
+  qty: number;
+  slot?: EquipSlot;
+  rarity: ItemRarity;
+  itemLevel?: number;
+  reqLevel?: number;
+  canEquip: boolean;
+  rolledStats?: Partial<Stats>;
+}
+
+export interface GravewakeSkillPanelState {
+  points: number;
+  pending: boolean;
+  nodes: Array<{
+    id: string;
+    name: string;
+    rank: number;
+    maxRank: number;
+    canUnlock: boolean;
+    requires: string[];
+    reqLevel: number;
+    description: string;
+  }>;
+}
+
+export interface GravewakeCraftPanelState {
+  recipes: Array<{
+    id: string;
+    name: string;
+    can: boolean;
+    inputs: Array<{ itemId: string; qty: number }>;
+    outputId: string;
+    cost?: Record<string, number>;
+  }>;
+}
+
+export interface GravewakeVendorPanelState {
+  offers: Array<{
+    id: string;
+    itemId: string;
+    name: string;
+    price: Record<string, number>;
+    stock?: number;
+  }>;
+  sellable: Array<{
+    uid: string;
+    defId: string;
+    name: string;
+    qty: number;
+    value: number;
+    rarity: ItemRarity;
+  }>;
+}
+
+/** Stable game-to-renderer/agent observation contract. */
+export interface GravewakeObservation {
+  title: "Gravewake";
+  area: AreaId;
+  areaName: string;
+  areaKind: AreaKind;
+  procgen: boolean;
+  threat: number;
+  xp: number;
+  level: number;
+  xpProgress: LevelProgress;
+  gold: number;
+  wallet: Record<string, number>;
+  mana: number;
+  manaMax: number;
+  stamina: number;
+  staminaMax: number;
+  potions: number;
+  victory: false;
+  milestoneBoss: boolean;
+  bossSlainOnce: boolean;
+  bossesKilled: number;
+  lost: boolean;
+  livingEnemies: number;
+  kills: number;
+  timeAlive: number;
+  exitHint: string;
+  inventoryOpen: boolean;
+  statsOpen: boolean;
+  skillsOpen: boolean;
+  craftOpen: boolean;
+  vendorOpen: boolean;
+  pendingSkillChoice: boolean;
+  skillPanel: GravewakeSkillPanelState;
+  craftPanel: GravewakeCraftPanelState;
+  vendorPanel: GravewakeVendorPanelState;
+  lootCompare: { text: string; color: string; t: number } | null;
+  shards: number;
+  inventory: GravewakeInventoryRow[];
+  equipped: Record<string, string | null>;
+  stats: GravewakeCombatStats;
+  sheetStats: Stats;
+  combatStats: GravewakeCombatStats;
+  statBreakdown: StatBreakdown;
+  hp: number;
+  maxHp: number;
+  cds: Record<SkillId, number>;
+  lastSkill: SkillId;
+  quest: string | null;
+  fog: number[][] | null;
+  interactables: Array<{
+    id: string;
+    kind: string;
+    used: boolean;
+    x: number;
+    y: number;
+  }>;
+  visualLayers: EquippedVisualLayer[];
+  bodyVariant: string | null;
+  portals: Array<{
+    x: number;
+    y: number;
+    w: number;
+    h: number;
+    label?: string;
+    kind?: "dungeon" | "hub" | "boss";
+    to: AreaId;
+  }>;
+  walls: Array<{ x: number; y: number; w: number; h: number }>;
+  mapW: number;
+  mapH: number;
+  topdown: Record<string, unknown>;
+  [key: string]: unknown;
+}

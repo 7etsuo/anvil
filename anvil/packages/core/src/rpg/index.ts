@@ -10,7 +10,11 @@ export { Inventory, defaultUid } from "./Inventory.js";
 export { Equipment } from "./Equipment.js";
 export type { ItemDefLookup } from "./Equipment.js";
 export { CharacterSheet } from "./CharacterSheet.js";
-export type { CharacterSheetOpts, StatBreakdown } from "./CharacterSheet.js";
+export type {
+  CharacterSheetOpts,
+  LevelProgress,
+  StatBreakdown,
+} from "./CharacterSheet.js";
 /** Single source of truth for gear level / stat budget math */
 export {
   DEFAULT_ITEMIZATION,

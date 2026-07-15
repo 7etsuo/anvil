@@ -26,6 +26,21 @@ export type StatBreakdown = {
   }>;
 };
 
+/** Progress through the current level for XP bars and agent observations. */
+export interface LevelProgress {
+  /** Total XP at which the current level began. */
+  current: number;
+  /** Total XP required for the next level, or null at the table cap. */
+  next: number | null;
+  /** XP earned since the current level began. */
+  earned: number;
+  /** XP required within this level, or 0 at the table cap. */
+  needed: number;
+  /** Normalized progress in the inclusive range 0..1. */
+  ratio: number;
+  atMaxLevel: boolean;
+}
+
 /** Default draw order for paper-doll layers (body under gear under weapon). */
 const SLOT_Z: Partial<Record<EquipSlot, number>> = {
   feet: 10,
@@ -168,6 +183,38 @@ export class CharacterSheet {
       leveled = true;
     }
     return leveled;
+  }
+
+  /**
+   * Resolve level-relative XP from the same cumulative threshold table used by
+   * addXp. Keeping this here prevents game UIs from duplicating balance data or
+   * applying a different level-to-threshold index.
+   */
+  xpProgress(xpTable: readonly number[]): LevelProgress {
+    const current =
+      this.level <= 1 ? 0 : (xpTable[this.level - 1] ?? xpTable.at(-1) ?? 0);
+    const next = this.level < xpTable.length ? xpTable[this.level]! : null;
+    if (next === null || next <= current) {
+      return {
+        current,
+        next,
+        earned: Math.max(0, this.xp - current),
+        needed: 0,
+        ratio: 1,
+        atMaxLevel: true,
+      };
+    }
+
+    const needed = next - current;
+    const earned = Math.max(0, Math.min(needed, this.xp - current));
+    return {
+      current,
+      next,
+      earned,
+      needed,
+      ratio: earned / needed,
+      atMaxLevel: false,
+    };
   }
 
   addGold(n: number): void {

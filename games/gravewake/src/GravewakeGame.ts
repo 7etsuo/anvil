@@ -59,6 +59,9 @@ import type { TileMap } from "@anvil/core";
 import type {
   AreaId,
   AreaMapDef,
+  GravewakeCombatStats,
+  GravewakeObservation,
+  GravewakeSkillPanelState,
   PortalDef,
   ProgressionDef,
   SkillId,
@@ -412,7 +415,7 @@ export class GravewakeGame {
       if (pos && this.services.audio) {
         playSpatial(this.services.audio, "spell", pos, { x: h.x, y: h.y });
       }
-      this.services.events &&
+      if (this.services.events) {
         emitHit(this.services.events, {
           attackerId: h.projectile.ownerId ?? "player",
           targetId: h.targetId,
@@ -424,6 +427,7 @@ export class GravewakeGame {
           damageType: dtype,
           statuses: ["chill"],
         });
+      }
     });
   }
 
@@ -907,20 +911,7 @@ export class GravewakeGame {
   }
 
   /** Nodes available for the skill UI. */
-  skillPanelState(): {
-    points: number;
-    pending: boolean;
-    nodes: Array<{
-      id: string;
-      name: string;
-      rank: number;
-      maxRank: number;
-      canUnlock: boolean;
-      requires: string[];
-      reqLevel: number;
-      description: string;
-    }>;
-  } {
+  skillPanelState(): GravewakeSkillPanelState {
     const st = this.skillTree.getState();
     return {
       points: st.points,
@@ -1008,22 +999,7 @@ export class GravewakeGame {
   /**
    * Sheet gear + skill-tree bonuses — what combat actually uses.
    */
-  private effectivePlayerStats(): {
-    maxHp: number;
-    damage: number;
-    armor: number;
-    speed: number;
-    critChance: number;
-    critMult: number;
-    resistPhysical: number;
-    resistFire: number;
-    resistCold: number;
-    resistLightning: number;
-    resistPoison: number;
-    resistHoly: number;
-    resistArcane: number;
-    [k: string]: number;
-  } {
+  private effectivePlayerStats(): GravewakeCombatStats {
     const s = this.sheet.finalStats();
     const tree = this.skillTree.aggregateData() as {
       damageBonus?: number;
@@ -1085,7 +1061,7 @@ export class GravewakeGame {
 
   /** Wire armor/resists into the sim so gear is not cosmetic. */
   private wireCombatStats(sim: TopdownSim): void {
-    sim.setDamageMitigator((targetId, raw, ctx) => {
+    sim.setDamageMitigator((targetId, raw, _ctx) => {
       const isPlayer =
         targetId === "player" || targetId === sim.getPlayerId();
       if (isPlayer) {
@@ -2654,7 +2630,7 @@ export class GravewakeGame {
     }
   }
 
-  observeBlob(): Record<string, unknown> {
+  observeBlob(): GravewakeObservation {
     const simBlob = this.sim?.observeBlob() ?? {};
     const sheetStats = this.sheet.finalStats();
     const stats = this.effectivePlayerStats();
@@ -2706,6 +2682,7 @@ export class GravewakeGame {
       threat: Math.round(this.threatTier() * 10) / 10,
       xp: this.sheet.xp,
       level: this.sheet.level,
+      xpProgress: this.sheet.xpProgress(this.progression.xpToLevel),
       gold: this.sheet.gold,
       wallet: this.wallet.snapshot(),
       mana: this.services.resources?.get("player", "mana")?.current ?? 0,
@@ -2722,13 +2699,14 @@ export class GravewakeGame {
       projectiles: this.services.projectiles?.all().length ?? 0,
       floatTexts: this.services.floatText?.all().length ?? 0,
       transition: this.services.transitions?.state ?? null,
-      interactables: this.services.interactables?.all().map((s) => ({
-        id: s.def.id,
-        kind: s.def.kind,
-        used: s.used,
-        x: s.def.x,
-        y: s.def.y,
-      })),
+      interactables:
+        this.services.interactables?.all().map((s) => ({
+          id: s.def.id,
+          kind: s.def.kind,
+          used: s.used,
+          x: s.def.x,
+          y: s.def.y,
+        })) ?? [],
       potions,
       victory: false,
       milestoneBoss: this.milestoneBoss,

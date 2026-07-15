@@ -45,7 +45,7 @@ function resolveDist(manifest) {
   return candidates[0];
 }
 
-function buildMenu(win) {
+function buildMenu() {
   const isMac = process.platform === "darwin";
   const template = [
     ...(isMac
@@ -110,7 +110,7 @@ function createWindow() {
     show: false,
   });
 
-  buildMenu(win);
+  buildMenu();
 
   win.once("ready-to-show", () => win.show());
   win.webContents.setWindowOpenHandler(({ url }) => {

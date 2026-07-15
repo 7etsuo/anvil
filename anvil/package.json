@@ -9,6 +9,7 @@
   },
   "packageManager": "pnpm@9.15.9",
   "scripts": {
+    "check": "pnpm -r run build && pnpm test && pnpm lint && pnpm validate:examples && pnpm test:examples && pnpm validate:gravewake && pnpm test:gravewake && pnpm --dir ../games/gravewake lint && pnpm --dir ../games/gravewake build:web",
     "build": "pnpm -r run build",
     "test": "pnpm --filter @anvil/schema --filter @anvil/core --filter @anvil/genre-card --filter @anvil/genre-topdown2d --filter @anvil/genre-vn --filter @anvil/genre-shmup --filter @anvil/genre-fps2 --filter @anvil/genre-net --filter @anvil/net-colyseus --filter @anvil/cli --filter @anvil/render-phaser --filter @anvil/recipes run test",
     "lint": "eslint .",

@@ -1,7 +1,7 @@
 {
   "id": "melee_and_xp",
   "seed": 1,
-  "maxTicks": 600,
+  "maxTicks": 1050,
   "steps": [
     {
       "tick": 1,
@@ -13,30 +13,68 @@
     },
     {
       "tick": 281,
-      "setDown": { "move_right": true }
+      "setDown": { "move_down": true },
+      "setUp": ["move_right"]
     },
     {
-      "tick": 360,
+      "tick": 520,
+      "setDown": { "move_right": true },
+      "setUp": ["move_down"]
+    },
+    {
+      "tick": 620,
+      "setUp": ["move_right"]
+    },
+    {
+      "tick": 640,
       "action": "shoot"
     },
     {
-      "tick": 400,
+      "tick": 680,
       "action": "shoot"
     },
     {
-      "tick": 440,
+      "tick": 720,
       "action": "shoot"
     },
     {
-      "tick": 480,
+      "tick": 760,
+      "action": "shoot"
+    },
+    {
+      "tick": 800,
+      "action": "shoot"
+    },
+    {
+      "tick": 840,
+      "action": "shoot"
+    },
+    {
+      "tick": 880,
+      "action": "shoot"
+    },
+    {
+      "tick": 920,
+      "action": "shoot"
+    },
+    {
+      "tick": 960,
+      "action": "shoot"
+    },
+    {
+      "tick": 1000,
       "assert": { "path": "genre.gravewake.topdown.playerId", "eq": "player" }
     },
     {
-      "tick": 480,
+      "tick": 1000,
       "assert": { "path": "genre.gravewake.area", "eq": "wastes" }
     },
     {
-      "tick": 480,
+      "tick": 1000,
+      "assert": { "path": "genre.gravewake.xp", "gt": 0 }
+    },
+    {
+      "tick": 1000,
       "assert": { "path": "genre.gravewake.victory", "eq": false }
     }
   ]

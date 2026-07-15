@@ -55,6 +55,11 @@ CharacterSheet, loot tables, equip, multi-skill combat, quests, particles, **Pac
 ### Tests
 
 ```bash
+pnpm typecheck
+pnpm lint
 pnpm test
 pnpm validate
+pnpm build:web
 ```
+
+From `anvil/`, `pnpm check` runs the complete active engine + Gravewake gate.

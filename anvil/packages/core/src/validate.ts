@@ -139,7 +139,7 @@ export async function validateProject(root: string): Promise<ValidationResult> {
   }
 
   // Full content tree validation (items, loot, quests, actors, maps, …)
-  const content = validateContentTree(abs, game.contentRoot);
+  const content = validateContentTree(abs, game.contentRoot, game.assetsRoot);
   errors.push(...content.errors);
   warnings.push(...content.warnings);
 

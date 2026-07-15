@@ -41,6 +41,7 @@ pnpm test
 pnpm lint
 pnpm validate:examples
 pnpm test:examples
+pnpm check                # full active engine + Gravewake gate
 
 # CLI
 pnpm anvil version

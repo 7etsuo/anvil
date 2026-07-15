@@ -1,21 +1,23 @@
-# Gravewake — UNPARKED (M9)
+# Gravewake — ACTIVE (M9)
 
 **Decision (T-M9-001):** Ship **Gravewake** as the first Anvil title.
 
-**Scope (vertical slice greybox):**
+**Current playable scope:**
 
 | Area | Fiction | Runtime |
 |------|---------|---------|
-| Town | Ashen Lychgate | Safe hub, portal east → parish |
-| Overworld | Cinder Parish | Scuttlers + wretch, clear for crypt gate |
-| Dungeon | Bellcrypt | Crypt guard + Bellwarden; victory on clear |
+| Town | Ashen Lychgate | Safe hub, shrine vendor, crafting, inventory |
+| Overworld | Ashen Wastes | Procedural layout, timed packs, four portals |
+| Dungeon | Bellcrypt | Procedural delve + Bellwarden |
+| Dungeon | Howling Catacombs | Harder delve + Death Knight |
+| Dungeon | Bonekeep | Endgame delve + Bone Tyrant |
 
 **Engine:** Anvil only (`@anvil/core`, `@anvil/genre-topdown2d` combat/move via `TopdownSim`).  
 **Game module:** `./dist/module.js` (relative load from CLI).  
-**Art:** Greybox / manifest optional paths (Imagine later).
+**Art:** Production actor, environment, gear, portal, and loot sprites with greybox fallback.
 
-**Playable:** `pnpm run play` → browser at http://127.0.0.1:5180/ (WASD + Space).
+**Playable:** `pnpm run play` → browser at http://127.0.0.1:5180/ (mouse or WASD; see README).
 
-**Not in slice yet:** full 12-room dungeon graph, vendor UI, full inventory, cinematics, multiplayer.
+**Not in the current build:** cinematics, multiplayer, and a fixed hand-authored 12-room dungeon. Dungeons intentionally use Anvil procedural generation instead.
 
 See `docs/` for full design bible.

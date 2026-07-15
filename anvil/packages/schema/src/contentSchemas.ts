@@ -3,7 +3,7 @@
  * Folder convention under contentRoot drives which schema applies.
  */
 import { z } from "zod";
-import { EntityId } from "./gameDescriptor.js";
+import { AssetPath, EntityId } from "./gameDescriptor.js";
 
 export const StatsPartialSchema = z
   .object({
@@ -28,6 +28,15 @@ export const EquipSlotSchema = z.enum([
   "trinket",
 ]);
 
+export const ItemVisualSchema = z.object({
+  sprite: AssetPath.optional(),
+  bodyVariant: AssetPath.optional(),
+  ox: z.number().optional(),
+  oy: z.number().optional(),
+  scale: z.number().positive().optional(),
+  z: z.number().optional(),
+});
+
 export const ItemDefSchema = z.object({
   id: EntityId,
   name: z.string().min(1),
@@ -37,7 +46,9 @@ export const ItemDefSchema = z.object({
   maxStack: z.number().int().min(1).optional(),
   slot: EquipSlotSchema.optional(),
   stats: StatsPartialSchema.optional(),
-  icon: z.string().optional(),
+  itemLevel: z.number().int().positive().optional(),
+  icon: AssetPath.optional(),
+  visual: ItemVisualSchema.optional(),
   flavor: z.string().optional(),
   data: z.record(z.unknown()).optional(),
 });
@@ -91,7 +102,7 @@ export const QuestDefSchema = z.object({
 });
 
 export const AudioJsonSchema = z.object({
-  cues: z.record(z.string()).optional(),
+  cues: z.record(AssetPath).optional(),
 });
 
 /** Topdown / ARPG actor content */
@@ -113,7 +124,7 @@ export const ActorDefSchema = z.object({
   projectileSpeed: z.number().optional(),
   projectileCooldownMs: z.number().optional(),
   projectileLifetimeMs: z.number().optional(),
-  animations: z.record(z.array(z.string())).optional(),
+  animations: z.record(z.array(AssetPath)).optional(),
   skills: z.array(z.string()).optional(),
 });
 
@@ -137,8 +148,49 @@ export const MapDefSchema = z.object({
   height: z.number().positive(),
   walls: z.array(MapWallSchema).default([]),
   spawns: z.array(MapSpawnSchema).default([]),
-  background: z.string().optional(),
+  background: AssetPath.optional(),
 });
+
+/** FPS2 grid map (S-FPS2), sharing the content/maps folder with top-down maps. */
+export const Fps2MapDefSchema = z
+  .object({
+    id: EntityId,
+    cells: z.array(z.array(z.number().int().nonnegative()).min(1)).min(1),
+    playerStart: z.object({
+      x: z.number(),
+      y: z.number(),
+      angle: z.number(),
+    }),
+    enemies: z
+      .array(
+        z.object({
+          id: EntityId,
+          x: z.number(),
+          y: z.number(),
+          hp: z.number().positive(),
+        }),
+      )
+      .default([]),
+    exit: z
+      .object({
+        x: z.number(),
+        y: z.number(),
+        radius: z.number().positive(),
+      })
+      .optional(),
+  })
+  .superRefine((map, ctx) => {
+    const width = map.cells[0]?.length ?? 0;
+    map.cells.forEach((row, i) => {
+      if (row.length !== width) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: "all FPS2 map rows must have the same width",
+          path: ["cells", i],
+        });
+      }
+    });
+  });
 
 export const AreaMapDefSchema = MapDefSchema.extend({
   portals: z
@@ -194,7 +246,9 @@ export function schemaForContentPath(
   if (p.includes("/loot/") || p.startsWith("loot/")) return LootTableSchema;
   if (p.includes("/quests/") || p.startsWith("quests/")) return QuestDefSchema;
   if (p.includes("/actors/") || p.startsWith("actors/")) return ActorDefSchema;
-  if (p.includes("/maps/") || p.startsWith("maps/")) return MapDefSchema;
+  if (p.includes("/maps/") || p.startsWith("maps/")) {
+    return z.union([MapDefSchema, Fps2MapDefSchema]);
+  }
   if (p.includes("/areas/") || p.startsWith("areas/")) return AreaMapDefSchema;
   if (p.includes("/cards/") || p.startsWith("cards/")) return CardDefSchema;
   if (p.includes("/enemies/") || p.startsWith("enemies/")) {

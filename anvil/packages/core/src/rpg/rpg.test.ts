@@ -156,6 +156,41 @@ describe("Inventory + Equipment + CharacterSheet", () => {
     expect(b.bySlot[0]?.defId).toBe("sword");
   });
 
+  it("reports level-relative XP progress from cumulative thresholds", () => {
+    const sheet = new CharacterSheet({ level: 1, xp: 0 });
+    const table = [0, 40, 100, 180];
+
+    expect(sheet.xpProgress(table)).toEqual({
+      current: 0,
+      next: 40,
+      earned: 0,
+      needed: 40,
+      ratio: 0,
+      atMaxLevel: false,
+    });
+
+    sheet.level = 2;
+    sheet.xp = 70;
+    expect(sheet.xpProgress(table)).toMatchObject({
+      current: 40,
+      next: 100,
+      earned: 30,
+      needed: 60,
+      ratio: 0.5,
+      atMaxLevel: false,
+    });
+
+    sheet.level = table.length;
+    sheet.xp = 220;
+    expect(sheet.xpProgress(table)).toMatchObject({
+      current: 180,
+      next: null,
+      needed: 0,
+      ratio: 1,
+      atMaxLevel: true,
+    });
+  });
+
   it("equippedVisuals returns paper-doll layers from gear", () => {
     const sheet = new CharacterSheet({
       itemDefs: {

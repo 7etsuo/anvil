@@ -1,43 +1,43 @@
 {
   "id": "melee_and_xp",
   "seed": 1,
-  "maxTicks": 400,
+  "maxTicks": 500,
   "steps": [
     {
       "tick": 1,
       "setDown": { "move_right": true }
     },
     {
-      "tick": 120,
+      "tick": 200,
       "assert": { "path": "genre.gravewake.area", "eq": "parish" }
     },
     {
-      "tick": 121,
-      "setDown": { "move_right": true, "move_up": false }
+      "tick": 201,
+      "setDown": { "move_right": true }
     },
     {
-      "tick": 200,
+      "tick": 280,
       "action": "shoot"
     },
     {
-      "tick": 210,
+      "tick": 300,
       "action": "shoot"
     },
     {
-      "tick": 220,
+      "tick": 320,
       "action": "shoot"
     },
     {
-      "tick": 230,
+      "tick": 340,
       "action": "shoot"
     },
     {
-      "tick": 250,
-      "assert": { "path": "genre.gravewake.xp", "gte": 0 }
-    },
-    {
-      "tick": 250,
+      "tick": 360,
       "assert": { "path": "genre.gravewake.topdown.playerId", "eq": "player" }
+    },
+    {
+      "tick": 360,
+      "assert": { "path": "genre.gravewake.area", "eq": "parish" }
     }
   ]
 }

@@ -120,16 +120,19 @@ export class TopdownSim {
   }
 
   /**
-   * Player melee strike (game layer may call on shoot/confirm).
-   * Damages nearest living enemy within range; returns true if a hit landed.
+   * Player melee strike — damages ALL enemies in range (cleave).
+   * Returns hit count and positions for VFX.
    */
-  playerMelee(range: number, damage: number): boolean {
-    if (!this.playerId || this.won || this.lost) return false;
+  playerMelee(
+    range: number,
+    damage: number,
+  ): { hits: number; targets: Array<{ x: number; y: number; dmg: number }> } {
+    const empty = { hits: 0, targets: [] as Array<{ x: number; y: number; dmg: number }> };
+    if (!this.playerId || this.won || this.lost) return empty;
     const pr = this.actors.get(this.playerId);
     const pe = this.world.get(this.playerId);
-    if (!pr || pr.dead || !pe?.transform) return false;
-    let best: ActorRuntime | null = null;
-    let bestD = range;
+    if (!pr || pr.dead || !pe?.transform) return empty;
+    const targets: Array<{ x: number; y: number; dmg: number }> = [];
     for (const rt of this.actors.values()) {
       if (rt.dead || rt.team !== "enemy") continue;
       const e = this.world.get(rt.entityId);
@@ -138,15 +141,25 @@ export class TopdownSim {
         e.transform.x - pe.transform.x,
         e.transform.y - pe.transform.y,
       );
-      if (d <= bestD) {
-        bestD = d;
-        best = rt;
+      if (d <= range) {
+        this.applyDamage(rt, damage);
+        targets.push({
+          x: e.transform.x,
+          y: e.transform.y,
+          dmg: damage,
+        });
       }
     }
-    if (!best) return false;
-    this.applyDamage(best, damage);
-    pr.attackAnimMs = 150;
-    return true;
+    if (targets.length) pr.attackAnimMs = 200;
+    return { hits: targets.length, targets };
+  }
+
+  /** World-space player position for VFX. */
+  getPlayerPos(): { x: number; y: number } | null {
+    if (!this.playerId) return null;
+    const e = this.world.get(this.playerId);
+    if (!e?.transform) return null;
+    return { x: e.transform.x, y: e.transform.y };
   }
 
   /** Count of living enemies (for multi-area games). */
@@ -295,10 +308,11 @@ export class TopdownSim {
   private applyPlayerInput(rt: ActorRuntime, input: InputMap): void {
     let ix = 0;
     let iy = 0;
+    // Support both topdown names and fps-style forward/back (shared WASD)
     if (input.isDown("move_left")) ix -= 1;
     if (input.isDown("move_right")) ix += 1;
-    if (input.isDown("move_up")) iy -= 1;
-    if (input.isDown("move_down")) iy += 1;
+    if (input.isDown("move_up") || input.isDown("move_forward")) iy -= 1;
+    if (input.isDown("move_down") || input.isDown("move_back")) iy += 1;
     if (ix !== 0 || iy !== 0) {
       const len = Math.hypot(ix, iy);
       ix /= len;

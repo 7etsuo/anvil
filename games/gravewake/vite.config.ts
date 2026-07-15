@@ -24,6 +24,8 @@ export default defineConfig({
       "@anvil/genre-topdown2d": path.join(anvil, "genre-topdown2d/src/index.ts"),
       "node:fs": path.resolve(root, "vite-stubs/fs.ts"),
       "node:path": path.resolve(root, "vite-stubs/path.ts"),
+      "node:url": path.resolve(root, "vite-stubs/url.ts"),
+      "node:os": path.resolve(root, "vite-stubs/os.ts"),
     },
   },
   optimizeDeps: {

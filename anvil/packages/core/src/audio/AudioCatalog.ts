@@ -1,7 +1,23 @@
 import fs from "node:fs";
 import path from "node:path";
-import { fileURLToPath } from "node:url";
 import type { AudioCues } from "./AudioSystem.js";
+
+/** Avoid `node:url` — it breaks browser bundles (Vite/Phaser hosts). */
+function moduleDirname(): string | null {
+  try {
+    const u = import.meta.url;
+    if (typeof u !== "string" || u.startsWith("http:") || u.startsWith("https:")) {
+      return null;
+    }
+    // file:///path or /path
+    const raw = u.startsWith("file:") ? u.slice("file://".length) : u;
+    const noQuery = raw.split("?")[0] ?? raw;
+    const dir = noQuery.replace(/[/\\][^/\\]*$/, "");
+    return dir || null;
+  } catch {
+    return null;
+  }
+}
 
 const AUDIO_EXT = /\.(ogg|wav|mp3)$/i;
 
@@ -60,28 +76,37 @@ export function resolveBundledAudioRoot(explicit?: string): string | null {
     const p = path.resolve(explicit);
     return fs.existsSync(p) ? p : null;
   }
-  if (process.env.ANVIL_AUDIO_ROOT) {
-    const p = path.resolve(process.env.ANVIL_AUDIO_ROOT);
-    if (fs.existsSync(p)) return p;
+  try {
+    if (typeof process !== "undefined" && process.env?.ANVIL_AUDIO_ROOT) {
+      const p = path.resolve(process.env.ANVIL_AUDIO_ROOT);
+      if (fs.existsSync(p)) return p;
+    }
+  } catch {
+    /* browser */
   }
 
   const candidates: string[] = [];
-  try {
-    const here = path.dirname(fileURLToPath(import.meta.url));
+  const here = moduleDirname();
+  if (here) {
     // dist/audio or src/audio → packages/core → packages → anvil → assets/audio
     candidates.push(
       path.resolve(here, "../../../../assets/audio"),
       path.resolve(here, "../../../../../assets/audio"),
     );
-  } catch {
-    /* non-file URL */
   }
-  candidates.push(
-    path.resolve(process.cwd(), "assets/audio"),
-    path.resolve(process.cwd(), "anvil/assets/audio"),
-    path.resolve(process.cwd(), "../anvil/assets/audio"),
-    path.resolve(process.cwd(), "../../anvil/assets/audio"),
-  );
+  try {
+    const cwd = typeof process !== "undefined" && process.cwd ? process.cwd() : "";
+    if (cwd) {
+      candidates.push(
+        path.resolve(cwd, "assets/audio"),
+        path.resolve(cwd, "anvil/assets/audio"),
+        path.resolve(cwd, "../anvil/assets/audio"),
+        path.resolve(cwd, "../../anvil/assets/audio"),
+      );
+    }
+  } catch {
+    /* browser */
+  }
 
   for (const c of candidates) {
     if (fs.existsSync(path.join(c, "catalog.json")) || fs.existsSync(c)) {

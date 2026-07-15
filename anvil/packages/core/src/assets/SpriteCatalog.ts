@@ -4,7 +4,21 @@
 
 import fs from "node:fs";
 import path from "node:path";
-import { fileURLToPath } from "node:url";
+
+/** Avoid `node:url` — breaks browser bundles. */
+function moduleDirname(): string | null {
+  try {
+    const u = import.meta.url;
+    if (typeof u !== "string" || u.startsWith("http:") || u.startsWith("https:")) {
+      return null;
+    }
+    const raw = u.startsWith("file:") ? u.slice("file://".length) : u;
+    const noQuery = raw.split("?")[0] ?? raw;
+    return noQuery.replace(/[/\\][^/\\]*$/, "") || null;
+  } catch {
+    return null;
+  }
+}
 
 const IMG_EXT = /\.(png|webp|jpe?g|gif)$/i;
 
@@ -33,24 +47,33 @@ export function resolveBundledSpriteRoot(explicit?: string): string | null {
     const p = path.resolve(explicit);
     return fs.existsSync(p) ? p : null;
   }
-  if (process.env.ANVIL_SPRITES_ROOT) {
-    const p = path.resolve(process.env.ANVIL_SPRITES_ROOT);
-    if (fs.existsSync(p)) return p;
+  try {
+    if (typeof process !== "undefined" && process.env?.ANVIL_SPRITES_ROOT) {
+      const p = path.resolve(process.env.ANVIL_SPRITES_ROOT);
+      if (fs.existsSync(p)) return p;
+    }
+  } catch {
+    /* browser */
   }
   const candidates: string[] = [];
-  try {
-    const here = path.dirname(fileURLToPath(import.meta.url));
+  const here = moduleDirname();
+  if (here) {
     candidates.push(
       path.resolve(here, "../../../../assets/sprites"),
       path.resolve(here, "../../../../../assets/sprites"),
     );
-  } catch {
-    /* */
   }
-  candidates.push(
-    path.resolve(process.cwd(), "assets/sprites"),
-    path.resolve(process.cwd(), "anvil/assets/sprites"),
-  );
+  try {
+    const cwd = typeof process !== "undefined" && process.cwd ? process.cwd() : "";
+    if (cwd) {
+      candidates.push(
+        path.resolve(cwd, "assets/sprites"),
+        path.resolve(cwd, "anvil/assets/sprites"),
+      );
+    }
+  } catch {
+    /* browser */
+  }
   for (const c of candidates) {
     if (fs.existsSync(c) && fs.statSync(c).isDirectory()) return c;
   }

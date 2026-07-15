@@ -1487,14 +1487,14 @@ async function main(): Promise<void> {
       ctx.globalAlpha = 1;
     }
 
-    // Zone transition fade
+    // Zone transition fade (only while active — never leave a stuck black frame)
     const tr = handle.transitions.state;
-    if (tr.phase !== "idle" && tr.alpha > 0) {
-      ctx.fillStyle = `rgba(0,0,0,${tr.alpha})`;
+    if (tr.phase !== "idle" && tr.alpha > 0.02) {
+      ctx.fillStyle = `rgba(0,0,0,${Math.min(1, tr.alpha)})`;
       ctx.fillRect(0, 0, VIEW_W, VIEW_H);
-      if (tr.label && tr.phase === "hold") {
+      if (tr.label && (tr.phase === "hold" || tr.phase === "out")) {
         ctx.fillStyle = "#c9a46c";
-        ctx.font = "bold 28px system-ui";
+        ctx.font = "bold 28px Cinzel, Georgia, serif";
         ctx.textAlign = "center";
         ctx.fillText(tr.label, VIEW_W / 2, VIEW_H / 2);
       }

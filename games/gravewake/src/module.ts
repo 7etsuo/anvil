@@ -25,7 +25,14 @@ export const gravewakeModule: GenreModule = {
       setGenreObserve?: (fn: () => Record<string, unknown>) => void;
     },
   ): void {
-    if (kernel.audio && kernel.events) {
+    // Node/headless only: bundled catalog uses filesystem. Browser installs cues
+    // from content/audio.json in browser/main.ts (installGameAudio).
+    if (
+      kernel.audio &&
+      kernel.events &&
+      typeof process !== "undefined" &&
+      !!(process as { versions?: { node?: string } }).versions?.node
+    ) {
       try {
         installGameAudio(
           kernel.events,
@@ -33,7 +40,7 @@ export const gravewakeModule: GenreModule = {
           getGameReadyAudioCues("audio"),
         );
       } catch {
-        /* catalog optional in pure content mode */
+        /* catalog optional */
       }
     }
     kernel.setGenreObserve?.(() => {

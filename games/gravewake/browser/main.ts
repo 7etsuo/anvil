@@ -10,14 +10,21 @@ import {
 import { browserGravewakeModule, getBrowserGravewake } from "./browserModule.js";
 import { embeddedAreas } from "./contentEmbed.js";
 import type { FxEvent } from "../src/GravewakeGame.js";
+import {
+  depthOf,
+  drawIsoFloor,
+  drawIsoWalls,
+  project,
+  unproject,
+  type Cam,
+} from "./diabloView.js";
 
-/** Zoomed-out battlefield (readable, not microscopic). */
-const SCALE = 1.15;
-/** Wall “height” in screen px for fake 3/4 extrusion. */
-const WALL_Z = 18;
 /** Full-window logical resolution (updated on resize). */
 let VIEW_W = 1280;
 let VIEW_H = 720;
+
+/** Sprite scale in iso view (characters smaller — Diablo proportions). */
+const SPRITE_SCALE = 0.85;
 
 /** Every Imagine-processed sprite identity (unique art — no palette-swap remaps). */
 const ACTOR_IDS = [
@@ -43,6 +50,8 @@ const ACTOR_IDS = [
 
 const ASSET_URLS: Record<string, string> = {
   "env/floor.png": "/assets/env/floor.png",
+  "env/floor_wastes.png": "/assets/env/floor_wastes.png",
+  "env/floor_dungeon.png": "/assets/env/floor_dungeon.png",
   "env/wall.png": "/assets/env/wall.png",
   "env/ruin_pillar.png": "/assets/env/ruin_pillar.png",
   "env/ruin_arch.png": "/assets/env/ruin_arch.png",
@@ -347,8 +356,8 @@ async function main(): Promise<void> {
   /** Survives keyup before next rAF — short Space/click was missing the start frame. */
   let startLatched = false;
   let started = false;
-  let camX = 0;
-  let camY = 0;
+  /** Camera focus in *world* (sim) coordinates — iso projection handles screen. */
+  let cam: Cam = { wx: 200, wy: 320 };
   let shakeX = 0;
   let shakeY = 0;
 
@@ -359,12 +368,11 @@ async function main(): Promise<void> {
     clickSlash = false;
     const p0 = handle.world.get("player");
     if (p0?.transform) {
-      camX = p0.transform.x * SCALE - VIEW_W / 2;
-      camY = p0.transform.y * SCALE - VIEW_H / 2;
+      cam = { wx: p0.transform.x, wy: p0.transform.y };
     }
   };
 
-  /** Screen → world click for Diablo pathing */
+  /** Screen → world click (iso unproject). */
   const onWorldClick = (clientX: number, clientY: number, button: number) => {
     const gw = getBrowserGravewake();
     if (!gw || !started) return;
@@ -372,10 +380,9 @@ async function main(): Promise<void> {
     if (!rect || !canvas) return;
     const sx = ((clientX - rect.left) / rect.width) * VIEW_W;
     const sy = ((clientY - rect.top) / rect.height) * VIEW_H;
-    const wx = (sx + camX) / SCALE;
-    const wy = (sy + camY) / SCALE;
+    const w = unproject(sx - shakeX, sy - shakeY, cam, VIEW_W, VIEW_H);
     if (button === 0) {
-      gw.clickWorld(wx, wy);
+      gw.clickWorld(w.x, w.y);
     } else if (button === 2) {
       clickSlash = true;
     }
@@ -461,7 +468,6 @@ async function main(): Promise<void> {
   }
   const combatFx: Particle[] = [];
 
-  // camX/camY/shake declared above with beginPlay()
   let lastPlayerX = 0;
   let lastPlayerY = 0;
   let last = performance.now();
@@ -669,15 +675,16 @@ async function main(): Promise<void> {
       critChance?: number;
     }) ?? {};
 
-    // camera — snap if far (start / zone change), else lerp
-    const targetX = (player?.transform?.x ?? 0) * SCALE - VIEW_W / 2;
-    const targetY = (player?.transform?.y ?? 0) * SCALE - VIEW_H / 2;
-    if (Math.hypot(targetX - camX, targetY - camY) > 600) {
-      camX = targetX;
-      camY = targetY;
+    // camera focus in world space
+    const tcx = player?.transform?.x ?? cam.wx;
+    const tcy = player?.transform?.y ?? cam.wy;
+    if (Math.hypot(tcx - cam.wx, tcy - cam.wy) > 400) {
+      cam = { wx: tcx, wy: tcy };
     } else {
-      camX += (targetX - camX) * Math.min(1, dt * 10);
-      camY += (targetY - camY) * Math.min(1, dt * 10);
+      cam = {
+        wx: cam.wx + (tcx - cam.wx) * Math.min(1, dt * 8),
+        wy: cam.wy + (tcy - cam.wy) * Math.min(1, dt * 8),
+      };
     }
     shakeX *= 0.82;
     shakeY *= 0.82;
@@ -712,9 +719,6 @@ async function main(): Promise<void> {
       seenFx.clear();
       for (const k of arr.slice(-40)) seenFx.add(k);
     }
-    const viewCamX = camX + shakeX;
-    const viewCamY = camY + shakeY;
-
     // foot dust
     if (player?.transform) {
       const dx = player.transform.x - lastPlayerX;
@@ -736,120 +740,67 @@ async function main(): Promise<void> {
       lastPlayerY = player.transform.y;
     }
 
-    // --- GROUND (always visible; never pure black void) ---
-    ctx.fillStyle = "#2c2620";
-    ctx.fillRect(0, 0, VIEW_W, VIEW_H);
+    // --- ISOMETRIC WORLD (Diablo presentation) ---
+    const mood =
+      blob.areaKind === "dungeon"
+        ? "dungeon"
+        : blob.areaKind === "overworld" || blob.area === "wastes"
+          ? "overworld"
+          : "hub";
+    const floorTex =
+      mood === "dungeon"
+        ? images.get("env/floor_dungeon.png") ?? floor
+        : mood === "overworld"
+          ? images.get("env/floor_wastes.png") ?? floor
+          : floor;
+
     if (area) {
-      try {
-        const pat = ctx.createPattern(floor, "repeat");
-        if (pat && typeof (pat as CanvasPattern).setTransform === "function") {
-          const tilePx = 160 * SCALE;
-          const s = tilePx / floor.width;
-          const m = new DOMMatrix()
-            .translate(-viewCamX, -viewCamY)
-            .scale(s, s);
-          (pat as CanvasPattern).setTransform(m);
-          ctx.fillStyle = pat;
-          ctx.globalAlpha = 0.95;
-          ctx.fillRect(0, 0, VIEW_W, VIEW_H);
-          ctx.globalAlpha = 1;
-        }
-      } catch {
-        /* solid base already painted */
-      }
-      ctx.fillStyle =
-        blob.areaKind === "dungeon"
-          ? "rgba(30,20,45,0.2)"
-          : blob.area === "wastes"
-            ? "rgba(50,30,15,0.12)"
-            : "rgba(0,0,0,0.05)";
+      drawIsoFloor(ctx, area, cam, VIEW_W, VIEW_H, floorTex, mood);
+      drawIsoWalls(ctx, area, cam, VIEW_W, VIEW_H, wallTex, 42);
+    } else {
+      ctx.fillStyle = "#1a1510";
       ctx.fillRect(0, 0, VIEW_W, VIEW_H);
     }
 
-    // click path + destination (Diablo green ghost)
+    // click path + destination (iso)
     {
       const sim = gw.getSim();
       const path = sim?.getPlayerPath() ?? [];
       const tgt = sim?.getMoveTarget();
       if (path.length > 1) {
-        ctx.strokeStyle = "rgba(80,200,90,0.35)";
+        ctx.strokeStyle = "rgba(80,220,100,0.45)";
         ctx.lineWidth = 2;
         ctx.setLineDash([6, 8]);
         ctx.beginPath();
         for (let i = 0; i < path.length; i++) {
           const p = path[i]!;
-          const sx = p.x * SCALE - viewCamX;
-          const sy = p.y * SCALE - viewCamY;
-          if (i === 0) ctx.moveTo(sx, sy);
-          else ctx.lineTo(sx, sy);
+          const s = project(p.x, p.y, cam, VIEW_W, VIEW_H);
+          if (i === 0) ctx.moveTo(s.x + shakeX, s.y + shakeY);
+          else ctx.lineTo(s.x + shakeX, s.y + shakeY);
         }
         ctx.stroke();
         ctx.setLineDash([]);
       }
       if (tgt) {
-        const sx = tgt.x * SCALE - viewCamX;
-        const sy = tgt.y * SCALE - viewCamY;
-        ctx.strokeStyle = "rgba(100,255,120,0.7)";
+        const s = project(tgt.x, tgt.y, cam, VIEW_W, VIEW_H);
+        ctx.strokeStyle = "rgba(120,255,140,0.85)";
         ctx.lineWidth = 2;
         ctx.beginPath();
-        ctx.arc(sx, sy, 10 + Math.sin(now / 120) * 2, 0, Math.PI * 2);
+        ctx.ellipse(
+          s.x + shakeX,
+          s.y + shakeY,
+          14 + Math.sin(now / 120) * 2,
+          7 + Math.sin(now / 120),
+          0,
+          0,
+          Math.PI * 2,
+        );
         ctx.stroke();
-        ctx.fillStyle = "rgba(80,220,100,0.25)";
-        ctx.beginPath();
-        ctx.arc(sx, sy, 6, 0, Math.PI * 2);
-        ctx.fill();
       }
     }
 
-    // walls — extruded 3/4 “height” (Diablo dungeon blocks)
+    // props + portals + shrine (iso)
     if (area) {
-      // sort walls by y for crude painter
-      const walls = [...area.walls].sort((a, b) => a.y + a.h - (b.y + b.h));
-      for (const w of walls) {
-        const x = w.x * SCALE - viewCamX;
-        const y = w.y * SCALE - viewCamY;
-        const ww = w.w * SCALE;
-        const hh = w.h * SCALE;
-        if (x + ww < -50 || y + hh < -50 || x > VIEW_W + 50 || y > VIEW_H + 80)
-          continue;
-
-        // readable stone body
-        const faceGrad = ctx.createLinearGradient(x, y, x, y + hh + WALL_Z);
-        faceGrad.addColorStop(0, "#6a5e50");
-        faceGrad.addColorStop(0.5, "#4a4036");
-        faceGrad.addColorStop(1, "#2a241e");
-        ctx.fillStyle = faceGrad;
-        ctx.fillRect(x, y - WALL_Z * 0.15, ww, hh + WALL_Z * 0.35);
-
-        // top cap
-        ctx.fillStyle = "#7a6e5e";
-        ctx.fillRect(x, y - WALL_Z, ww, WALL_Z * 0.9);
-        if (wallTex) {
-          try {
-            const wp = ctx.createPattern(wallTex, "repeat");
-            if (wp && typeof wp.setTransform === "function") {
-              const tw = wallTex.naturalWidth || wallTex.width || 256;
-              const m = new DOMMatrix()
-                .translate(x, y)
-                .scale((120 * SCALE) / tw);
-              wp.setTransform(m);
-              ctx.globalAlpha = 0.4;
-              ctx.fillStyle = wp;
-              ctx.fillRect(x, y - WALL_Z * 0.1, ww, hh + WALL_Z * 0.25);
-              ctx.globalAlpha = 1;
-            }
-          } catch {
-            /* ignore */
-          }
-        }
-        ctx.strokeStyle = "rgba(0,0,0,0.65)";
-        ctx.lineWidth = 2;
-        ctx.strokeRect(x + 0.5, y - WALL_Z + 0.5, ww - 1, hh + WALL_Z - 1);
-        ctx.strokeStyle = "rgba(255,230,180,0.15)";
-        ctx.strokeRect(x + 1, y - WALL_Z + 1, ww - 2, 2);
-      }
-
-      // decorative ruins (environment redo props)
       const decor =
         blob.area === "town"
           ? [
@@ -871,89 +822,87 @@ async function main(): Promise<void> {
       for (const d of decor) {
         const img = d.kind === "arch" ? ruinArch : ruinPillar;
         if (!img) continue;
-        const sx = d.x * SCALE - viewCamX;
-        const sy = d.y * SCALE - viewCamY;
-        if (sx < -80 || sy < -80 || sx > VIEW_W + 80 || sy > VIEW_H + 80) continue;
-        const sz = (d.kind === "arch" ? 110 : 90) * SCALE;
-        ctx.globalAlpha = 0.92;
-        ctx.drawImage(img, sx - sz / 2, sy - sz * 0.85, sz, sz);
+        const s = project(d.x, d.y, cam, VIEW_W, VIEW_H);
+        const sx = s.x + shakeX;
+        const sy = s.y + shakeY;
+        if (sx < -100 || sy < -100 || sx > VIEW_W + 100 || sy > VIEW_H + 100)
+          continue;
+        const sz = d.kind === "arch" ? 100 : 84;
+        ctx.globalAlpha = 0.95;
+        ctx.drawImage(img, sx - sz / 2, sy - sz * 0.9, sz, sz);
         ctx.globalAlpha = 1;
       }
 
-      // town ash shrine (vendor)
       if (blob.area === "town") {
-        const sx = 220 * SCALE - viewCamX;
-        const sy = 160 * SCALE - viewCamY;
-        const g = ctx.createRadialGradient(sx, sy, 4, sx, sy, 48);
-        g.addColorStop(0, "rgba(255,160,60,0.45)");
+        const s = project(220, 160, cam, VIEW_W, VIEW_H);
+        const sx = s.x + shakeX;
+        const sy = s.y + shakeY;
+        const g = ctx.createRadialGradient(sx, sy, 4, sx, sy, 50);
+        g.addColorStop(0, "rgba(255,160,60,0.5)");
         g.addColorStop(1, "rgba(0,0,0,0)");
         ctx.fillStyle = g;
         ctx.beginPath();
-        ctx.arc(sx, sy, 48, 0, Math.PI * 2);
+        ctx.arc(sx, sy, 50, 0, Math.PI * 2);
         ctx.fill();
-        ctx.fillStyle = "#c96";
-        ctx.beginPath();
-        ctx.moveTo(sx, sy - 22);
-        ctx.lineTo(sx + 14, sy + 12);
-        ctx.lineTo(sx - 14, sy + 12);
-        ctx.closePath();
-        ctx.fill();
-        ctx.font = "bold 11px Cinzel, Georgia, serif";
-        ctx.textAlign = "center";
         ctx.fillStyle = "#e8c878";
-        ctx.fillText("Ash Shrine", sx, sy - 30);
-        ctx.fillStyle = "#aaa";
-        ctx.font = "10px system-ui";
-        ctx.fillText("F · Potion 25g", sx, sy + 28);
+        ctx.font = "bold 12px Cinzel, Georgia, serif";
+        ctx.textAlign = "center";
+        ctx.fillText("Ash Shrine", sx, sy - 28);
+        ctx.fillStyle = "#bbb";
+        ctx.font = "11px system-ui";
+        ctx.fillText("F · Potion 25g", sx, sy + 22);
         ctx.textAlign = "left";
       }
 
-      // dungeon / hub portals — Imagine portal prop + kind tint
-      const portals = (blob.portals as Array<{
-        x: number;
-        y: number;
-        w: number;
-        h: number;
-        label?: string;
-        kind?: string;
-      }>) ?? area.portals ?? [];
+      const portals =
+        (blob.portals as Array<{
+          x: number;
+          y: number;
+          w: number;
+          h: number;
+          label?: string;
+          kind?: string;
+        }>) ??
+        area.portals ??
+        [];
       for (const pr of portals) {
-        const cx = (pr.x + pr.w / 2) * SCALE - viewCamX;
-        const cy = (pr.y + pr.h / 2) * SCALE - viewCamY;
-        const pw = Math.max(pr.w, pr.h) * SCALE * 1.35;
-        const ph = pw * 1.15;
-        const pulse = 0.75 + Math.sin(now / 280) * 0.15;
+        const s = project(pr.x + pr.w / 2, pr.y + pr.h / 2, cam, VIEW_W, VIEW_H);
+        const cx = s.x + shakeX;
+        const cy = s.y + shakeY;
+        const pw = 88;
+        const ph = 100;
+        const pulse = 0.8 + Math.sin(now / 280) * 0.15;
         if (portalImg) {
           ctx.save();
           ctx.globalAlpha = pulse;
           if (pr.kind === "boss") ctx.filter = "hue-rotate(-30deg) saturate(1.4)";
           else if (pr.kind === "hub") ctx.filter = "hue-rotate(90deg) saturate(0.9)";
-          else if (pr.kind === "dungeon") ctx.filter = "hue-rotate(10deg)";
-          ctx.drawImage(portalImg, cx - pw / 2, cy - ph / 2, pw, ph);
+          ctx.drawImage(portalImg, cx - pw / 2, cy - ph * 0.75, pw, ph);
           ctx.filter = "none";
           ctx.restore();
-        } else {
-          ctx.fillStyle = `rgba(100,140,255,${0.3 * pulse})`;
-          ctx.fillRect(cx - pw / 2, cy - ph / 2, pw, ph);
         }
         if (pr.label) {
-          ctx.font = "bold 14px Cinzel, Georgia, serif";
+          ctx.font = "bold 13px Cinzel, Georgia, serif";
           ctx.textAlign = "center";
-          ctx.fillStyle = "rgba(0,0,0,0.65)";
-          ctx.fillRect(cx - 54, cy - ph / 2 - 26, 108, 20);
+          ctx.fillStyle = "rgba(0,0,0,0.7)";
+          ctx.fillRect(cx - 50, cy - ph * 0.85 - 8, 100, 18);
           ctx.fillStyle = "#e8dcc0";
-          ctx.fillText(pr.label, cx, cy - ph / 2 - 12);
+          ctx.fillText(pr.label, cx, cy - ph * 0.85 + 5);
           ctx.textAlign = "left";
         }
       }
     }
 
+    const wp = (wx: number, wy: number) => {
+      const p = project(wx, wy, cam, VIEW_W, VIEW_H);
+      return { x: p.x + shakeX, y: p.y + shakeY };
+    };
+
     // LOOT piles — Imagine prop + glow
     for (const e of handle.world.query("transform")) {
       if (!e.tags.includes("loot") || !e.transform) continue;
       const loot = e.data.loot as { defId?: string; gold?: number; qty?: number } | undefined;
-      const sx = e.transform.x * SCALE - viewCamX;
-      const sy = e.transform.y * SCALE - viewCamY;
+      const { x: sx, y: sy } = wp(e.transform.x, e.transform.y);
       const isGold = loot?.defId === "gold";
       const pulse = 0.55 + Math.sin(now / 180 + e.transform.x) * 0.35;
       const glow = ctx.createRadialGradient(sx, sy, 2, sx, sy, 28);
@@ -992,7 +941,7 @@ async function main(): Promise<void> {
       }
     }
 
-    // entities
+    // entities (iso depth sort)
     const entities = handle.world
       .query("transform")
       .filter(
@@ -1001,13 +950,16 @@ async function main(): Promise<void> {
           !e.tags.includes("projectile") &&
           !e.tags.includes("loot"),
       )
-      .sort((a, b) => (a.transform?.y ?? 0) - (b.transform?.y ?? 0));
+      .sort(
+        (a, b) =>
+          depthOf(a.transform?.x ?? 0, a.transform?.y ?? 0) -
+          depthOf(b.transform?.x ?? 0, b.transform?.y ?? 0),
+      );
 
     for (const e of entities) {
       const t = e.transform!;
-      const sx = t.x * SCALE - viewCamX;
-      const sy = t.y * SCALE - viewCamY;
-      const size = spriteSize(e);
+      const { x: sx, y: sy } = wp(t.x, t.y);
+      const size = spriteSize(e) * SPRITE_SCALE;
       const { img, flipX, tint } = spriteForEntity(e);
       const speed = Number(e.data.speed ?? 0);
       const attacking = e.data.attacking === true;
@@ -1154,8 +1106,7 @@ async function main(): Promise<void> {
     // projectiles
     for (const e of handle.world.query("transform")) {
       if (!e.tags.includes("projectile") || !e.transform) continue;
-      const sx = e.transform.x * SCALE - viewCamX;
-      const sy = e.transform.y * SCALE - viewCamY;
+      const { x: sx, y: sy } = wp(e.transform.x, e.transform.y);
       const g = ctx.createRadialGradient(sx, sy, 1, sx, sy, 10);
       g.addColorStop(0, "rgba(180,140,255,0.95)");
       g.addColorStop(1, "rgba(80,40,160,0)");
@@ -1181,11 +1132,10 @@ async function main(): Promise<void> {
         continue;
       }
       const a = p.life / p.max;
-      const sx = p.world ? p.x * SCALE - viewCamX : p.x;
-      const sy = p.world ? p.y * SCALE - viewCamY : p.y;
+      const scr = p.world ? wp(p.x, p.y) : { x: p.x, y: p.y };
       ctx.fillStyle = p.color + a + ")";
       ctx.beginPath();
-      ctx.arc(sx, sy, p.r, 0, Math.PI * 2);
+      ctx.arc(scr.x, scr.y, p.r, 0, Math.PI * 2);
       ctx.fill();
     }
 
@@ -1193,12 +1143,11 @@ async function main(): Promise<void> {
     if (handle.particles?.particles) {
       for (const p of handle.particles.particles) {
         const a = Math.max(0, p.life / p.maxLife);
-        const sx = p.x * SCALE - viewCamX;
-        const sy = p.y * SCALE - viewCamY;
+        const scr = wp(p.x, p.y);
         ctx.globalAlpha = a;
         ctx.fillStyle = p.color;
         ctx.beginPath();
-        ctx.arc(sx, sy, p.size * SCALE * 0.8, 0, Math.PI * 2);
+        ctx.arc(scr.x, scr.y, p.size * 0.9, 0, Math.PI * 2);
         ctx.fill();
       }
       ctx.globalAlpha = 1;
@@ -1208,8 +1157,7 @@ async function main(): Promise<void> {
     for (const f of fx) {
       const alpha = Math.min(1, f.t * 2.5);
       if (f.kind === "slash") {
-        const sx = f.x * SCALE - viewCamX;
-        const sy = f.y * SCALE - viewCamY;
+        const { x: sx, y: sy } = wp(f.x, f.y);
         const skill = f.skill;
         if (skill === "whirl") {
           ctx.strokeStyle = `rgba(255,150,40,${alpha})`;
@@ -1247,8 +1195,9 @@ async function main(): Promise<void> {
           ctx.stroke();
         }
       } else if (f.kind === "hit") {
-        const sx = f.x * SCALE - viewCamX;
-        const sy = f.y * SCALE - viewCamY - (1 - f.t) * 48;
+        const p = wp(f.x, f.y);
+        const sx = p.x;
+        const sy = p.y - (1 - f.t) * 48;
         const label = f.crit ? `CRIT ${f.dmg}` : `-${f.dmg}`;
         ctx.font = f.crit
           ? "bold 24px Cinzel, Georgia, serif"
@@ -1262,24 +1211,27 @@ async function main(): Promise<void> {
         ctx.fillText(label, sx, sy);
         ctx.textAlign = "left";
       } else if (f.kind === "kill") {
-        const sx = f.x * SCALE - viewCamX;
-        const sy = f.y * SCALE - viewCamY - (1 - f.t) * 36;
+        const p = wp(f.x, f.y);
+        const sx = p.x;
+        const sy = p.y - (1 - f.t) * 36;
         ctx.font = "bold 14px system-ui";
         ctx.textAlign = "center";
         ctx.fillStyle = `rgba(255,100,80,${alpha})`;
         ctx.fillText("SLAIN", sx, sy);
         ctx.textAlign = "left";
       } else if (f.kind === "loot") {
-        const sx = f.x * SCALE - viewCamX;
-        const sy = f.y * SCALE - viewCamY - (1 - f.t) * 30;
+        const p = wp(f.x, f.y);
+        const sx = p.x;
+        const sy = p.y - (1 - f.t) * 30;
         ctx.font = "bold 13px system-ui";
         ctx.textAlign = "center";
         ctx.fillStyle = `rgba(160,200,255,${alpha})`;
         ctx.fillText(f.name, sx, sy);
         ctx.textAlign = "left";
       } else if (f.kind === "float") {
-        const sx = f.x * SCALE - viewCamX;
-        const sy = f.y * SCALE - viewCamY - (1 - f.t) * 40;
+        const p = wp(f.x, f.y);
+        const sx = p.x;
+        const sy = p.y - (1 - f.t) * 40;
         ctx.font = "bold 14px system-ui";
         ctx.textAlign = "center";
         ctx.fillStyle = f.color.startsWith("#")
@@ -1322,26 +1274,27 @@ async function main(): Promise<void> {
     }
 
     // Soft vignette only — hard pitch fog made the game look "broken"
+    // Diablo light radius (readable, not black void)
     if (player?.transform) {
-      const lx = player.transform.x * SCALE - viewCamX;
-      const ly = player.transform.y * SCALE - viewCamY;
-      const core = ctx.createRadialGradient(lx, ly, 20, lx, ly, 200);
-      core.addColorStop(0, "rgba(255,200,120,0.1)");
-      core.addColorStop(1, "rgba(0,0,0,0)");
+      const lp = wp(player.transform.x, player.transform.y);
+      const core = ctx.createRadialGradient(lp.x, lp.y, 30, lp.x, lp.y, 340);
+      core.addColorStop(0, "rgba(255,200,120,0.08)");
+      core.addColorStop(0.45, "rgba(0,0,0,0)");
+      core.addColorStop(1, "rgba(0,0,0,0.55)");
       ctx.fillStyle = core;
       ctx.fillRect(0, 0, VIEW_W, VIEW_H);
     }
     const vig = ctx.createRadialGradient(
       VIEW_W / 2,
       VIEW_H / 2,
-      VIEW_H * 0.2,
+      VIEW_H * 0.15,
       VIEW_W / 2,
       VIEW_H / 2,
       VIEW_H * 0.95,
     );
     vig.addColorStop(0, "rgba(0,0,0,0)");
-    vig.addColorStop(0.7, "rgba(0,0,0,0.15)");
-    vig.addColorStop(1, "rgba(0,0,0,0.55)");
+    vig.addColorStop(0.75, "rgba(0,0,0,0.2)");
+    vig.addColorStop(1, "rgba(0,0,0,0.62)");
     ctx.fillStyle = vig;
     ctx.fillRect(0, 0, VIEW_W, VIEW_H);
 

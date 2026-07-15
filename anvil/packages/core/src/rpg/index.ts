@@ -11,9 +11,11 @@ export { Equipment } from "./Equipment.js";
 export type { ItemDefLookup } from "./Equipment.js";
 export { CharacterSheet } from "./CharacterSheet.js";
 export type { CharacterSheetOpts, StatBreakdown } from "./CharacterSheet.js";
+/** Single source of truth for gear level / stat budget math */
 export {
   DEFAULT_ITEMIZATION,
   itemPowerFactor,
+  qualityRoll,
   scaleStatsForItemLevel,
   rollDropItemLevel,
   computeReqLevel,
@@ -26,8 +28,7 @@ export type {
   ItemizationConfig,
   ScaleItemStatsOpts,
   RolledItemInstance,
-  ItemLevelOpts,
-} from "./itemLevel.js";
+} from "./itemization.js";
 export {
   spawnGroundLoot,
   spawnGoldPile,
@@ -35,4 +36,14 @@ export {
   tryPickupNearest,
 } from "./Loot.js";
 export type { GroundLootData } from "./Loot.js";
+export {
+  dropFromTable,
+  LOOT_GOLD_RADIUS,
+  LOOT_ITEM_RADIUS,
+} from "./LootPolicy.js";
+export type {
+  DropResult,
+  LootPolicyOpts,
+  LootTableLike,
+} from "./LootPolicy.js";
 export { ZoneGraph } from "./ZoneGraph.js";

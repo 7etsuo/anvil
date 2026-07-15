@@ -20,6 +20,7 @@ import {
   loadRunFromLocalStorage,
   LOOT_GOLD_RADIUS,
   LOOT_ITEM_RADIUS,
+  itemPowerScore,
   saveRunToLocalStorage,
   tryPickupNearest,
 } from "@anvil/core";
@@ -927,22 +928,17 @@ export class GravewakeGame {
     const scoreStack = (stack: {
       rolledStats?: Partial<Record<string, number>>;
       defId: string;
-      reqLevel?: number;
       itemLevel?: number;
     }) => {
-      const rs = stack.rolledStats;
       const def = this.items[stack.defId];
-      const dmg = Number(rs?.damage ?? def?.stats?.damage ?? 0);
-      const arm = Number(rs?.armor ?? def?.stats?.armor ?? 0);
-      const hp = Number(rs?.maxHp ?? def?.stats?.maxHp ?? 0);
-      const crit = Number(rs?.critChance ?? def?.stats?.critChance ?? 0);
-      return dmg * 3 + arm * 2 + hp * 0.5 + crit * 40 + (stack.itemLevel ?? 1);
+      const stats = stack.rolledStats ?? def?.stats;
+      return itemPowerScore(stats, stack.itemLevel ?? 1);
     };
     for (const stack of this.sheet.inventory.all()) {
       const def = this.items[stack.defId];
       if (!def?.slot) continue;
       const req = stack.reqLevel ?? stack.itemLevel ?? 1;
-      if (this.sheet.level < req) continue; // can't wear yet
+      if (this.sheet.level < req) continue; // engine equip gate too
       const curUid = this.sheet.equipment.get(def.slot);
       if (!curUid) {
         this.sheet.equip(stack.uid);
@@ -951,17 +947,7 @@ export class GravewakeGame {
       const cur = this.sheet.inventory.get(curUid);
       if (!cur) continue;
       if (scoreStack(stack) > scoreStack(cur)) {
-        const r = this.sheet.equip(stack.uid);
-        if (!r.ok && r.error === "level_req") {
-          this.pushFx({
-            kind: "float",
-            x: this.sim?.getPlayerPos()?.x ?? 0,
-            y: this.sim?.getPlayerPos()?.y ?? 0,
-            text: `Need Lv ${r.reqLevel}`,
-            color: "#e88",
-            t: 1.2,
-          });
-        }
+        this.sheet.equip(stack.uid);
       }
     }
   }

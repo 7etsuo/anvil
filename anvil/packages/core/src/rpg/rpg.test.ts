@@ -9,7 +9,7 @@ import {
   tryPickupNearest,
 } from "./Loot.js";
 import { ZoneGraph } from "./ZoneGraph.js";
-import { canEquipAtLevel, rollItemInstance } from "./itemLevel.js";
+import { canEquipAtLevel, rollItemInstance } from "./itemization.js";
 import type { ItemDef } from "./types.js";
 
 const items: Record<string, ItemDef> = {

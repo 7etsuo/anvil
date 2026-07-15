@@ -1,34 +1,18 @@
 /**
- * ARPG itemization — research-backed model for engine-wide gear.
+ * Generic item progression for equippable gear (any genre).
  *
- * Industry patterns this follows (Diablo / PoE / WoW-style):
+ * Content authors write **base stats at a base level** (usually 1). At runtime,
+ * instances get an **item level**, **required level**, and **rolled stats**.
  *
- * 1. **Base template (qLvl / content)** — ItemDef.stats are defined at a base
- *    item level (default 1). They are the "white item" numbers.
+ * Default curve (fully overrideable via ItemizationConfig):
  *
- * 2. **Instance item level (iLvl)** — power of the rolled drop. Higher iLvl ⇒
- *    higher stat budget. D4-style: primary defenses/DPS scale with item power.
+ *   power(L) = 1 + growthPerLevel * (L - baseLevel)
+ *   stat     = base * power * slotMul * rarityMul * quality
+ *   quality  ∈ [1−variance, 1+variance]
+ *   equip if characterLevel ≥ reqLevel  (higher characters may wear lower gear)
  *
- * 3. **Stat budget scaling** — primary stats scale with a level curve:
- *      power(L) = 1 + growthPerLevel * (L - baseLevel)
- *    Linear growth (not pure exponential) keeps low-level gear relevant longer
- *    while still rewarding progression (common ARPG balance choice).
- *
- * 4. **Quality / variance roll** — after budget scale, each stat gets a quality
- *    multiplier in [1−variance, 1+variance] (like affix range rolls).
- *
- * 5. **Slot budget** — weapons weight damage; armor weights armor/HP
- *    (slot mods, similar to WoW itemization slot coefficients).
- *
- * 6. **Rarity budget** — magic/rare/unique multiply total budget
- *    (more power / more room for affixes conceptually).
- *
- * 7. **Required level** — reqLevel = itemLevel by default so you cannot wear
- *    higher-power gear early; characterLevel ≥ reqLevel always allows equip
- *    (level 12 can wear req 10).
- *
- * 8. **Drop iLvl** — near max(characterLevel, zoneLevel) with small ± jitter
- *    (D2-style drop level near monster/area level).
+ * Defaults are tuned like common ARPGs; pass `config` for linear-RPG, survival,
+ * etc. See anvil/docs/ITEMIZATION.md.
  */
 
 import type { EquipSlot, ItemDef, ItemRarity, Stats } from "./types.js";
@@ -108,34 +92,10 @@ export type ScaleItemStatsOpts = {
  * Applies: level power × slot × rarity × quality.
  */
 /**
- * Overload-friendly: (base, ilvl, opts) or (base, ilvl, def, opts).
+ * Scale template stats to an instance item level.
+ * @param def optional slot/rarity/base level from the content def
  */
 export function scaleStatsForItemLevel(
-  base: Partial<Stats> | undefined,
-  itemLevel: number,
-  defOrOpts?: Pick<ItemDef, "slot" | "rarity" | "itemLevel"> | ScaleItemStatsOpts,
-  maybeOpts: ScaleItemStatsOpts = {},
-): Partial<Stats> {
-  // Heuristic: if third arg looks like opts, treat as opts
-  let def: Pick<ItemDef, "slot" | "rarity" | "itemLevel"> | undefined;
-  let opts: ScaleItemStatsOpts;
-  if (
-    defOrOpts &&
-    ("rng" in defOrOpts ||
-      "config" in defOrOpts ||
-      "fixedQuality" in defOrOpts ||
-      ("baseLevel" in defOrOpts && !("slot" in defOrOpts) && !("rarity" in defOrOpts)))
-  ) {
-    def = undefined;
-    opts = defOrOpts as ScaleItemStatsOpts;
-  } else {
-    def = defOrOpts as Pick<ItemDef, "slot" | "rarity" | "itemLevel"> | undefined;
-    opts = maybeOpts;
-  }
-  return scaleStatsForItemLevelImpl(base, itemLevel, def, opts);
-}
-
-function scaleStatsForItemLevelImpl(
   base: Partial<Stats> | undefined,
   itemLevel: number,
   def?: Pick<ItemDef, "slot" | "rarity" | "itemLevel">,
@@ -196,22 +156,26 @@ function scaleStatsForItemLevelImpl(
 }
 
 /**
- * Drop item level near area/player power (D2-like).
- * center = max(cLvl, zoneLevel); jitter ±2.
+ * Suggest drop item level from character + zone power.
+ * Default: max(cLvl, zoneLevel) + uniform{-2..+2}, min 1.
+ * Games can ignore this and pass an explicit itemLevel instead.
  */
 export function rollDropItemLevel(
   characterLevel: number,
   zoneLevel = 1,
   rng: () => number = Math.random,
+  jitter = 2,
 ): number {
   const center = Math.max(1, Math.max(characterLevel, zoneLevel));
-  const delta = Math.floor(rng() * 5) - 2; // -2..+2
+  const j = Math.max(0, Math.floor(jitter));
+  const delta = j === 0 ? 0 : Math.floor(rng() * (2 * j + 1)) - j;
   return Math.max(1, center + delta);
 }
 
 /**
- * Required level to equip. Default: equals item level (strict).
- * Soft option: req = floor(ilvl * 0.85) — exposed via opts.
+ * Required character level to equip an instance.
+ * Default strict: reqLevel = itemLevel.
+ * Soft: reqLevel = floor(itemLevel * softFactor) (e.g. 0.85).
  */
 export function computeReqLevel(
   itemLevel: number,

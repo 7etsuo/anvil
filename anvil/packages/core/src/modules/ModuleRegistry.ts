@@ -14,6 +14,8 @@ export interface KernelInternals {
   plugins?: import("../plugins/PluginRegistry.js").PluginRegistry;
   ui?: import("../ui/UiKit.js").UiKit;
   audio?: import("../audio/AudioSystem.js").AudioSystem;
+  statuses?: import("../combat/StatusSystem.js").StatusSystem;
+  abilities?: import("../ability/AbilitySystem.js").AbilitySystem;
   world?: import("../world/World.js").World;
   events?: import("../events/EventBus.js").EventBus;
   input?: import("../input/InputMap.js").InputMap;

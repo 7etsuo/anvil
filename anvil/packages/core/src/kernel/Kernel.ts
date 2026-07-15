@@ -12,6 +12,10 @@ import {
 import { PluginRegistry } from "../plugins/PluginRegistry.js";
 import { AbilitySystem } from "../ability/AbilitySystem.js";
 import { ViewCamera } from "../camera/ViewCamera.js";
+import {
+  BUILTIN_STATUS_DEFS,
+  StatusSystem,
+} from "../combat/StatusSystem.js";
 import { QuestSystem } from "../quest/QuestSystem.js";
 import type { CanvasRenderFacade } from "../render/CanvasRenderFacade.js";
 import type { RenderFacade } from "../render/RenderFacade.js";
@@ -44,6 +48,8 @@ export class Kernel implements KernelInternals {
   readonly camera = new ViewCamera();
   /** Data-driven abilities with cooldowns. */
   readonly abilities = new AbilitySystem();
+  /** Buffs / debuffs / DoTs. */
+  readonly statuses = new StatusSystem();
   readonly assets: AssetServer;
   readonly scenes: SceneManager;
   readonly renderer: RenderFacade;
@@ -90,6 +96,9 @@ export class Kernel implements KernelInternals {
       opts.browser ?? false,
     );
     this.input.installDefaults();
+    this.audio = new AudioSystem(this.assets, this.events);
+    this.cinema = new CinematicSystem(this.assets, this.events, this.input);
+    this.statuses.registerAll(BUILTIN_STATUS_DEFS);
     this.scenes = new SceneManager({
       world: this.world,
       events: this.events,
@@ -99,18 +108,42 @@ export class Kernel implements KernelInternals {
       random: () => this.rng.random(),
       particles: this.particles,
       quests: this.quests,
+      audio: this.audio,
+      statuses: this.statuses,
+      abilities: this.abilities,
     });
-    this.audio = new AudioSystem(this.assets, this.events);
-    this.cinema = new CinematicSystem(this.assets, this.events, this.input);
     this.world.setHooks({
       onSpawn: (id) => this.events.emit("entity:spawn", { id }),
-      onDestroy: (id) => this.events.emit("entity:destroy", { id }),
+      onDestroy: (id) => {
+        this.statuses.clear(id);
+        this.events.emit("entity:destroy", { id });
+      },
     });
 
     // Built-in systems (priority ascending = earlier)
     this.addSystem("cinema", 50, () => this.cinema.update());
     this.addSystem("animation", 300, createAnimationSystem(this.world));
     this.addSystem("particles", 350, (dt) => this.particles.update(dt));
+    this.addSystem("statuses", 380, (dt) => {
+      const { ticks, expired } = this.statuses.tick(dt * 1000);
+      for (const t of ticks) {
+        this.events.emit("status:tick", t);
+        const e = this.world.get(t.entityId);
+        if (e?.health && t.amount > 0) {
+          e.health.hp = Math.max(0, e.health.hp - t.amount);
+          if (e.health.hp <= 0) {
+            this.events.emit("status:kill", {
+              targetId: t.entityId,
+              defId: t.defId,
+              sourceId: t.sourceId,
+            });
+          }
+        }
+      }
+      for (const ex of expired) {
+        this.events.emit("status:expire", ex);
+      }
+    });
     this.addSystem("lifetime", 500, (dt) => {
       for (const e of this.world.query("lifetime")) {
         const lt = e.lifetime!;

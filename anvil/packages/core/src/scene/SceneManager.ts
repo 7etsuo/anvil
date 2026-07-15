@@ -1,4 +1,7 @@
+import type { AbilitySystem } from "../ability/AbilitySystem.js";
 import type { AssetServer } from "../assets/AssetServer.js";
+import type { AudioSystem } from "../audio/AudioSystem.js";
+import type { StatusSystem } from "../combat/StatusSystem.js";
 import type { EventBus } from "../events/EventBus.js";
 import type { ParticleSystem } from "../fx/ParticleSystem.js";
 import type { InputMap } from "../input/InputMap.js";
@@ -16,6 +19,9 @@ export interface SceneContext {
   /** First-class engine services (when run under Kernel) */
   particles?: ParticleSystem;
   quests?: QuestSystem;
+  audio?: AudioSystem;
+  statuses?: StatusSystem;
+  abilities?: AbilitySystem;
 }
 
 export interface Scene {

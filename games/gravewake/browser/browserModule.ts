@@ -50,6 +50,9 @@ export const browserGravewakeModule: GenreModule = {
               particles: ctx.particles,
               quests: ctx.quests,
               events: ctx.events,
+              audio: ctx.audio,
+              statuses: ctx.statuses,
+              abilities: ctx.abilities,
             },
           );
           return {

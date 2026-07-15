@@ -1,11 +1,14 @@
 import type {
   AbilitySystem,
+  AudioSystem,
   CharacterSheet,
+  DamageType,
   EventBus,
   InputMap,
   ItemDef,
   ParticleSystem,
   QuestSystem,
+  StatusSystem,
   World,
 } from "@anvil/core";
 import {
@@ -13,6 +16,7 @@ import {
   CharacterSheet as Sheet,
   buildRunState,
   dropFromTable,
+  emitHeal,
   emitHit,
   emitKill,
   generateDungeon,
@@ -21,6 +25,7 @@ import {
   LOOT_GOLD_RADIUS,
   LOOT_ITEM_RADIUS,
   itemPowerScore,
+  mitigateDamage,
   saveRunToLocalStorage,
   tryPickupNearest,
 } from "@anvil/core";
@@ -55,6 +60,8 @@ export interface GravewakeServices {
   quests?: QuestSystem;
   events?: EventBus;
   abilities?: AbilitySystem;
+  audio?: AudioSystem;
+  statuses?: StatusSystem;
 }
 
 const BOSS_IDS = new Set([
@@ -512,6 +519,11 @@ export class GravewakeGame {
     this.pushFx({ kind: "banner", text: area.name, t: 2.0 });
     if (id === "wastes") this.services.quests?.setFlag("entered_wastes");
     if (area.kind === "dungeon") this.services.quests?.setFlag("entered_dungeon");
+    // Zone music via combat audio bridge
+    this.services.events?.emit("audio:zone_music", {
+      zone: area.kind === "dungeon" ? "dungeon" : id === "town" ? "town" : "battle",
+    });
+    this.services.events?.emit("world:door", {});
     // autosave on zone change
     try {
       this.saveRun();
@@ -659,6 +671,8 @@ export class GravewakeGame {
       this.cast("potion");
     if (input.isPressed("inventory")) {
       this.showInv = !this.showInv;
+      this.services.events?.emit(this.showInv ? "ui:open" : "ui:close", {});
+      this.services.events?.emit("ui:click", {});
       if (this.showInv) this.showStats = false;
     }
     // C = character stats (base + gear) — bind once
@@ -700,23 +714,39 @@ export class GravewakeGame {
     const stats = this.sheet.finalStats();
     const isCrit = this.rng() < stats.critChance;
     const base = stats.damage;
-    let dmg: number;
+    let raw: number;
     let range: number;
+    let damageType: DamageType = "physical";
     if (skill === "slash") {
-      dmg = Math.floor(base * (isCrit ? stats.critMult : 1));
+      raw = Math.floor(base * (isCrit ? stats.critMult : 1));
       range = this.progression.meleeRange;
+      damageType = "physical";
     } else if (skill === "whirl") {
       const mul = this.progression.whirlDamageMul ?? 0.75;
-      dmg = Math.floor(base * mul * (isCrit ? stats.critMult : 1));
+      raw = Math.floor(base * mul * (isCrit ? stats.critMult : 1));
       range = this.progression.meleeRange * 1.3;
+      damageType = "physical";
     } else {
       const mul = this.progression.smiteDamageMul ?? 1.35;
-      dmg = Math.floor(base * mul * (isCrit ? stats.critMult : 1));
+      raw = Math.floor(base * mul * (isCrit ? stats.critMult : 1));
       range = this.progression.smiteRange ?? 160;
+      damageType = "holy";
     }
 
     const pos = this.sim.getPlayerPos();
     if (!pos) return;
+
+    // Swing SFX before resolve
+    this.services.events?.emit("combat:swing", { skill });
+
+    // Mitigate vs generic enemy armor (light) — type resists rare on trash
+    const mitigated = mitigateDamage({
+      raw,
+      type: damageType,
+      armor: damageType === "physical" ? 5 : 0,
+      resists: {},
+    });
+    const dmg = mitigated.final;
 
     const result =
       skill === "smite"
@@ -749,7 +779,38 @@ export class GravewakeGame {
       baseDamage: base,
     });
 
+    const statuses: string[] = [];
     for (const t of result.targets) {
+      // Smite applies chill; whirl can armor-break
+      if (skill === "smite" && this.services.statuses) {
+        for (const e of this.world.all()) {
+          if (!e.tags.includes("enemy") || !e.health || e.health.hp <= 0)
+            continue;
+          const dx = (e.transform?.x ?? 0) - t.x;
+          const dy = (e.transform?.y ?? 0) - t.y;
+          if (dx * dx + dy * dy < 20 * 20) {
+            this.services.statuses.apply(e.id, "chill", {
+              sourceId: "player",
+            });
+            statuses.push("chill");
+          }
+        }
+      }
+      if (skill === "whirl" && this.services.statuses) {
+        for (const e of this.world.all()) {
+          if (!e.tags.includes("enemy") || !e.health || e.health.hp <= 0)
+            continue;
+          const dx = (e.transform?.x ?? 0) - t.x;
+          const dy = (e.transform?.y ?? 0) - t.y;
+          if (dx * dx + dy * dy < 28 * 28) {
+            this.services.statuses.apply(e.id, "armor_break", {
+              sourceId: "player",
+            });
+            statuses.push("armor_break");
+          }
+        }
+      }
+
       this.pushFx({
         kind: "hit",
         x: t.x,
@@ -763,10 +824,13 @@ export class GravewakeGame {
           attackerId: "player",
           targetId: "enemy",
           damage: dmg,
+          rawDamage: raw,
           x: t.x,
           y: t.y,
           crit: isCrit,
           abilityId: skill,
+          damageType,
+          statuses: statuses.length ? [...new Set(statuses)] : undefined,
         });
       }
       this.services.particles?.burst({
@@ -774,7 +838,11 @@ export class GravewakeGame {
         y: t.y,
         count: isCrit ? 14 : 7,
         speed: 100,
-        color: isCrit ? "rgba(255,220,80,1)" : "rgba(220,40,40,1)",
+        color: isCrit
+          ? "rgba(255,220,80,1)"
+          : damageType === "holy"
+            ? "rgba(140,180,255,1)"
+            : "rgba(220,40,40,1)",
         life: 0.3,
       });
     }
@@ -798,6 +866,7 @@ export class GravewakeGame {
         color: "#e88",
         t: 1,
       });
+      this.services.events?.emit("ui:error", {});
       return;
     }
     const p = this.world.get("player");
@@ -813,6 +882,14 @@ export class GravewakeGame {
       color: "#6f6",
       t: 1,
     });
+    if (this.services.events) {
+      emitHeal(this.services.events, {
+        targetId: "player",
+        amount: heal,
+        x: p.transform?.x ?? 0,
+        y: p.transform?.y ?? 0,
+      });
+    }
   }
 
   /** Town vendor: buy potions for gold when near the shrine. */
@@ -865,6 +942,7 @@ export class GravewakeGame {
         color: "#fc6",
         t: 0.9,
       });
+      this.services.events?.emit("loot:pickup", { id });
       this.autoEquipBest();
       this.syncPlayerFromSheet();
     }

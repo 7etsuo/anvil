@@ -15,6 +15,9 @@ Everything here is **implemented code**, not a design wish-list.
 | Quests | `quest/QuestSystem.ts` | Steps, flags, counters |
 | Audio | `audio/AudioSystem.ts` | Cues, master/music/sfx/ui, music loop |
 | Audio catalog | `audio/AudioCatalog.ts` | Bundled CC0 library: list/filter, suggested cues |
+| Combat audio | `audio/wireCombatAudio.ts` | Event bus → hit/kill/heal/UI/zone music |
+| Damage | `combat/Damage.ts` | Types + armor + resists |
+| Statuses | `combat/StatusSystem.ts` | Buffs/debuffs/DoT; Kernel.statuses |
 | Input | `input/InputMap.ts` | Keys, rebind, gamepad |
 | Content | `content/validateContent.ts` | Item/loot validation + roll |
 | Plugins | `plugins/PluginRegistry.ts` | Register / update / dispose |

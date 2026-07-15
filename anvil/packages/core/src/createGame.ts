@@ -42,6 +42,7 @@ export interface GameHandle {
   readonly ui: Kernel["ui"];
   readonly camera: Kernel["camera"];
   readonly abilities: Kernel["abilities"];
+  readonly statuses: Kernel["statuses"];
   readonly kernel: Kernel;
   readonly game: GameYaml;
   readonly root: string;
@@ -145,7 +146,7 @@ export async function createGame(
     kernel.registerModule(mod);
   }
 
-  // Load audio cue table from content/audio.json (node)
+  // Load audio cue table from content/audio.json (node). Browser: setCues via game.
   if (!opts.browser) {
     kernel.audio.loadCuesFromFile(root, game.contentRoot);
   }
@@ -180,6 +181,7 @@ export async function createGame(
     ui: kernel.ui,
     camera: kernel.camera,
     abilities: kernel.abilities,
+    statuses: kernel.statuses,
     kernel,
     game,
     root,

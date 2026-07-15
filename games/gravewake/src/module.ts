@@ -3,6 +3,7 @@ import type {
   KernelInternals,
   SceneContext,
 } from "@anvil/core";
+import { getGameReadyAudioCues, installGameAudio } from "@anvil/core";
 import { GravewakeGame } from "./GravewakeGame.js";
 import { loadGravewakeContent } from "./loadContent.js";
 
@@ -24,6 +25,17 @@ export const gravewakeModule: GenreModule = {
       setGenreObserve?: (fn: () => Record<string, unknown>) => void;
     },
   ): void {
+    if (kernel.audio && kernel.events) {
+      try {
+        installGameAudio(
+          kernel.events,
+          kernel.audio,
+          getGameReadyAudioCues("audio"),
+        );
+      } catch {
+        /* catalog optional in pure content mode */
+      }
+    }
     kernel.setGenreObserve?.(() => {
       const api = getGravewakeApi();
       if (!api?.game) return {};
@@ -51,6 +63,9 @@ export const gravewakeModule: GenreModule = {
               particles: ctx.particles,
               quests: ctx.quests,
               events: ctx.events,
+              audio: ctx.audio,
+              statuses: ctx.statuses,
+              abilities: ctx.abilities,
             },
           );
           activeApi = { game };

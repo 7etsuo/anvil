@@ -94,6 +94,50 @@ export type {
   CombatHealEvent,
 } from "./combat/CombatEvents.js";
 
+// Damage types + resists
+export {
+  DAMAGE_TYPES,
+  DAMAGE_TYPE_RESIST,
+  RESIST_CAP,
+  isDamageType,
+  resistStatKey,
+  getResist,
+  mitigateDamage,
+  resolveDamage,
+} from "./combat/Damage.js";
+export type {
+  DamageType,
+  ResistStatKey,
+  ResistMap,
+  DamagePacket,
+  DamageResult,
+} from "./combat/Damage.js";
+
+// Status effects
+export {
+  StatusSystem,
+  BUILTIN_STATUS_DEFS,
+} from "./combat/StatusSystem.js";
+export type {
+  StatusDef,
+  StatusStackMode,
+  StatusFlags,
+  ActiveStatus,
+  StatusTickDamage,
+  StatusExpireEvent,
+} from "./combat/StatusSystem.js";
+
+// Combat → audio bridge
+export {
+  wireCombatAudio,
+  installGameAudio,
+  DEFAULT_COMBAT_AUDIO_CUES,
+} from "./audio/wireCombatAudio.js";
+export type {
+  CombatAudioCueMap,
+  WireCombatAudioOpts,
+} from "./audio/wireCombatAudio.js";
+
 // View camera
 export { ViewCamera } from "./camera/ViewCamera.js";
 export type { CameraMode, IsoMetrics, ViewCameraOpts } from "./camera/ViewCamera.js";

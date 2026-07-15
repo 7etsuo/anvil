@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.5.5 — Combat audio, statuses, damage types
+
+- **Damage types + resists**: physical/fire/cold/lightning/poison/holy/arcane; armor + resist mitigation
+- **StatusSystem** on Kernel: chill, burn, poison, stun, blessed, armor_break (+ custom defs)
+- **wireCombatAudio / installGameAudio**: combat/UI/zone events → SFX + music cues
+- Gravewake: smite=holy+chill, whirl=armor break, potion/loot/UI/zone audio
+
 ## 0.5.4 — Bundled CC0 audio library
 
 - **`anvil/assets/audio/`**: 400+ free CC0 SFX + music, foldered for agents (`sfx/ui`, `combat`, `inventory`, `world`, `metal`, `wood`, `foley`, `music/`)

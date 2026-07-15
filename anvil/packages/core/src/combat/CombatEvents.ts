@@ -13,6 +13,12 @@ export type CombatHitEvent = {
   y: number;
   crit?: boolean;
   abilityId?: string;
+  /** physical | fire | cold | … — see combat/Damage.ts */
+  damageType?: string;
+  /** Raw before mitigation (optional telemetry) */
+  rawDamage?: number;
+  /** Status ids applied with this hit */
+  statuses?: string[];
 };
 
 export type CombatKillEvent = {

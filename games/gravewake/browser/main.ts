@@ -5,8 +5,10 @@
 import {
   CanvasRenderFacade,
   createGame,
+  installGameAudio,
   observe,
 } from "@anvil/core";
+import audioContent from "../content/audio.json";
 import { browserGravewakeModule, getBrowserGravewake } from "./browserModule.js";
 import { embeddedAreas } from "./contentEmbed.js";
 import type { FxEvent } from "../src/GravewakeGame.js";
@@ -296,6 +298,19 @@ async function main(): Promise<void> {
       schemaVersion: 1,
     },
   });
+
+  // CC0 pack cues + combat/UI/zone event → audio bridge
+  const cues = (audioContent as { cues: Record<string, string> }).cues;
+  installGameAudio(handle.events, handle.audio, cues);
+
+  // Unlock audio on first input (browser autoplay policy)
+  const unlockAudio = () => {
+    handle.events.emit("audio:zone_music", { zone: "town" });
+    window.removeEventListener("pointerdown", unlockAudio);
+    window.removeEventListener("keydown", unlockAudio);
+  };
+  window.addEventListener("pointerdown", unlockAudio, { once: true });
+  window.addEventListener("keydown", unlockAudio, { once: true });
 
   renderer.resize(VIEW_W, VIEW_H);
   // Belt-and-suspenders: browser paints the full frame

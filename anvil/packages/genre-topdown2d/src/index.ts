@@ -6,6 +6,16 @@ export { PackSpawner } from "./PackSpawner.js";
 export type { PackSpawnerOpts } from "./PackSpawner.js";
 export { NavGrid } from "./pathfind.js";
 export type { PathPoint } from "./pathfind.js";
+export {
+  DEFAULT_ISO,
+  worldToIso,
+  isoToWorld,
+  worldToScreen,
+  screenToWorld,
+  isoDepth,
+  pathIsoDiamond,
+} from "./iso.js";
+export type { IsoMetrics } from "./iso.js";
 export { loadTopdownContent } from "./loadContent.js";
 export {
   resolveCircleWall,

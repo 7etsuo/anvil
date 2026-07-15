@@ -133,6 +133,8 @@ export class TopdownSim {
     const pe = this.world.get(this.playerId);
     if (!pr || pr.dead || !pe?.transform) return empty;
     const targets: Array<{ x: number; y: number; dmg: number }> = [];
+    // Face nearest enemy when swinging
+    let nearest: { x: number; y: number; d: number } | null = null;
     for (const rt of this.actors.values()) {
       if (rt.dead || rt.team !== "enemy") continue;
       const e = this.world.get(rt.entityId);
@@ -149,8 +151,18 @@ export class TopdownSim {
           dmg: damage,
         });
       }
+      if (!nearest || d < nearest.d) {
+        nearest = { x: e.transform.x, y: e.transform.y, d };
+      }
     }
-    if (targets.length) pr.attackAnimMs = 200;
+    if (nearest && nearest.d < range * 1.5) {
+      pe.data.facing = Math.atan2(
+        nearest.y - pe.transform.y,
+        nearest.x - pe.transform.x,
+      );
+      pr.flipX = nearest.x < pe.transform.x;
+    }
+    pr.attackAnimMs = 220;
     return { hits: targets.length, targets };
   }
 
@@ -514,11 +526,21 @@ export class TopdownSim {
     else if (rt.attackAnimMs > 0) state = "attack";
     else if (Math.hypot(rt.vx, rt.vy) > EPSILON_SPEED) state = "walk";
     rt.animState = state;
-    if (Math.abs(rt.vx) > EPSILON_SPEED) rt.flipX = rt.vx < 0;
+    const speed = Math.hypot(rt.vx, rt.vy);
+    if (speed > EPSILON_SPEED) {
+      rt.flipX = rt.vx < 0;
+      // facing angle: 0 = right, PI/2 = down (screen coords)
+      e.data.facing = Math.atan2(rt.vy, rt.vx);
+    } else if (e.data.facing === undefined) {
+      e.data.facing = Math.PI / 2; // default face down
+    }
     e.data.animState = state;
     e.data.flipX = rt.flipX;
     e.data.vx = rt.vx;
     e.data.vy = rt.vy;
+    e.data.speed = speed;
+    e.data.attacking = rt.attackAnimMs > 0;
+    e.data.actorId = rt.actorId;
   }
 
   observeBlob(): Record<string, unknown> {

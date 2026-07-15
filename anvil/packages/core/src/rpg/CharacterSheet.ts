@@ -1,6 +1,6 @@
 import { Equipment, type ItemDefLookup } from "./Equipment.js";
 import { Inventory } from "./Inventory.js";
-import { computeFinalStats, emptyStats } from "./stats.js";
+import { addStats, computeFinalStats, emptyStats } from "./stats.js";
 import type {
   CharacterSaveBlob,
   EquipSlot,
@@ -8,6 +8,15 @@ import type {
   ItemDef,
   Stats,
 } from "./types.js";
+
+/** Base + gear breakdown for UI / tooltips. */
+export type StatBreakdown = {
+  base: Stats;
+  gear: Stats;
+  final: Stats;
+  /** Per-slot gear contribution */
+  bySlot: Array<{ slot: EquipSlot; defId: string; name: string; stats: Partial<Stats> }>;
+};
 
 /** Default draw order for paper-doll layers (body under gear under weapon). */
 const SLOT_Z: Partial<Record<EquipSlot, number>> = {
@@ -102,6 +111,35 @@ export class CharacterSheet {
   finalStats(): Stats {
     const gear = this.equipment.gearMods(this.inventory, this.lookup);
     return computeFinalStats(this.baseStats, gear);
+  }
+
+  /** Base stats (naked) vs gear vs final — for Diablo-style character sheet UI. */
+  statBreakdown(): StatBreakdown {
+    const bySlot: StatBreakdown["bySlot"] = [];
+    const gearParts: Array<Partial<Stats>> = [];
+    for (const [slot, uid] of Object.entries(this.equipment.all()) as Array<
+      [EquipSlot, string | null]
+    >) {
+      if (!uid) continue;
+      const stack = this.inventory.get(uid);
+      if (!stack) continue;
+      const def = this.defs[stack.defId];
+      const mods = { ...(def?.stats ?? {}), ...(stack.rolledStats ?? {}) };
+      bySlot.push({
+        slot,
+        defId: stack.defId,
+        name: def?.name ?? stack.defId,
+        stats: mods,
+      });
+      gearParts.push(mods);
+    }
+    const gear = addStats(...gearParts);
+    return {
+      base: { ...this.baseStats },
+      gear,
+      final: computeFinalStats(this.baseStats, gearParts),
+      bySlot,
+    };
   }
 
   addXp(amount: number, xpTable: number[]): boolean {

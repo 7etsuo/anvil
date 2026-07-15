@@ -77,6 +77,34 @@ describe("Inventory + Equipment + CharacterSheet", () => {
     expect(inv.findByDef("potion")!.qty).toBe(8);
   });
 
+  it("statBreakdown separates base and gear", () => {
+    const sheet = new CharacterSheet({
+      baseStats: {
+        maxHp: 100,
+        damage: 10,
+        armor: 2,
+        speed: 160,
+        critChance: 0.05,
+        critMult: 1.5,
+      },
+      itemDefs: {
+        sword: {
+          id: "sword",
+          name: "Sword",
+          slot: "weapon",
+          stats: { damage: 5 },
+        },
+      },
+    });
+    sheet.pickup("sword");
+    sheet.equip(sheet.inventory.findByDef("sword")!.uid);
+    const b = sheet.statBreakdown();
+    expect(b.base.damage).toBe(10);
+    expect(b.gear.damage).toBe(5);
+    expect(b.final.damage).toBe(15);
+    expect(b.bySlot[0]?.defId).toBe("sword");
+  });
+
   it("equippedVisuals returns paper-doll layers from gear", () => {
     const sheet = new CharacterSheet({
       itemDefs: {

@@ -179,9 +179,20 @@ export type { ContentValidateResult } from "./content/validateContentTree.js";
 export { PluginRegistry } from "./plugins/PluginRegistry.js";
 export type { AnvilPlugin, PluginApi } from "./plugins/PluginRegistry.js";
 
-// Map builder
+// Map builder + procedural generation
 export { MapBuilder } from "./map/MapBuilder.js";
 export type { BuiltMap, MapWall, MapSpawn } from "./map/MapBuilder.js";
+export {
+  generateDungeon,
+  generateOverworld,
+  procgenRng,
+} from "./map/Procgen.js";
+export type {
+  DungeonGenOpts,
+  OverworldGenOpts,
+  ProcMapResult,
+  ProcgenRng,
+} from "./map/Procgen.js";
 
 // Platform packaging (manifest only — real Electron shell is @anvil/desktop)
 export {

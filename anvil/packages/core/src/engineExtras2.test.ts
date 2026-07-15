@@ -128,6 +128,38 @@ describe("ActorAnimController", () => {
   });
 });
 
+import { generateDungeon, generateOverworld } from "./map/Procgen.js";
+
+describe("Procgen", () => {
+  it("generates dungeon with rooms and walls", () => {
+    const m = generateDungeon({
+      seed: 42,
+      width: 800,
+      height: 600,
+      roomCount: [4, 4],
+      enemyActors: ["scuttler"],
+      enemyCount: [2, 2],
+    });
+    expect(m.kind).toBe("dungeon");
+    expect(m.walls.length).toBeGreaterThan(2);
+    expect(m.spawns.some((s) => s.team === "player" || s.actor === "player")).toBe(
+      true,
+    );
+    expect(m.tileMap).toBeTruthy();
+  });
+
+  it("generates overworld with rocks", () => {
+    const m = generateOverworld({
+      width: 1000,
+      height: 800,
+      rockCount: [5, 8],
+      rng: () => 0.3,
+    });
+    expect(m.kind).toBe("overworld");
+    expect(m.walls.length).toBeGreaterThan(4);
+  });
+});
+
 describe("LootPolicy + RunState", () => {
   it("drops gold from empty table fallback", () => {
     const w = new World();

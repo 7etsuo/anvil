@@ -15,12 +15,13 @@ import {
   dropFromTable,
   emitHit,
   emitKill,
+  generateDungeon,
+  generateOverworld,
   loadRunFromLocalStorage,
   LOOT_GOLD_RADIUS,
   LOOT_ITEM_RADIUS,
   saveRunToLocalStorage,
   tryPickupNearest,
-  type RunStateV1,
 } from "@anvil/core";
 import {
   PackSpawner,
@@ -93,8 +94,11 @@ export class GravewakeGame {
   private services: GravewakeServices;
   private abilities: AbilitySystem;
   private showInv = false;
+  private showStats = false;
   private spawner: PackSpawner | null = null;
   private tileMap: TileMap | null = null;
+  private procSeedBump = 0;
+  private liveArea: AreaMapDef | null = null;
   private bossSlainOnce = false;
   private timeAlive = 0;
   private bossesKilled = 0;
@@ -267,6 +271,10 @@ export class GravewakeGame {
     return this.showInv;
   }
 
+  isStatsOpen(): boolean {
+    return this.showStats;
+  }
+
   getArea(): AreaId {
     return this.area;
   }
@@ -281,7 +289,12 @@ export class GravewakeGame {
   }
 
   getPortals(): PortalDef[] {
-    return this.areas[this.area]?.portals ?? [];
+    return (this.liveArea ?? this.areas[this.area])?.portals ?? [];
+  }
+
+  /** Live geometry (procgen walls/size) for the current zone. */
+  getLiveArea(): AreaMapDef | null {
+    return this.liveArea ?? this.areas[this.area] ?? null;
   }
 
   /**
@@ -338,9 +351,105 @@ export class GravewakeGame {
     p.health.hp = Math.max(1, Math.floor(p.health.max * ratio));
   }
 
+  /**
+   * Materialize area: hub stays authored; overworld/dungeon use engine procgen
+   * (walls + layout) while keeping portals/loot/respawn metadata.
+   */
+  private materializeArea(area: AreaMapDef): AreaMapDef {
+    const enemyPool =
+      area.respawn?.packTable ??
+      area.packTable ??
+      ["scuttler", "fallen", "thrall", "wretch"];
+    if (area.kind === "overworld") {
+      const gen = generateOverworld({
+        id: area.id,
+        width: area.width,
+        height: area.height,
+        playerActor: "gravewarden",
+        enemyActors: enemyPool,
+        enemyCount: [0, 0], // packs still via buildInitialSpawns / PackSpawner
+        westExit: true,
+        eastExit: false,
+        rockCount: [28, 50],
+        rng: this.rng,
+      });
+      const playerSpawn =
+        gen.spawns.find((s) => s.team === "player" || s.actor === "gravewarden") ??
+        gen.spawns[0];
+      return {
+        ...area,
+        width: gen.width,
+        height: gen.height,
+        walls: gen.walls,
+        spawns: playerSpawn
+          ? [
+              {
+                actor: "gravewarden",
+                x: playerSpawn.x,
+                y: playerSpawn.y,
+                team: "player",
+              },
+            ]
+          : area.spawns,
+      };
+    }
+    if (area.kind === "dungeon") {
+      const bosses = area.spawns
+        .filter((s) => s.team === "enemy" || s.actor !== "gravewarden")
+        .map((s) => s.actor)
+        .filter((a) => ["bellwarden", "death_knight", "bone_tyrant"].includes(a));
+      const gen = generateDungeon({
+        id: area.id,
+        width: area.width,
+        height: area.height,
+        seed: (this.procSeedBump++ + area.id.length * 17) | 0,
+        playerActor: "gravewarden",
+        enemyActors: enemyPool,
+        enemyCount: area.respawn?.initialPack ?? [6, 12],
+        roomCount: [5, 10],
+        rng: this.rng,
+      });
+      const spawns = gen.spawns.map((s) =>
+        s.team === "player" || s.actor === "player" || s.actor === "gravewarden"
+          ? {
+              actor: "gravewarden" as const,
+              x: s.x,
+              y: s.y,
+              team: "player" as const,
+            }
+          : {
+              actor: s.actor,
+              x: s.x,
+              y: s.y,
+              team: "enemy" as const,
+            },
+      );
+      // place boss near last room center if defined
+      if (bosses[0]) {
+        const last = gen.spawns[gen.spawns.length - 1];
+        spawns.push({
+          actor: bosses[0],
+          x: (last?.x ?? gen.width * 0.75) + 40,
+          y: last?.y ?? gen.height / 2,
+          team: "enemy",
+        });
+      }
+      return {
+        ...area,
+        width: gen.width,
+        height: gen.height,
+        walls: gen.walls,
+        spawns,
+        // dungeons: packs come from gen spawns; light continuous respawn still ok
+      };
+    }
+    return area;
+  }
+
   private enterArea(id: AreaId, spawn?: { x: number; y: number }): void {
-    const area = this.areas[id];
-    if (!area) throw new Error(`Unknown area: ${id}`);
+    const base = this.areas[id];
+    if (!base) throw new Error(`Unknown area: ${id}`);
+    const area = this.materializeArea(base);
     this.area = id;
     this.killed.clear();
     this.exitCooldownMs = 800;
@@ -351,7 +460,6 @@ export class GravewakeGame {
     for (const e of this.world.all()) this.world.destroy(e.id);
 
     const spawns = this.buildInitialSpawns(area);
-    // Collision uses authored walls (exit gaps). TileMap for grid/path helpers.
     this.tileMap = areaToTileMap(area, 32);
     const map: MapDef = {
       id: area.id,
@@ -361,6 +469,8 @@ export class GravewakeGame {
       spawns,
       background: area.background,
     };
+    // cache materialized geometry for observe/render (portals still from base)
+    this.liveArea = area;
     this.sim = new TopdownSim(this.world, map, this.actors, this.rng, {
       autoWinOnClear: false,
       aiActiveRadius: 560,
@@ -545,7 +655,17 @@ export class GravewakeGame {
       this.cast("smite");
     if (input.isPressed("choice_1") || input.isPressed("play_card_1"))
       this.cast("potion");
-    if (input.isPressed("inventory")) this.showInv = !this.showInv;
+    if (input.isPressed("inventory")) {
+      this.showInv = !this.showInv;
+      if (this.showInv) this.showStats = false;
+    }
+    // C = character stats (base + gear) — bind once
+    input.defineAction("character");
+    input.bindKey("character", "KeyC");
+    if (input.isPressed("character")) {
+      this.showStats = !this.showStats;
+      if (this.showStats) this.showInv = false;
+    }
     if (input.isPressed("interact")) {
       if (!this.tryVendor()) this.tryLoot();
     }
@@ -925,6 +1045,7 @@ export class GravewakeGame {
   }
 
   private checkPortals(): void {
+    // Portals stay from static content (metadata); geometry may be procgen
     const area = this.areas[this.area];
     if (!this.sim || !area?.portals?.length) return;
     const p = this.world.get("player");
@@ -943,7 +1064,7 @@ export class GravewakeGame {
   }
 
   private checkExits(): void {
-    const area = this.areas[this.area];
+    const area = this.liveArea ?? this.areas[this.area];
     if (!this.sim || !area) return;
     const p = this.world.get("player");
     if (!p?.transform) return;
@@ -1014,13 +1135,15 @@ export class GravewakeGame {
     }
     const questObj =
       this.services.quests?.currentObjective("wake_of_ashes") ?? null;
-    const area = this.areas[this.area];
+    const meta = this.areas[this.area];
+    const area = this.liveArea ?? meta;
 
     return {
       title: "Gravewake",
       area: this.area,
-      areaName: area?.name ?? this.area,
-      areaKind: area?.kind ?? "hub",
+      areaName: meta?.name ?? this.area,
+      areaKind: meta?.kind ?? "hub",
+      procgen: meta?.kind !== "hub",
       threat: Math.round(this.threatTier() * 10) / 10,
       xp: this.sheet.xp,
       level: this.sheet.level,
@@ -1036,9 +1159,12 @@ export class GravewakeGame {
       timeAlive: Math.floor(this.timeAlive),
       exitHint: this.exitHint,
       inventoryOpen: this.showInv,
+      statsOpen: this.showStats,
       inventory: inv,
       equipped,
       stats,
+      /** Base vs gear vs final for character sheet UI */
+      statBreakdown: this.sheet.statBreakdown(),
       hp: p?.health?.hp ?? 0,
       maxHp: p?.health?.max ?? stats.maxHp,
       cds: { ...this.cd },
@@ -1047,7 +1173,7 @@ export class GravewakeGame {
       /** Paper-doll layers from CharacterSheet (engine) */
       visualLayers: this.sheet.equippedVisuals(),
       bodyVariant: this.sheet.bodyVariant(),
-      portals: (area?.portals ?? []).map((pr) => ({
+      portals: (meta?.portals ?? []).map((pr) => ({
         x: pr.x,
         y: pr.y,
         w: pr.w,
@@ -1058,6 +1184,8 @@ export class GravewakeGame {
       })),
       mapW: area?.width ?? 0,
       mapH: area?.height ?? 0,
+      /** Live walls for renderer (procgen geometry). */
+      walls: area?.walls ?? [],
       tileMap: this.tileMap
         ? {
             id: this.tileMap.id,

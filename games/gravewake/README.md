@@ -35,7 +35,10 @@ Boss kills are **milestones**, not the end of the game. Packs keep spawning; thr
 | **1** | Potion |
 | **F** | Loot / shrine |
 | **I** | Inventory |
+| **C** | Character stats (base + gear + total) |
 | Portals / map edges | Travel |
+
+**Random maps:** overworld and dungeons are **procedurally generated** each visit (engine `generateOverworld` / `generateDungeon`). Hub (Lychgate) stays fixed. **Stats:** character has base stats; weapons/armor add gear mods — see **C**.
 
 Engine: A* pathfinding (`NavGrid`), click pathing, AI path around walls.
 

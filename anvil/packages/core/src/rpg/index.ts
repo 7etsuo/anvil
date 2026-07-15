@@ -10,7 +10,7 @@ export { Inventory, defaultUid } from "./Inventory.js";
 export { Equipment } from "./Equipment.js";
 export type { ItemDefLookup } from "./Equipment.js";
 export { CharacterSheet } from "./CharacterSheet.js";
-export type { CharacterSheetOpts } from "./CharacterSheet.js";
+export type { CharacterSheetOpts, StatBreakdown } from "./CharacterSheet.js";
 export {
   spawnGroundLoot,
   spawnGoldPile,

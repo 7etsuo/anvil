@@ -640,7 +640,7 @@ async function main(): Promise<void> {
       ctx.fillStyle = "#888";
       ctx.font = "13px system-ui";
       ctx.fillText(
-        "LMB move / engage  ·  RMB or Space slash  ·  2 Whirl  ·  3 Smite  ·  1 Potion  ·  F loot  ·  I bag",
+        "LMB move  ·  Space slash  ·  2/3 skills  ·  1 potion  ·  F loot  ·  I bag  ·  C stats",
         VIEW_W / 2,
         VIEW_H / 2 + 100,
       );
@@ -683,7 +683,17 @@ async function main(): Promise<void> {
 
     const player = handle.world.get("player");
     const blob = gw.observeBlob();
-    const area = embeddedAreas[String(blob.area)];
+    // Prefer live procgen geometry from game; fall back to embedded content
+    const embedded = embeddedAreas[String(blob.area)];
+    const liveWalls = (blob.walls as Array<{ x: number; y: number; w: number; h: number }>) ?? [];
+    const area = embedded
+      ? {
+          ...embedded,
+          width: Number(blob.mapW ?? embedded.width),
+          height: Number(blob.mapH ?? embedded.height),
+          walls: liveWalls.length ? liveWalls : embedded.walls,
+        }
+      : null;
     const fx = gw.fx as FxEvent[];
     const cds = (blob.cds as Record<string, number>) ?? {};
     const stats = (blob.stats as {
@@ -1579,6 +1589,102 @@ async function main(): Promise<void> {
         ctx.textAlign = "center";
         ctx.fillText("Empty — slay the dead for loot", VIEW_W / 2, iy + 160);
         ctx.textAlign = "left";
+      }
+    }
+
+    // Character stats: base + gear = final
+    if (blob.statsOpen) {
+      const bd = blob.statBreakdown as {
+        base: Record<string, number>;
+        gear: Record<string, number>;
+        final: Record<string, number>;
+        bySlot: Array<{
+          slot: string;
+          name: string;
+          stats: Record<string, number>;
+        }>;
+      } | null;
+      const iw = 420;
+      const ih = 420;
+      const ix = VIEW_W / 2 - iw / 2;
+      const iy = VIEW_H / 2 - ih / 2 - 20;
+      ctx.fillStyle = "rgba(0,0,0,0.55)";
+      ctx.fillRect(0, 0, VIEW_W, VIEW_H);
+      panel(ctx, ix, iy, iw, ih);
+      ctx.strokeStyle = "rgba(201,164,108,0.55)";
+      ctx.strokeRect(ix + 3, iy + 3, iw - 6, ih - 6);
+      ctx.fillStyle = "#c9a46c";
+      ctx.font = "bold 20px Cinzel, Georgia, serif";
+      ctx.textAlign = "center";
+      ctx.fillText("CHARACTER", VIEW_W / 2, iy + 32);
+      ctx.fillStyle = "#9a8a70";
+      ctx.font = "12px system-ui";
+      ctx.fillText(
+        `Level ${blob.level}  ·  XP ${blob.xp}  ·  C closes  ·  I inventory`,
+        VIEW_W / 2,
+        iy + 52,
+      );
+      ctx.textAlign = "left";
+      const keys = ["maxHp", "damage", "armor", "speed", "critChance", "critMult"] as const;
+      const labels: Record<string, string> = {
+        maxHp: "Life",
+        damage: "Damage",
+        armor: "Armor",
+        speed: "Speed",
+        critChance: "Crit %",
+        critMult: "Crit ×",
+      };
+      ctx.font = "bold 12px system-ui";
+      ctx.fillStyle = "#888";
+      ctx.fillText("Stat", ix + 24, iy + 80);
+      ctx.fillText("Base", ix + 140, iy + 80);
+      ctx.fillText("Gear", ix + 220, iy + 80);
+      ctx.fillText("Total", ix + 310, iy + 80);
+      let row = 0;
+      for (const k of keys) {
+        const yy = iy + 104 + row * 26;
+        const base = bd?.base?.[k] ?? 0;
+        const gear = bd?.gear?.[k] ?? 0;
+        const fin = bd?.final?.[k] ?? stats[k as keyof typeof stats] ?? 0;
+        const fmt = (n: number) =>
+          k === "critChance"
+            ? `${Math.round(n * 100)}%`
+            : k === "critMult"
+              ? n.toFixed(1)
+              : String(Math.round(n));
+        ctx.fillStyle = row % 2 === 0 ? "rgba(255,255,255,0.04)" : "transparent";
+        ctx.fillRect(ix + 16, yy - 16, iw - 32, 24);
+        ctx.fillStyle = "#ddd";
+        ctx.font = "13px system-ui";
+        ctx.fillText(labels[k] ?? k, ix + 24, yy);
+        ctx.fillStyle = "#aaa";
+        ctx.fillText(fmt(base), ix + 140, yy);
+        ctx.fillStyle = gear > 0 ? "#8c8" : gear < 0 ? "#c88" : "#666";
+        ctx.fillText(gear === 0 ? "—" : `+${fmt(gear)}`, ix + 220, yy);
+        ctx.fillStyle = "#e8c878";
+        ctx.font = "bold 13px system-ui";
+        ctx.fillText(fmt(Number(fin)), ix + 310, yy);
+        row++;
+      }
+      ctx.fillStyle = "#c9a46c";
+      ctx.font = "bold 12px Cinzel, Georgia, serif";
+      ctx.fillText("Equipped gear", ix + 24, iy + 280);
+      let gr = 0;
+      for (const g of bd?.bySlot ?? []) {
+        const yy = iy + 304 + gr * 22;
+        if (yy > iy + ih - 24) break;
+        const bits = Object.entries(g.stats)
+          .filter(([, v]) => typeof v === "number" && v !== 0)
+          .map(([k, v]) => `${k} ${v! > 0 ? "+" : ""}${v}`)
+          .join("  ");
+        ctx.fillStyle = "#ccc";
+        ctx.font = "12px system-ui";
+        ctx.fillText(`${g.name} [${g.slot}]  ${bits}`, ix + 24, yy);
+        gr++;
+      }
+      if (!bd?.bySlot?.length) {
+        ctx.fillStyle = "#666";
+        ctx.fillText("No gear equipped", ix + 24, iy + 304);
       }
     }
 

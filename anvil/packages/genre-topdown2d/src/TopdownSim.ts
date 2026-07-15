@@ -1,5 +1,5 @@
-import type { InputMap } from "@anvil/core";
-import type { World } from "@anvil/core";
+import type { InputMap, World } from "@anvil/core";
+import { ActorAnimController } from "@anvil/core";
 import {
   resolveCircleCircle,
   resolveCircleWall,
@@ -51,6 +51,8 @@ export class TopdownSim {
   /** When true, auto-slash nearest enemy in melee while pathing. */
   private autoEngage = false;
   private aiActiveRadius: number;
+  /** Per-actor animation controllers (multi-frame idle/walk/attack/death). */
+  private anim = new Map<string, ActorAnimController>();
 
   constructor(
     world: World,
@@ -203,6 +205,18 @@ export class TopdownSim {
       repathMs: 0,
     };
     this.actors.set(id, rt);
+    // Multi-frame anim SM from ActorDef.animations
+    const clips = {
+      idle: def.animations?.idle ?? frames,
+      walk: def.animations?.walk ?? def.animations?.idle ?? frames,
+      attack: def.animations?.attack ?? def.animations?.idle ?? frames,
+      death: def.animations?.death ?? def.animations?.idle ?? frames,
+      hit: def.animations?.idle ?? frames,
+    };
+    this.anim.set(
+      id,
+      new ActorAnimController({ clips, fps: 8 }),
+    );
     if (team === "player") this.playerId = id;
     return id;
   }
@@ -316,6 +330,7 @@ export class TopdownSim {
       if (e.tags.includes("projectile")) this.world.destroy(e.id);
     }
     this.actors.clear();
+    this.anim.clear();
     this.playerId = null;
     this.won = false;
     this.lost = false;
@@ -452,9 +467,9 @@ export class TopdownSim {
     // 6. Win/lose
     this.checkEnd();
 
-    // 7. Anim states
+    // 7. Anim states (multi-frame SM)
     for (const rt of this.actors.values()) {
-      this.updateAnim(rt);
+      this.updateAnim(rt, dtMs);
     }
   }
 
@@ -782,11 +797,13 @@ export class TopdownSim {
     if (!e?.health || rt.dead) return;
     e.health.hp = Math.max(0, e.health.hp - amount);
     rt.iframeRemainingMs = rt.iframeMs;
+    this.anim.get(rt.entityId)?.setState("hit", { lockMs: 120 });
     if (e.health.hp <= 0) {
       rt.dead = true;
       rt.vx = 0;
       rt.vy = 0;
       rt.animState = "death";
+      this.anim.get(rt.entityId)?.setState("death", { force: true });
       e.tags = e.tags.includes("dead") ? e.tags : [...e.tags, "dead"];
     }
   }
@@ -811,24 +828,45 @@ export class TopdownSim {
     }
   }
 
-  private updateAnim(rt: ActorRuntime): void {
+  private updateAnim(rt: ActorRuntime, dtMs: number): void {
     const e = this.world.get(rt.entityId);
     if (!e) return;
-    let state: AnimState = "idle";
-    if (rt.dead) state = "death";
-    else if (rt.attackAnimMs > 0) state = "attack";
-    else if (Math.hypot(rt.vx, rt.vy) > EPSILON_SPEED) state = "walk";
-    rt.animState = state;
     const speed = Math.hypot(rt.vx, rt.vy);
-    if (speed > EPSILON_SPEED) {
-      // facing: 0 right, +PI/2 down (canvas y+)
+    const moving = speed > EPSILON_SPEED;
+    const ctrl = this.anim.get(rt.entityId);
+    if (ctrl) {
+      ctrl.tick(dtMs, {
+        moving,
+        attacking: rt.attackAnimMs > 0,
+        dead: rt.dead,
+      });
+      rt.animState = ctrl.state as AnimState;
+      const frame = ctrl.currentFrame();
+      if (frame && e.sprite) {
+        // Keep frames list for system; set frame index for current clip
+        const clip = ctrl.clips[ctrl.state] ?? [];
+        if (clip.length && e.sprite.frames !== clip) {
+          e.sprite.frames = [...clip];
+          e.sprite.frame = 0;
+          e.sprite.loop = ctrl.state === "idle" || ctrl.state === "walk";
+        }
+        e.sprite.frame = Math.min(ctrl.frame, e.sprite.frames.length - 1);
+      }
+      e.data.animFrame = frame;
+    } else {
+      let state: AnimState = "idle";
+      if (rt.dead) state = "death";
+      else if (rt.attackAnimMs > 0) state = "attack";
+      else if (moving) state = "walk";
+      rt.animState = state;
+    }
+    if (moving) {
       e.data.facing = Math.atan2(rt.vy, rt.vx);
-      // flip only when using a right-facing sheet drawn leftward
       rt.flipX = rt.vx > 0 ? false : rt.vx < 0 ? true : rt.flipX;
     } else if (e.data.facing === undefined) {
       e.data.facing = Math.PI / 2;
     }
-    e.data.animState = state;
+    e.data.animState = rt.animState;
     e.data.flipX = rt.flipX;
     e.data.vx = rt.vx;
     e.data.vy = rt.vy;

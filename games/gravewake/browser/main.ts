@@ -10,12 +10,11 @@ import {
 import { browserGravewakeModule, getBrowserGravewake } from "./browserModule.js";
 import { embeddedAreas } from "./contentEmbed.js";
 import type { FxEvent } from "../src/GravewakeGame.js";
+import { ISO } from "./diabloView.js";
 import {
   depthOf,
   drawIsoFloor,
   drawIsoWalls,
-  project,
-  unproject,
   type Cam,
 } from "./diabloView.js";
 
@@ -301,6 +300,11 @@ async function main(): Promise<void> {
   renderer.resize(VIEW_W, VIEW_H);
   // Belt-and-suspenders: browser paints the full frame
   handle.kernel.setSkipDefaultDraw(true);
+  // Engine ViewCamera drives iso projection (shared service)
+  handle.camera.setMode("iso");
+  handle.camera.iso = { tileW: ISO.tileW, tileH: ISO.tileH };
+  handle.camera.setViewSize(VIEW_W, VIEW_H);
+  handle.camera.followLerp = 0.14;
 
   for (const [path, img] of images) {
     const tex = handle.assets.getTexture(path);
@@ -324,6 +328,7 @@ async function main(): Promise<void> {
     VIEW_W = Math.max(640, window.innerWidth | 0);
     VIEW_H = Math.max(480, window.innerHeight | 0);
     renderer.resize(VIEW_W, VIEW_H);
+    handle.camera.setViewSize(VIEW_W, VIEW_H);
   };
   window.addEventListener("resize", applySize);
   applySize();
@@ -356,10 +361,12 @@ async function main(): Promise<void> {
   /** Survives keyup before next rAF — short Space/click was missing the start frame. */
   let startLatched = false;
   let started = false;
-  /** Camera focus in *world* (sim) coordinates — iso projection handles screen. */
+  /** Cam focus mirror for diabloView helpers (kept in sync with handle.camera). */
   let cam: Cam = { wx: 200, wy: 320 };
-  let shakeX = 0;
-  let shakeY = 0;
+
+  const syncCamFromEngine = () => {
+    cam = { wx: handle.camera.wx, wy: handle.camera.wy };
+  };
 
   const beginPlay = () => {
     if (started) return;
@@ -368,11 +375,12 @@ async function main(): Promise<void> {
     clickSlash = false;
     const p0 = handle.world.get("player");
     if (p0?.transform) {
-      cam = { wx: p0.transform.x, wy: p0.transform.y };
+      handle.camera.snap(p0.transform.x, p0.transform.y);
+      syncCamFromEngine();
     }
   };
 
-  /** Screen → world click (iso unproject). */
+  /** Screen → world click via engine ViewCamera. */
   const onWorldClick = (clientX: number, clientY: number, button: number) => {
     const gw = getBrowserGravewake();
     if (!gw || !started) return;
@@ -380,7 +388,7 @@ async function main(): Promise<void> {
     if (!rect || !canvas) return;
     const sx = ((clientX - rect.left) / rect.width) * VIEW_W;
     const sy = ((clientY - rect.top) / rect.height) * VIEW_H;
-    const w = unproject(sx - shakeX, sy - shakeY, cam, VIEW_W, VIEW_H);
+    const w = handle.camera.unproject(sx, sy);
     if (button === 0) {
       gw.clickWorld(w.x, w.y);
     } else if (button === 2) {
@@ -421,6 +429,16 @@ async function main(): Promise<void> {
   document.addEventListener("keydown", (e) => {
     if (!started) startLatched = true;
   });
+
+  // Periodic run save while playing
+  setInterval(() => {
+    if (!started) return;
+    try {
+      getBrowserGravewake()?.saveRun(handle.getSeed());
+    } catch {
+      /* ignore */
+    }
+  }, 15000);
 
   const floorSrc = images.get("env/floor.png") ?? null;
   const wallTex = images.get("env/wall.png") ?? null;
@@ -675,23 +693,19 @@ async function main(): Promise<void> {
       critChance?: number;
     }) ?? {};
 
-    // camera focus in world space
-    const tcx = player?.transform?.x ?? cam.wx;
-    const tcy = player?.transform?.y ?? cam.wy;
-    if (Math.hypot(tcx - cam.wx, tcy - cam.wy) > 400) {
-      cam = { wx: tcx, wy: tcy };
+    // engine ViewCamera follow + shake
+    const tcx = player?.transform?.x ?? handle.camera.wx;
+    const tcy = player?.transform?.y ?? handle.camera.wy;
+    if (Math.hypot(tcx - handle.camera.wx, tcy - handle.camera.wy) > 400) {
+      handle.camera.snap(tcx, tcy);
     } else {
-      cam = {
-        wx: cam.wx + (tcx - cam.wx) * Math.min(1, dt * 8),
-        wy: cam.wy + (tcy - cam.wy) * Math.min(1, dt * 8),
-      };
+      handle.camera.follow(tcx, tcy, dt);
     }
-    shakeX *= 0.82;
-    shakeY *= 0.82;
+    handle.camera.update(dt);
+    syncCamFromEngine();
     for (const f of fx) {
       if (f.kind === "shake" && f.t > 0.08) {
-        shakeX += (Math.random() - 0.5) * f.mag * 2.5;
-        shakeY += (Math.random() - 0.5) * f.mag * 2.5;
+        handle.camera.shake(f.mag * 2.5, 0.12);
       }
       if (f.kind === "hit" && f.t > 0.6) {
         const key = `hit-${f.x.toFixed(1)}-${f.y.toFixed(1)}-${f.t.toFixed(2)}`;
@@ -774,21 +788,21 @@ async function main(): Promise<void> {
         ctx.beginPath();
         for (let i = 0; i < path.length; i++) {
           const p = path[i]!;
-          const s = project(p.x, p.y, cam, VIEW_W, VIEW_H);
-          if (i === 0) ctx.moveTo(s.x + shakeX, s.y + shakeY);
-          else ctx.lineTo(s.x + shakeX, s.y + shakeY);
+          const s = handle.camera.project(p.x, p.y);
+          if (i === 0) ctx.moveTo(s.x, s.y);
+          else ctx.lineTo(s.x, s.y);
         }
         ctx.stroke();
         ctx.setLineDash([]);
       }
       if (tgt) {
-        const s = project(tgt.x, tgt.y, cam, VIEW_W, VIEW_H);
+        const s = handle.camera.project(tgt.x, tgt.y);
         ctx.strokeStyle = "rgba(120,255,140,0.85)";
         ctx.lineWidth = 2;
         ctx.beginPath();
         ctx.ellipse(
-          s.x + shakeX,
-          s.y + shakeY,
+          s.x,
+          s.y,
           14 + Math.sin(now / 120) * 2,
           7 + Math.sin(now / 120),
           0,
@@ -822,9 +836,9 @@ async function main(): Promise<void> {
       for (const d of decor) {
         const img = d.kind === "arch" ? ruinArch : ruinPillar;
         if (!img) continue;
-        const s = project(d.x, d.y, cam, VIEW_W, VIEW_H);
-        const sx = s.x + shakeX;
-        const sy = s.y + shakeY;
+        const s = handle.camera.project(d.x, d.y);
+        const sx = s.x;
+        const sy = s.y;
         if (sx < -100 || sy < -100 || sx > VIEW_W + 100 || sy > VIEW_H + 100)
           continue;
         const sz = d.kind === "arch" ? 100 : 84;
@@ -834,9 +848,9 @@ async function main(): Promise<void> {
       }
 
       if (blob.area === "town") {
-        const s = project(220, 160, cam, VIEW_W, VIEW_H);
-        const sx = s.x + shakeX;
-        const sy = s.y + shakeY;
+        const s = handle.camera.project(220, 160);
+        const sx = s.x;
+        const sy = s.y;
         const g = ctx.createRadialGradient(sx, sy, 4, sx, sy, 50);
         g.addColorStop(0, "rgba(255,160,60,0.5)");
         g.addColorStop(1, "rgba(0,0,0,0)");
@@ -866,9 +880,9 @@ async function main(): Promise<void> {
         area.portals ??
         [];
       for (const pr of portals) {
-        const s = project(pr.x + pr.w / 2, pr.y + pr.h / 2, cam, VIEW_W, VIEW_H);
-        const cx = s.x + shakeX;
-        const cy = s.y + shakeY;
+        const s = handle.camera.project(pr.x + pr.w / 2, pr.y + pr.h / 2);
+        const cx = s.x;
+        const cy = s.y;
         const pw = 88;
         const ph = 100;
         const pulse = 0.8 + Math.sin(now / 280) * 0.15;
@@ -893,10 +907,7 @@ async function main(): Promise<void> {
       }
     }
 
-    const wp = (wx: number, wy: number) => {
-      const p = project(wx, wy, cam, VIEW_W, VIEW_H);
-      return { x: p.x + shakeX, y: p.y + shakeY };
-    };
+    const wp = (wx: number, wy: number) => handle.camera.project(wx, wy);
 
     // LOOT piles — Imagine prop + glow
     for (const e of handle.world.query("transform")) {

@@ -1576,11 +1576,16 @@ async function main(): Promise<void> {
         const col = RARITY_COLOR[item.rarity ?? "common"] ?? "#ccc";
         ctx.fillStyle = row % 2 === 0 ? "rgba(255,255,255,0.03)" : "transparent";
         ctx.fillRect(ix + 16, yy - 16, iw - 32, 26);
-        ctx.fillStyle = col;
+        const can = item.canEquip !== false;
+        ctx.fillStyle = can ? col : "#666";
         ctx.font = "bold 13px system-ui";
         const qty = item.qty > 1 ? ` ×${item.qty}` : "";
-        const slot = item.slot ? `  [${item.slot}]` : "";
-        ctx.fillText(`${item.name}${qty}${slot}`, ix + 28, yy);
+        const slot = item.slot ? ` [${item.slot}]` : "";
+        const lv =
+          item.itemLevel != null ? ` L${item.itemLevel}` : "";
+        const req =
+          !can && item.reqLevel != null ? `  (need Lv ${item.reqLevel})` : "";
+        ctx.fillText(`${item.name}${lv}${qty}${slot}${req}`, ix + 28, yy);
         row++;
       }
       if (inv.length === 0) {
@@ -1677,9 +1682,13 @@ async function main(): Promise<void> {
           .filter(([, v]) => typeof v === "number" && v !== 0)
           .map(([k, v]) => `${k} ${v! > 0 ? "+" : ""}${v}`)
           .join("  ");
+        const lv =
+          (g as { itemLevel?: number }).itemLevel != null
+            ? ` L${(g as { itemLevel?: number }).itemLevel}`
+            : "";
         ctx.fillStyle = "#ccc";
         ctx.font = "12px system-ui";
-        ctx.fillText(`${g.name} [${g.slot}]  ${bits}`, ix + 24, yy);
+        ctx.fillText(`${g.name}${lv} [${g.slot}]  ${bits}`, ix + 24, yy);
         gr++;
       }
       if (!bd?.bySlot?.length) {

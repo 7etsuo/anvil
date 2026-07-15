@@ -48,12 +48,17 @@ export class Inventory {
     opts: {
       maxStack?: number;
       rolledStats?: ItemStack["rolledStats"];
+      itemLevel?: number;
+      reqLevel?: number;
       data?: Record<string, unknown>;
       uid?: string;
     } = {},
   ): ItemStack | null {
     const maxStack = opts.maxStack ?? 1;
-    if (maxStack > 1) {
+    // Leveled gear is never stacked (each roll is unique)
+    const uniqueInstance =
+      opts.itemLevel != null || opts.reqLevel != null || opts.rolledStats != null;
+    if (maxStack > 1 && !uniqueInstance) {
       const existing = this.slots.find(
         (s) =>
           s.defId === defId &&
@@ -75,6 +80,8 @@ export class Inventory {
       uid: opts.uid ?? this.uidFn(),
       defId,
       qty,
+      itemLevel: opts.itemLevel,
+      reqLevel: opts.reqLevel,
       rolledStats: opts.rolledStats,
       data: opts.data,
     };

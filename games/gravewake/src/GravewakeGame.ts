@@ -188,7 +188,8 @@ export class GravewakeGame {
       level: 1,
       xp: 0,
     });
-    this.sheet.pickup("rusty_sword");
+    // Starter weapon: level 1 roll (base stats ± variance)
+    this.sheet.pickupLeveled("rusty_sword", 1, { rng: this.rng });
     const sword = this.sheet.inventory.findByDef("rusty_sword");
     if (sword) this.sheet.equip(sword.uid);
     this.sheet.pickup("health_potion", 5);
@@ -874,7 +875,14 @@ export class GravewakeGame {
     // Diablo-style: gold + small radius auto-grab; gear needs F or very close
     for (const e of [...this.world.all()]) {
       if (!e.tags.includes("loot") || !e.transform) continue;
-      const loot = e.data.loot as { defId?: string; gold?: number; qty?: number } | undefined;
+      const loot = e.data.loot as {
+        defId?: string;
+        gold?: number;
+        qty?: number;
+        rolledStats?: Record<string, number>;
+        itemLevel?: number;
+        reqLevel?: number;
+      } | undefined;
       if (!loot) continue;
       const d = Math.hypot(e.transform.x - pos.x, e.transform.y - pos.y);
       if (loot.defId === "gold") {
@@ -893,16 +901,22 @@ export class GravewakeGame {
       }
       // magnetic gear pickup when standing on it
       if (d > LOOT_ITEM_RADIUS) continue;
-      const ok = this.sheet.pickup(loot.defId!, loot.qty ?? 1);
+      const ok = this.sheet.pickup(loot.defId!, loot.qty ?? 1, {
+        rolledStats: loot.rolledStats,
+        itemLevel: loot.itemLevel,
+        reqLevel: loot.reqLevel,
+      });
       if (!ok) continue;
       this.world.destroy(e.id);
       this.autoEquipBest();
       this.syncPlayerFromSheet();
+      const nm = this.items[loot.defId!]?.name ?? "Loot";
+      const lv = loot.itemLevel != null ? ` L${loot.itemLevel}` : "";
       this.pushFx({
         kind: "float",
         x: e.transform.x,
         y: e.transform.y,
-        text: this.items[loot.defId!]?.name ?? "Loot",
+        text: `${nm}${lv}`,
         color: "#acf",
         t: 1,
       });
@@ -910,22 +924,45 @@ export class GravewakeGame {
   }
 
   private autoEquipBest(): void {
+    const scoreStack = (stack: {
+      rolledStats?: Partial<Record<string, number>>;
+      defId: string;
+      reqLevel?: number;
+      itemLevel?: number;
+    }) => {
+      const rs = stack.rolledStats;
+      const def = this.items[stack.defId];
+      const dmg = Number(rs?.damage ?? def?.stats?.damage ?? 0);
+      const arm = Number(rs?.armor ?? def?.stats?.armor ?? 0);
+      const hp = Number(rs?.maxHp ?? def?.stats?.maxHp ?? 0);
+      const crit = Number(rs?.critChance ?? def?.stats?.critChance ?? 0);
+      return dmg * 3 + arm * 2 + hp * 0.5 + crit * 40 + (stack.itemLevel ?? 1);
+    };
     for (const stack of this.sheet.inventory.all()) {
       const def = this.items[stack.defId];
       if (!def?.slot) continue;
+      const req = stack.reqLevel ?? stack.itemLevel ?? 1;
+      if (this.sheet.level < req) continue; // can't wear yet
       const curUid = this.sheet.equipment.get(def.slot);
       if (!curUid) {
         this.sheet.equip(stack.uid);
         continue;
       }
       const cur = this.sheet.inventory.get(curUid);
-      const curDef = cur ? this.items[cur.defId] : undefined;
-      const score = (d?: ItemDef) =>
-        (d?.stats?.damage ?? 0) * 3 +
-        (d?.stats?.armor ?? 0) * 2 +
-        (d?.stats?.maxHp ?? 0) * 0.5 +
-        (d?.stats?.critChance ?? 0) * 40;
-      if (score(def) > score(curDef)) this.sheet.equip(stack.uid);
+      if (!cur) continue;
+      if (scoreStack(stack) > scoreStack(cur)) {
+        const r = this.sheet.equip(stack.uid);
+        if (!r.ok && r.error === "level_req") {
+          this.pushFx({
+            kind: "float",
+            x: this.sim?.getPlayerPos()?.x ?? 0,
+            y: this.sim?.getPlayerPos()?.y ?? 0,
+            text: `Need Lv ${r.reqLevel}`,
+            color: "#e88",
+            t: 1.2,
+          });
+        }
+      }
     }
   }
 
@@ -1010,11 +1047,17 @@ export class GravewakeGame {
         : tableId
       : tableId;
     const table = this.lootTables[useId] ?? this.lootTables.wastes_pack;
+    const zoneLevel = Math.max(
+      1,
+      Math.round(this.threatTier() + 1),
+    );
     const drop = dropFromTable(this.world, x, y, table, {
       rng: this.rng,
       goldMul: 1 + Math.floor(this.threatTier()) * 0.25,
       scatter: 24,
       itemDefs: this.items,
+      characterLevel: this.sheet.level,
+      zoneLevel,
     });
     if (drop.kind === "gold" && drop.gold) {
       this.pushFx({
@@ -1114,14 +1157,22 @@ export class GravewakeGame {
     const p = this.world.get("player");
     const potions =
       this.sheet.inventory.findByDef("health_potion")?.qty ?? 0;
-    const inv = this.sheet.inventory.all().map((s) => ({
-      uid: s.uid,
-      defId: s.defId,
-      name: this.items[s.defId]?.name ?? s.defId,
-      qty: s.qty,
-      slot: this.items[s.defId]?.slot,
-      rarity: this.items[s.defId]?.rarity ?? "common",
-    }));
+    const inv = this.sheet.inventory.all().map((s) => {
+      const def = this.items[s.defId];
+      const req = s.reqLevel ?? s.itemLevel ?? 1;
+      return {
+        uid: s.uid,
+        defId: s.defId,
+        name: def?.name ?? s.defId,
+        qty: s.qty,
+        slot: def?.slot,
+        rarity: def?.rarity ?? "common",
+        itemLevel: s.itemLevel,
+        reqLevel: s.reqLevel ?? s.itemLevel,
+        canEquip: this.sheet.level >= req,
+        rolledStats: s.rolledStats,
+      };
+    });
     const equipped: Record<string, string | null> = {};
     for (const [slot, uid] of Object.entries(this.sheet.equipment.all())) {
       if (!uid) {
@@ -1129,9 +1180,13 @@ export class GravewakeGame {
         continue;
       }
       const st = this.sheet.inventory.get(uid);
-      equipped[slot] = st
-        ? (this.items[st.defId]?.name ?? st.defId)
-        : null;
+      if (!st) {
+        equipped[slot] = null;
+        continue;
+      }
+      const nm = this.items[st.defId]?.name ?? st.defId;
+      const lv = st.itemLevel != null ? ` L${st.itemLevel}` : "";
+      equipped[slot] = `${nm}${lv}`;
     }
     const questObj =
       this.services.quests?.currentObjective("wake_of_ashes") ?? null;

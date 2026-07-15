@@ -4,6 +4,7 @@
 
 import type { World } from "../world/World.js";
 import { rollLootTable } from "../content/validateContent.js";
+import { rollDropItemLevel, rollItemInstance } from "./itemLevel.js";
 import { spawnGoldPile, spawnGroundLoot } from "./Loot.js";
 import type { ItemDef } from "./types.js";
 
@@ -19,6 +20,8 @@ export type DropResult = {
   gold?: number;
   rarity?: string;
   name?: string;
+  itemLevel?: number;
+  reqLevel?: number;
   x: number;
   y: number;
   entityId?: string;
@@ -31,6 +34,12 @@ export type LootPolicyOpts = {
   scatter?: number;
   rng?: () => number;
   itemDefs?: Record<string, ItemDef>;
+  /** Character level — used to roll drop item level */
+  characterLevel?: number;
+  /** Zone / area threat level (default 1) */
+  zoneLevel?: number;
+  /** Force a specific item level (tests) */
+  itemLevel?: number;
 };
 
 export function dropFromTable(
@@ -58,17 +67,42 @@ export function dropFromTable(
     const id = spawnGoldPile(world, jx, jy, g);
     return { kind: "gold", gold: g, x: jx, y: jy, entityId: id };
   }
+  const def = opts.itemDefs?.[roll.item];
+  const isGear = Boolean(def?.slot && (def.maxStack ?? 1) <= 1);
+  let itemLevel: number | undefined;
+  let reqLevel: number | undefined;
+  let rolledStats = undefined as ReturnType<typeof rollItemInstance>["rolledStats"] | undefined;
+  if (isGear && def) {
+    itemLevel =
+      opts.itemLevel ??
+      rollDropItemLevel(
+        opts.characterLevel ?? 1,
+        opts.zoneLevel ?? 1,
+        rng,
+      );
+    const inst = rollItemInstance(def, itemLevel, { rng });
+    itemLevel = inst.itemLevel;
+    reqLevel = inst.reqLevel;
+    rolledStats = inst.rolledStats;
+  }
   const id = spawnGroundLoot(world, jx, jy, {
     defId: roll.item,
     qty: roll.qty,
+    rolledStats,
+    itemLevel,
+    reqLevel,
   });
-  const def = opts.itemDefs?.[roll.item];
+  const nameBase = def?.name ?? roll.item;
+  const name =
+    itemLevel != null ? `${nameBase} (L${itemLevel})` : nameBase;
   return {
     kind: "item",
     defId: roll.item,
     qty: roll.qty,
     rarity: def?.rarity ?? "common",
-    name: def?.name ?? roll.item,
+    name,
+    itemLevel,
+    reqLevel,
     x: jx,
     y: jy,
     entityId: id,

@@ -5,6 +5,8 @@ export interface GroundLootData {
   defId: string;
   qty: number;
   rolledStats?: Partial<Stats>;
+  itemLevel?: number;
+  reqLevel?: number;
   gold?: number;
   data?: Record<string, unknown>;
 }
@@ -32,6 +34,8 @@ export function spawnGroundLoot(
         defId: loot.defId,
         qty: loot.qty,
         rolledStats: loot.rolledStats,
+        itemLevel: loot.itemLevel,
+        reqLevel: loot.reqLevel,
         gold: loot.gold ?? 0,
         data: loot.data,
       } satisfies GroundLootData & { gold: number },
@@ -85,7 +89,12 @@ export function tryPickupNearest(
     pickup: (
       defId: string,
       qty?: number,
-      opts?: { rolledStats?: Partial<Stats>; data?: Record<string, unknown> },
+      opts?: {
+        rolledStats?: Partial<Stats>;
+        itemLevel?: number;
+        reqLevel?: number;
+        data?: Record<string, unknown>;
+      },
     ) => boolean;
     addGold: (n: number) => void;
   },
@@ -105,6 +114,8 @@ export function tryPickupNearest(
     }
     const ok = sheet.pickup(p.loot.defId, p.loot.qty ?? 1, {
       rolledStats: p.loot.rolledStats,
+      itemLevel: p.loot.itemLevel,
+      reqLevel: p.loot.reqLevel,
       data: p.loot.data,
     });
     if (ok) {

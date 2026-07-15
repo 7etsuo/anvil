@@ -1,5 +1,18 @@
 # Changelog
 
+## 0.3.0 — Engine extras completeness pass
+
+### Engine (`@anvil/core` + net/render)
+- **UiKit**, **ParticleSystem**, **CombatFeel** (hitstun/knockback/iframes)
+- **A\*** pathfinding, **AI** chase/leash/path-follow
+- **QuestSystem**, **AudioSystem** multi-channel + music
+- **InputMap** rebind + gamepad
+- **Content validators** + loot roll, **PluginRegistry**, **MapBuilder**
+- **Package manifest** / Electron template
+- **MemoryHub** / **WebSocketTransport** (`@anvil/genre-net`)
+- **PhaserRenderFacade** optional inject (`@anvil/render-phaser`)
+- Specs: `S-RPG.md`, `S-ENGINE_EXTRAS.md`
+
 ## 0.2.0 — Core RPG systems
 
 ### Engine (`@anvil/core`)

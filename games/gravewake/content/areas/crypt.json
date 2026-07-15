@@ -1,33 +1,32 @@
 {
   "id": "crypt",
-  "width": 800,
-  "height": 560,
+  "width": 900,
+  "height": 600,
   "walls": [
-    { "x": 0, "y": 0, "w": 800, "h": 28 },
-    { "x": 0, "y": 532, "w": 800, "h": 28 },
-    { "x": 0, "y": 0, "w": 28, "h": 200 },
-    { "x": 0, "y": 360, "w": 28, "h": 200 },
-    { "x": 772, "y": 0, "w": 28, "h": 560 },
-    { "x": 200, "y": 100, "w": 28, "h": 140 },
-    { "x": 360, "y": 280, "w": 28, "h": 140 },
-    { "x": 480, "y": 80, "w": 120, "h": 28 },
-    { "x": 560, "y": 200, "w": 28, "h": 100 }
+    { "x": 0, "y": 0, "w": 900, "h": 28 },
+    { "x": 0, "y": 572, "w": 900, "h": 28 },
+    { "x": 0, "y": 0, "w": 28, "h": 220 },
+    { "x": 0, "y": 380, "w": 28, "h": 220 },
+    { "x": 872, "y": 0, "w": 28, "h": 600 },
+    { "x": 220, "y": 100, "w": 28, "h": 140 },
+    { "x": 400, "y": 280, "w": 28, "h": 140 },
+    { "x": 520, "y": 80, "w": 140, "h": 28 },
+    { "x": 600, "y": 200, "w": 28, "h": 120 },
+    { "x": 280, "y": 400, "w": 160, "h": 28 }
   ],
   "spawns": [
     { "actor": "gravewarden", "x": 90, "y": 300, "team": "player" },
-    { "actor": "crypt_guard", "x": 280, "y": 220, "team": "enemy" },
-    { "actor": "crypt_guard", "x": 320, "y": 360, "team": "enemy" },
-    { "actor": "scuttler", "x": 420, "y": 180, "team": "enemy" },
-    { "actor": "scuttler", "x": 440, "y": 400, "team": "enemy" },
-    { "actor": "bellwarden", "x": 640, "y": 280, "team": "enemy" }
+    { "actor": "bellwarden", "x": 700, "y": 300, "team": "enemy" }
   ],
   "exits": [
     {
       "edge": "west",
       "to": "parish",
-      "spawnX": 860,
-      "spawnY": 300,
+      "spawnX": 1000,
+      "spawnY": 340,
       "label": "Cinder Parish"
     }
-  ]
+  ],
+  "packTable": ["scuttler", "raider", "crypt_guard", "shade", "wretch"],
+  "packCount": [6, 10]
 }

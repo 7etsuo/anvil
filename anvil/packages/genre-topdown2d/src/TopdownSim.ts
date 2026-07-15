@@ -63,6 +63,16 @@ export class TopdownSim {
     }
   }
 
+  /** Spawn an extra actor at runtime (packs, summons). */
+  spawnActorPublic(
+    def: ActorDef,
+    x: number,
+    y: number,
+    team: TeamId = "enemy",
+  ): string {
+    return this.spawnActor(def, x, y, team);
+  }
+
   private spawnActor(
     def: ActorDef,
     x: number,
@@ -138,14 +148,30 @@ export class TopdownSim {
     range: number,
     damage: number,
   ): { hits: number; targets: Array<{ x: number; y: number; dmg: number }> } {
+    return this.playerStrike(range, damage, "cleave");
+  }
+
+  /** Single-target strike — damages only the nearest enemy in range. */
+  playerMeleeNearest(
+    range: number,
+    damage: number,
+  ): { hits: number; targets: Array<{ x: number; y: number; dmg: number }> } {
+    return this.playerStrike(range, damage, "nearest");
+  }
+
+  private playerStrike(
+    range: number,
+    damage: number,
+    mode: "cleave" | "nearest",
+  ): { hits: number; targets: Array<{ x: number; y: number; dmg: number }> } {
     const empty = { hits: 0, targets: [] as Array<{ x: number; y: number; dmg: number }> };
     if (!this.playerId || this.won || this.lost) return empty;
     const pr = this.actors.get(this.playerId);
     const pe = this.world.get(this.playerId);
     if (!pr || pr.dead || !pe?.transform) return empty;
-    const targets: Array<{ x: number; y: number; dmg: number }> = [];
-    // Face nearest enemy when swinging
-    let nearest: { x: number; y: number; d: number } | null = null;
+
+    type Cand = { rt: ActorRuntime; x: number; y: number; d: number };
+    const cands: Cand[] = [];
     for (const rt of this.actors.values()) {
       if (rt.dead || rt.team !== "enemy") continue;
       const e = this.world.get(rt.entityId);
@@ -155,20 +181,22 @@ export class TopdownSim {
         e.transform.y - pe.transform.y,
       );
       if (d <= range) {
-        this.applyDamage(rt, damage);
-        targets.push({
-          x: e.transform.x,
-          y: e.transform.y,
-          dmg: damage,
-        });
-      }
-      if (!nearest || d < nearest.d) {
-        nearest = { x: e.transform.x, y: e.transform.y, d };
+        cands.push({ rt, x: e.transform.x, y: e.transform.y, d });
       }
     }
-    if (nearest && nearest.d < range * 1.5) {
-      const dx = nearest.x - pe.transform.x;
-      const dy = nearest.y - pe.transform.y;
+    cands.sort((a, b) => a.d - b.d);
+
+    const targets: Array<{ x: number; y: number; dmg: number }> = [];
+    const hitList = mode === "nearest" ? cands.slice(0, 1) : cands;
+    for (const c of hitList) {
+      this.applyDamage(c.rt, damage);
+      targets.push({ x: c.x, y: c.y, dmg: damage });
+    }
+
+    const face = cands[0] ?? null;
+    if (face) {
+      const dx = face.x - pe.transform.x;
+      const dy = face.y - pe.transform.y;
       pe.data.facing = Math.atan2(dy, dx);
       pe.data.dir =
         Math.abs(dx) >= Math.abs(dy)

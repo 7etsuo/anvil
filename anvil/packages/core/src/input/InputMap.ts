@@ -12,6 +12,9 @@ export class InputMap {
   private pressed = new Map<string, boolean>();
   private released = new Map<string, boolean>();
   private prevEffective = new Map<string, boolean>();
+  /** Edges latched between frames (short key taps before beginStep). */
+  private latchedPressed = new Set<string>();
+  private latchedReleased = new Set<string>();
   private rebindTarget: string | null = null;
 
   defineAction(name: string): void {
@@ -153,6 +156,11 @@ export class InputMap {
     this.pollGamepad();
     this.pressed.clear();
     this.released.clear();
+    // consume latched edges from key events between frames (short taps)
+    for (const a of this.latchedPressed) this.pressed.set(a, true);
+    for (const a of this.latchedReleased) this.released.set(a, true);
+    this.latchedPressed.clear();
+    this.latchedReleased.clear();
     for (const action of this.actions) {
       const now = this.effective(action);
       const was = this.prevEffective.get(action) === true;
@@ -163,12 +171,19 @@ export class InputMap {
 
   setDown(action: string, isDown: boolean): void {
     this.defineAction(action);
+    const wasDown = this.down.get(action) === true;
     this.down.set(action, isDown);
     // edges also for scripted tests that don't call beginStep first
-    const was = this.prevEffective.get(action) === true;
+    const was = this.prevEffective.get(action) === true || wasDown;
     const now = isDown || this.padDown.has(action);
-    if (now && !was) this.pressed.set(action, true);
-    if (!now && was) this.released.set(action, true);
+    if (now && !was) {
+      this.pressed.set(action, true);
+      this.latchedPressed.add(action);
+    }
+    if (!now && was) {
+      this.released.set(action, true);
+      this.latchedReleased.add(action);
+    }
   }
 
   endFrame(): void {

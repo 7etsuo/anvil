@@ -1,5 +1,6 @@
 import fs from "node:fs";
 import path from "node:path";
+import type { ItemDef } from "@anvil/core";
 import type { ActorDef } from "@anvil/genre-topdown2d";
 import type { AreaMapDef, ProgressionDef } from "./types.js";
 
@@ -22,6 +23,14 @@ export function loadGravewakeContent(gameRoot: string): {
   actors: Record<string, ActorDef>;
   areas: Record<string, AreaMapDef>;
   progression: ProgressionDef;
+  items: Record<string, ItemDef>;
+  lootTables: Record<
+    string,
+    {
+      id: string;
+      entries: Array<{ item: string; weight: number; min?: number; max?: number }>;
+    }
+  >;
 } {
   const base = path.join(gameRoot, "content");
   const progressionPath = path.join(base, "progression.json");
@@ -40,5 +49,7 @@ export function loadGravewakeContent(gameRoot: string): {
     actors: readJsonDir<ActorDef>(path.join(base, "actors")),
     areas: readJsonDir<AreaMapDef>(path.join(base, "areas")),
     progression,
+    items: readJsonDir<ItemDef>(path.join(base, "items")),
+    lootTables: readJsonDir(path.join(base, "loot")),
   };
 }

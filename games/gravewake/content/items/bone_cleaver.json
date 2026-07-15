@@ -1,0 +1,8 @@
+{
+  "id": "bone_cleaver",
+  "name": "Bone Cleaver",
+  "rarity": "magic",
+  "slot": "weapon",
+  "stats": { "damage": 9, "critChance": 0.05 },
+  "flavor": "Serrated with crypt bone."
+}

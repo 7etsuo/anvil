@@ -1,31 +1,23 @@
 {
   "id": "parish",
-  "width": 960,
-  "height": 640,
+  "width": 1100,
+  "height": 720,
   "walls": [
-    { "x": 0, "y": 0, "w": 960, "h": 28 },
-    { "x": 0, "y": 612, "w": 960, "h": 28 },
-    { "x": 0, "y": 0, "w": 28, "h": 220 },
-    { "x": 0, "y": 380, "w": 28, "h": 260 },
-    { "x": 932, "y": 0, "w": 28, "h": 220 },
-    { "x": 932, "y": 400, "w": 28, "h": 240 },
-    { "x": 180, "y": 120, "w": 120, "h": 28 },
-    { "x": 400, "y": 280, "w": 28, "h": 160 },
-    { "x": 520, "y": 100, "w": 160, "h": 28 },
-    { "x": 700, "y": 300, "w": 28, "h": 140 },
-    { "x": 280, "y": 420, "w": 200, "h": 28 }
+    { "x": 0, "y": 0, "w": 1100, "h": 28 },
+    { "x": 0, "y": 692, "w": 1100, "h": 28 },
+    { "x": 0, "y": 0, "w": 28, "h": 280 },
+    { "x": 0, "y": 420, "w": 28, "h": 300 },
+    { "x": 1072, "y": 0, "w": 28, "h": 280 },
+    { "x": 1072, "y": 440, "w": 28, "h": 280 },
+    { "x": 200, "y": 140, "w": 140, "h": 28 },
+    { "x": 480, "y": 300, "w": 28, "h": 180 },
+    { "x": 620, "y": 120, "w": 180, "h": 28 },
+    { "x": 780, "y": 320, "w": 28, "h": 160 },
+    { "x": 320, "y": 480, "w": 220, "h": 28 },
+    { "x": 160, "y": 360, "w": 28, "h": 100 }
   ],
   "spawns": [
-    { "actor": "gravewarden", "x": 90, "y": 300, "team": "player" },
-    { "actor": "scuttler", "x": 280, "y": 180, "team": "enemy" },
-    { "actor": "scuttler", "x": 340, "y": 220, "team": "enemy" },
-    { "actor": "scuttler", "x": 300, "y": 320, "team": "enemy" },
-    { "actor": "scuttler", "x": 480, "y": 200, "team": "enemy" },
-    { "actor": "wretch", "x": 560, "y": 360, "team": "enemy" },
-    { "actor": "wretch", "x": 620, "y": 180, "team": "enemy" },
-    { "actor": "scuttler", "x": 700, "y": 400, "team": "enemy" },
-    { "actor": "scuttler", "x": 760, "y": 280, "team": "enemy" },
-    { "actor": "wretch", "x": 820, "y": 360, "team": "enemy" }
+    { "actor": "gravewarden", "x": 90, "y": 340, "team": "player" }
   ],
   "exits": [
     {
@@ -43,5 +35,7 @@
       "requireClear": true,
       "label": "Bellcrypt"
     }
-  ]
+  ],
+  "packTable": ["fallen", "fallen", "scuttler", "scuttler", "shade", "wretch", "raider"],
+  "packCount": [8, 12]
 }

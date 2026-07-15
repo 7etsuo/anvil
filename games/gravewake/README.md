@@ -2,6 +2,9 @@
 
 **Playable** top-down Diablo-like ARPG on **Anvil** (browser + keyboard).
 
+Uses the full engine stack: `CharacterSheet`, loot tables, equip, multi-skill combat,
+quests, particles, randomized multi-type packs, zone graph.
+
 **Ashen Lychgate** → **Cinder Parish** → **Bellcrypt** → **Bellwarden**.
 
 ## Play (browser)
@@ -13,15 +16,7 @@ cd anvil && pnpm install && pnpm -r run build
 cd ../games/gravewake
 pnpm install
 pnpm run build      # headless module for tests
-pnpm run play       # opens Vite — open the URL it prints (default http://127.0.0.1:5180/)
-```
-
-Or:
-
-```bash
-cd anvil
-pnpm anvil dev ../games/gravewake
-# (uses vite.config.ts in the game folder)
+pnpm run play       # Vite — http://127.0.0.1:5180/
 ```
 
 ### Controls
@@ -29,27 +24,29 @@ pnpm anvil dev ../games/gravewake
 | Key | Action |
 |-----|--------|
 | **WASD** | Move |
-| **Space** or **mouse click** | Rite Slash (melee) |
+| **Space** / **LMB** | Slash (cleave melee) |
+| **2** | Whirl (wide AoE) |
+| **3** | Smite (single-target, longer range) |
 | **1** | Health potion |
-| Walk into **green** portals | Change area |
-| **Red** portal | Locked until Parish is clear |
+| **F** | Pick up nearest loot |
+| **I** | Inventory |
+| Walk to map edges | Change zone (east exit locked until parish clear) |
+
+### What ships in this slice
+
+- **Random packs** in Parish / Crypt (Fallen, Scuttler, Shade, Wretch, Raider, Crypt Guard)
+- **Loot drops** (gold auto-pickup, gear + potions via **F**)
+- **Auto-equip** better weapons / armor
+- **Quest** Parish Purge (enter → slay 8 → crypt → Bellwarden)
+- **Diablo HUD** — life/potion orbs, skill bar, XP, gear strip, inventory panel
 
 ### Goal
 
 Leave town east → clear Cinder Parish → enter Bellcrypt → defeat the **Bellwarden**.
 
-## Headless tests (CI / agents)
+## Headless / agents
 
 ```bash
-pnpm test
-# or: node ../../anvil/packages/cli/dist/index.js test .
+pnpm test       # JSON scenario tests
+pnpm validate   # content tree (Zod)
 ```
-
-## Assets
-
-Character/enemy art generated with **Grok Imagine**, under `public/assets/` (and `assets/`).
-
-## Design docs
-
-Full GDD bible: [docs/INDEX.md](docs/INDEX.md).  
-This package is the **playable vertical slice**, not every planned room/system yet.

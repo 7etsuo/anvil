@@ -1,14 +1,11 @@
 export type AreaId = "town" | "parish" | "crypt";
 
-/** Map-edge transition (Diablo-style zone change, not glowing portal UI). */
 export interface EdgeExit {
   edge: "north" | "south" | "east" | "west";
   to: AreaId;
   spawnX: number;
   spawnY: number;
-  /** Must clear living enemies first */
   requireClear?: boolean;
-  /** Optional label for HUD only */
   label?: string;
 }
 
@@ -23,7 +20,6 @@ export interface AreaMapDef {
     y: number;
     team?: "player" | "enemy" | "neutral";
   }>;
-  /** @deprecated use exits */
   portals?: Array<{
     x: number;
     y: number;
@@ -36,6 +32,10 @@ export interface AreaMapDef {
   }>;
   exits?: EdgeExit[];
   background?: string;
+  /** Random enemy pool for this zone */
+  packTable?: string[];
+  /** [min, max] random pack size */
+  packCount?: [number, number];
 }
 
 export interface ProgressionDef {
@@ -45,4 +45,9 @@ export interface ProgressionDef {
   meleeRange: number;
   startGold: number;
   potionHeal: number;
+  whirlDamageMul?: number;
+  smiteDamageMul?: number;
+  smiteRange?: number;
 }
+
+export type SkillId = "slash" | "whirl" | "smite" | "potion";

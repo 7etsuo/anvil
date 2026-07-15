@@ -1,0 +1,15 @@
+{
+  "id": "fallen",
+  "name": "Fallen",
+  "hp": 18,
+  "speed": 130,
+  "ai": "chase_melee",
+  "team": "enemy",
+  "radius": 9,
+  "contactDamage": 6,
+  "meleeRange": 36,
+  "animations": {
+    "idle": ["actors/scuttler.png"],
+    "walk": ["actors/scuttler.png"]
+  }
+}

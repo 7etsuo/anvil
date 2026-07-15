@@ -1,0 +1,20 @@
+{
+  "id": "shade",
+  "name": "Shade",
+  "hp": 26,
+  "speed": 70,
+  "ai": "keep_distance_ranged",
+  "team": "enemy",
+  "radius": 10,
+  "contactDamage": 0,
+  "preferredRange": 110,
+  "preferredRangeBand": 30,
+  "projectileDamage": 8,
+  "projectileSpeed": 200,
+  "projectileCooldownMs": 900,
+  "projectileLifetimeMs": 2500,
+  "animations": {
+    "idle": ["actors/wretch.png"],
+    "walk": ["actors/wretch.png"]
+  }
+}

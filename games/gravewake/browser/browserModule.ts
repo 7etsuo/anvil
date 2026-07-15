@@ -7,6 +7,8 @@ import { GravewakeGame } from "../src/GravewakeGame.js";
 import {
   embeddedActors,
   embeddedAreas,
+  embeddedItems,
+  embeddedLoot,
   embeddedProgression,
 } from "./contentEmbed.js";
 
@@ -16,7 +18,6 @@ export function getBrowserGravewake(): GravewakeGame | null {
   return game;
 }
 
-/** Browser-safe module (content embedded — no node:fs). */
 export const browserGravewakeModule: GenreModule = {
   id: "gravewake",
 
@@ -42,7 +43,10 @@ export const browserGravewakeModule: GenreModule = {
             embeddedActors,
             embeddedAreas,
             embeddedProgression,
+            embeddedItems,
+            embeddedLoot,
             ctx.random ?? Math.random,
+            { particles: ctx.particles, quests: ctx.quests },
           );
           return {
             enter() {},

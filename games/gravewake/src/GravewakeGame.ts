@@ -11,12 +11,16 @@ import type {
 import {
   AbilitySystem as Abilities,
   CharacterSheet as Sheet,
+  buildRunState,
   dropFromTable,
   emitHit,
   emitKill,
+  loadRunFromLocalStorage,
   LOOT_GOLD_RADIUS,
   LOOT_ITEM_RADIUS,
+  saveRunToLocalStorage,
   tryPickupNearest,
+  type RunStateV1,
 } from "@anvil/core";
 import {
   PackSpawner,
@@ -24,6 +28,8 @@ import {
   type ActorDef,
   type MapDef,
 } from "@anvil/genre-topdown2d";
+import { areaToTileMap, wallsForSim } from "./tileAreas.js";
+import type { TileMap } from "@anvil/core";
 import type {
   AreaId,
   AreaMapDef,
@@ -88,6 +94,7 @@ export class GravewakeGame {
   private abilities: AbilitySystem;
   private showInv = false;
   private spawner: PackSpawner | null = null;
+  private tileMap: TileMap | null = null;
   private bossSlainOnce = false;
   private timeAlive = 0;
   private bossesKilled = 0;
@@ -211,11 +218,49 @@ export class GravewakeGame {
       ],
     });
 
-    this.enterArea("town");
+    // Try restore run (browser) — non-fatal if missing
+    const restored = this.tryRestoreRun();
+    if (!restored) this.enterArea("town");
   }
 
   getSheet(): CharacterSheet {
     return this.sheet;
+  }
+
+  /** Persist sheet + area + position for continue. */
+  saveRun(seed = 1): void {
+    const pos = this.sim?.getPlayerPos() ?? { x: 200, y: 320 };
+    const state = buildRunState({
+      gameId: "gravewake",
+      areaId: this.area,
+      playerX: pos.x,
+      playerY: pos.y,
+      seed,
+      character: this.sheet.toJSON(),
+      flags: {
+        kills: this.kills,
+        bossesKilled: this.bossesKilled,
+        bossSlainOnce: this.bossSlainOnce,
+        timeAlive: this.timeAlive,
+      },
+    });
+    saveRunToLocalStorage(state, "run0");
+  }
+
+  private tryRestoreRun(): boolean {
+    try {
+      const st = loadRunFromLocalStorage("gravewake", "run0");
+      if (!st || !this.areas[st.areaId]) return false;
+      this.sheet.loadJSON(st.character);
+      this.kills = Number(st.flags.kills ?? 0);
+      this.bossesKilled = Number(st.flags.bossesKilled ?? 0);
+      this.bossSlainOnce = Boolean(st.flags.bossSlainOnce);
+      this.enterArea(st.areaId, { x: st.playerX, y: st.playerY });
+      this.syncPlayerFromSheet();
+      return true;
+    } catch {
+      return false;
+    }
   }
 
   isInventoryOpen(): boolean {
@@ -306,11 +351,13 @@ export class GravewakeGame {
     for (const e of this.world.all()) this.world.destroy(e.id);
 
     const spawns = this.buildInitialSpawns(area);
+    // Collision uses authored walls (exit gaps). TileMap for grid/path helpers.
+    this.tileMap = areaToTileMap(area, 32);
     const map: MapDef = {
       id: area.id,
       width: area.width,
       height: area.height,
-      walls: area.walls,
+      walls: wallsForSim(area, 32),
       spawns,
       background: area.background,
     };
@@ -353,6 +400,12 @@ export class GravewakeGame {
     this.pushFx({ kind: "banner", text: area.name, t: 2.0 });
     if (id === "wastes") this.services.quests?.setFlag("entered_wastes");
     if (area.kind === "dungeon") this.services.quests?.setFlag("entered_dungeon");
+    // autosave on zone change
+    try {
+      this.saveRun();
+    } catch {
+      /* headless / no localStorage */
+    }
   }
 
   private buildInitialSpawns(area: AreaMapDef): MapDef["spawns"] {
@@ -1005,6 +1058,14 @@ export class GravewakeGame {
       })),
       mapW: area?.width ?? 0,
       mapH: area?.height ?? 0,
+      tileMap: this.tileMap
+        ? {
+            id: this.tileMap.id,
+            tw: this.tileMap.width,
+            th: this.tileMap.height,
+            tileSize: this.tileMap.tileSize,
+          }
+        : null,
       topdown: simBlob,
     };
   }

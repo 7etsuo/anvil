@@ -129,6 +129,11 @@ export async function createGame(
     await renderer.init(800, 600);
   }
 
+  // Browser presentation owns the canvas — Kernel must not clear/draw over it.
+  if (opts.browser) {
+    kernel.setSkipDefaultDraw(true);
+  }
+
   // Built-in empty main scene
   kernel.registerScene("main", () => ({
     update() {},

@@ -11,10 +11,10 @@ import { browserGravewakeModule, getBrowserGravewake } from "./browserModule.js"
 import { embeddedAreas } from "./contentEmbed.js";
 import type { FxEvent } from "../src/GravewakeGame.js";
 
-/** Diablo-like zoomed-out battlefield. */
-const SCALE = 0.95;
+/** Zoomed-out battlefield (readable, not microscopic). */
+const SCALE = 1.15;
 /** Wall “height” in screen px for fake 3/4 extrusion. */
-const WALL_Z = 22;
+const WALL_Z = 18;
 /** Full-window logical resolution (updated on resize). */
 let VIEW_W = 1280;
 let VIEW_H = 720;
@@ -121,11 +121,16 @@ type Particle = {
   world?: boolean;
 };
 
-async function loadImage(url: string): Promise<HTMLImageElement> {
-  const img = new Image();
-  img.src = url;
-  await img.decode();
-  return img;
+async function loadImage(url: string): Promise<HTMLImageElement | null> {
+  try {
+    const img = new Image();
+    img.src = url;
+    await img.decode();
+    return img;
+  } catch {
+    console.warn("asset missing", url);
+    return null;
+  }
 }
 
 function drawOrb(
@@ -244,7 +249,8 @@ async function main(): Promise<void> {
   const images = new Map<string, HTMLImageElement>();
   await Promise.all(
     Object.entries(ASSET_URLS).map(async ([key, url]) => {
-      images.set(key, await loadImage(url));
+      const img = await loadImage(url);
+      if (img) images.set(key, img);
     }),
   );
 
@@ -276,6 +282,8 @@ async function main(): Promise<void> {
   });
 
   renderer.resize(VIEW_W, VIEW_H);
+  // Belt-and-suspenders: browser paints the full frame
+  handle.kernel.setSkipDefaultDraw(true);
 
   for (const [path, img] of images) {
     const tex = handle.assets.getTexture(path);
@@ -357,41 +365,34 @@ async function main(): Promise<void> {
   });
   mount.addEventListener("contextmenu", (e) => e.preventDefault());
 
-  const floorSrc = images.get("env/floor.png")!;
-  const wallTex = images.get("env/wall.png")!;
+  const floorSrc = images.get("env/floor.png") ?? null;
+  const wallTex = images.get("env/wall.png") ?? null;
   const portalImg = images.get("fx/portal.png") ?? null;
   const lootImg = images.get("fx/loot_pile.png") ?? null;
 
-  // Build a large seamless-looking dirt plate (Diablo ground, not 32px tiles)
+  // Readable dirt plate (NOT near-black — that made the whole game invisible)
   const groundPlate = document.createElement("canvas");
-  groundPlate.width = 1024;
-  groundPlate.height = 1024;
+  groundPlate.width = 512;
+  groundPlate.height = 512;
   {
     const g = groundPlate.getContext("2d")!;
-    g.fillStyle = "#1a1612";
-    g.fillRect(0, 0, 1024, 1024);
-    // soft mottling
-    for (let i = 0; i < 4200; i++) {
-      const x = Math.random() * 1024;
-      const y = Math.random() * 1024;
-      const r = 8 + Math.random() * 48;
-      const a = 0.02 + Math.random() * 0.06;
-      const c = 18 + Math.floor(Math.random() * 28);
-      g.fillStyle = `rgba(${c + 10},${c},${c - 4},${a})`;
+    g.fillStyle = "#3a3228";
+    g.fillRect(0, 0, 512, 512);
+    for (let i = 0; i < 1800; i++) {
+      const x = Math.random() * 512;
+      const y = Math.random() * 512;
+      const r = 6 + Math.random() * 36;
+      const c = 40 + Math.floor(Math.random() * 40);
+      g.fillStyle = `rgba(${c + 16},${c + 8},${c},${0.08 + Math.random() * 0.12})`;
       g.beginPath();
       g.arc(x, y, r, 0, Math.PI * 2);
       g.fill();
     }
-    // faint ash scratches
-    g.globalAlpha = 0.08;
-    g.drawImage(floorSrc, 0, 0, 1024, 1024);
-    g.globalAlpha = 1;
-    // vignette dirt
-    const vg = g.createRadialGradient(512, 512, 80, 512, 512, 700);
-    vg.addColorStop(0, "rgba(0,0,0,0)");
-    vg.addColorStop(1, "rgba(0,0,0,0.35)");
-    g.fillStyle = vg;
-    g.fillRect(0, 0, 1024, 1024);
+    if (floorSrc) {
+      g.globalAlpha = 0.22;
+      g.drawImage(floorSrc, 0, 0, 512, 512);
+      g.globalAlpha = 1;
+    }
   }
   const floor = groundPlate;
 
@@ -506,11 +507,19 @@ async function main(): Promise<void> {
   }
 
   function frame(now: number): void {
+    try {
+      frameInner(now);
+    } catch (err) {
+      console.error("frame error", err);
+    }
+    requestAnimationFrame(frame);
+  }
+
+  function frameInner(now: number): void {
     const dt = Math.min(0.05, (now - last) / 1000);
     last = now;
     const ctx = renderer.getContext();
     if (!ctx) {
-      requestAnimationFrame(frame);
       return;
     }
 
@@ -570,8 +579,13 @@ async function main(): Promise<void> {
       if (keysHeld.size || clickSlash) {
         started = true;
         clickSlash = false;
+        // snap camera to player immediately
+        const p0 = handle.world.get("player");
+        if (p0?.transform) {
+          camX = p0.transform.x * SCALE - VIEW_W / 2;
+          camY = p0.transform.y * SCALE - VIEW_H / 2;
+        }
       }
-      requestAnimationFrame(frame);
       return;
     }
 
@@ -589,7 +603,11 @@ async function main(): Promise<void> {
 
     const gw = getBrowserGravewake();
     if (!gw) {
-      requestAnimationFrame(frame);
+      ctx.fillStyle = "#200";
+      ctx.fillRect(0, 0, VIEW_W, VIEW_H);
+      ctx.fillStyle = "#f88";
+      ctx.font = "16px monospace";
+      ctx.fillText("Waiting for game module…", 24, 40);
       return;
     }
 
@@ -605,11 +623,16 @@ async function main(): Promise<void> {
       critChance?: number;
     }) ?? {};
 
-    // camera lerp + shake
+    // camera — snap if far (start / zone change), else lerp
     const targetX = (player?.transform?.x ?? 0) * SCALE - VIEW_W / 2;
     const targetY = (player?.transform?.y ?? 0) * SCALE - VIEW_H / 2;
-    camX += (targetX - camX) * Math.min(1, dt * 8);
-    camY += (targetY - camY) * Math.min(1, dt * 8);
+    if (Math.hypot(targetX - camX, targetY - camY) > 600) {
+      camX = targetX;
+      camY = targetY;
+    } else {
+      camX += (targetX - camX) * Math.min(1, dt * 10);
+      camY += (targetY - camY) * Math.min(1, dt * 10);
+    }
     shakeX *= 0.82;
     shakeY *= 0.82;
     for (const f of fx) {
@@ -667,29 +690,33 @@ async function main(): Promise<void> {
       lastPlayerY = player.transform.y;
     }
 
-    // --- DIABLO GROUND (continuous dirt plate, world-locked) ---
+    // --- GROUND (always visible; never pure black void) ---
+    ctx.fillStyle = "#2c2620";
+    ctx.fillRect(0, 0, VIEW_W, VIEW_H);
     if (area) {
-      ctx.fillStyle = "#080706";
-      ctx.fillRect(0, 0, VIEW_W, VIEW_H);
-      const pat = ctx.createPattern(floor, "repeat");
-      if (pat && typeof (pat as CanvasPattern).setTransform === "function") {
-        // ~220 world units per plate → soft continuous ground
-        const tilePx = 220 * SCALE;
-        const s = tilePx / 1024;
-        const m = new DOMMatrix()
-          .translate(-viewCamX, -viewCamY)
-          .scale(s, s);
-        (pat as CanvasPattern).setTransform(m);
-        ctx.fillStyle = pat;
-        ctx.fillRect(0, 0, VIEW_W, VIEW_H);
+      try {
+        const pat = ctx.createPattern(floor, "repeat");
+        if (pat && typeof (pat as CanvasPattern).setTransform === "function") {
+          const tilePx = 160 * SCALE;
+          const s = tilePx / floor.width;
+          const m = new DOMMatrix()
+            .translate(-viewCamX, -viewCamY)
+            .scale(s, s);
+          (pat as CanvasPattern).setTransform(m);
+          ctx.fillStyle = pat;
+          ctx.globalAlpha = 0.95;
+          ctx.fillRect(0, 0, VIEW_W, VIEW_H);
+          ctx.globalAlpha = 1;
+        }
+      } catch {
+        /* solid base already painted */
       }
-      // zone mood only (single wash)
       ctx.fillStyle =
         blob.areaKind === "dungeon"
-          ? "rgba(18,10,28,0.35)"
+          ? "rgba(30,20,45,0.2)"
           : blob.area === "wastes"
-            ? "rgba(40,22,10,0.2)"
-            : "rgba(20,14,10,0.12)";
+            ? "rgba(50,30,15,0.12)"
+            : "rgba(0,0,0,0.05)";
       ctx.fillRect(0, 0, VIEW_W, VIEW_H);
     }
 
@@ -740,40 +767,40 @@ async function main(): Promise<void> {
         if (x + ww < -50 || y + hh < -50 || x > VIEW_W + 50 || y > VIEW_H + 80)
           continue;
 
-        // south face (vertical)
+        // readable stone body
         const faceGrad = ctx.createLinearGradient(x, y, x, y + hh + WALL_Z);
-        faceGrad.addColorStop(0, "#3a342e");
-        faceGrad.addColorStop(0.45, "#221e1a");
-        faceGrad.addColorStop(1, "#0c0a08");
+        faceGrad.addColorStop(0, "#6a5e50");
+        faceGrad.addColorStop(0.5, "#4a4036");
+        faceGrad.addColorStop(1, "#2a241e");
         ctx.fillStyle = faceGrad;
         ctx.fillRect(x, y - WALL_Z * 0.15, ww, hh + WALL_Z * 0.35);
 
         // top cap
-        ctx.fillStyle = "#4a433a";
-        ctx.beginPath();
-        ctx.moveTo(x, y - WALL_Z * 0.15);
-        ctx.lineTo(x + ww, y - WALL_Z * 0.15);
-        ctx.lineTo(x + ww - 3, y - WALL_Z);
-        ctx.lineTo(x + 3, y - WALL_Z);
-        ctx.closePath();
-        ctx.fill();
-        // rock noise on face
-        const wp = ctx.createPattern(wallTex, "repeat");
-        if (wp && typeof wp.setTransform === "function") {
-          const m = new DOMMatrix()
-            .translate(x, y)
-            .scale((140 * SCALE) / wallTex.naturalWidth);
-          wp.setTransform(m);
-          ctx.globalAlpha = 0.35;
-          ctx.fillStyle = wp;
-          ctx.fillRect(x, y - WALL_Z * 0.1, ww, hh + WALL_Z * 0.25);
-          ctx.globalAlpha = 1;
+        ctx.fillStyle = "#7a6e5e";
+        ctx.fillRect(x, y - WALL_Z, ww, WALL_Z * 0.9);
+        if (wallTex) {
+          try {
+            const wp = ctx.createPattern(wallTex, "repeat");
+            if (wp && typeof wp.setTransform === "function") {
+              const tw = wallTex.naturalWidth || wallTex.width || 256;
+              const m = new DOMMatrix()
+                .translate(x, y)
+                .scale((120 * SCALE) / tw);
+              wp.setTransform(m);
+              ctx.globalAlpha = 0.4;
+              ctx.fillStyle = wp;
+              ctx.fillRect(x, y - WALL_Z * 0.1, ww, hh + WALL_Z * 0.25);
+              ctx.globalAlpha = 1;
+            }
+          } catch {
+            /* ignore */
+          }
         }
-        // rim light
-        ctx.strokeStyle = "rgba(255,220,160,0.08)";
-        ctx.strokeRect(x + 1, y - WALL_Z * 0.12, ww - 2, 2);
-        ctx.fillStyle = "rgba(0,0,0,0.5)";
-        ctx.fillRect(x, y + hh - 3, ww, 4);
+        ctx.strokeStyle = "rgba(0,0,0,0.65)";
+        ctx.lineWidth = 2;
+        ctx.strokeRect(x + 0.5, y - WALL_Z + 0.5, ww - 1, hh + WALL_Z - 1);
+        ctx.strokeStyle = "rgba(255,230,180,0.15)";
+        ctx.strokeRect(x + 1, y - WALL_Z + 1, ww - 2, 2);
       }
 
       // town ash shrine (vendor)
@@ -954,7 +981,6 @@ async function main(): Promise<void> {
           ctx.drawImage(img, -dw / 2, 0, dw, dh);
         }
         ctx.restore();
-        // identity wash for remapped mob types (fallen/raider/shade)
         if (tint) {
           ctx.fillStyle = tint;
           ctx.beginPath();
@@ -970,10 +996,14 @@ async function main(): Promise<void> {
           ctx.fill();
         }
       } else {
-        ctx.fillStyle = e.tags.includes("player") ? "#c9a46c" : "#a44";
+        // bright fallback — never invisible
+        ctx.fillStyle = e.tags.includes("player") ? "#e8c878" : "#e06060";
         ctx.beginPath();
-        ctx.arc(sx, sy - 10 - bob, size * 0.28, 0, Math.PI * 2);
+        ctx.arc(sx, sy - 14 - bob, size * 0.32, 0, Math.PI * 2);
         ctx.fill();
+        ctx.strokeStyle = "#fff";
+        ctx.lineWidth = 2;
+        ctx.stroke();
       }
 
       if (e.health && e.tags.includes("enemy")) {
@@ -1195,30 +1225,29 @@ async function main(): Promise<void> {
       ctx.fillRect(p.x, p.y, p.r, p.r);
     }
 
-    // --- DIABLO DARKNESS (hard light radius around player) ---
+    // Soft vignette only — hard pitch fog made the game look "broken"
     if (player?.transform) {
       const lx = player.transform.x * SCALE - viewCamX;
       const ly = player.transform.y * SCALE - viewCamY;
-      const r =
-        blob.areaKind === "dungeon" ? 210 : blob.area === "wastes" ? 280 : 320;
-      // warm torch core
-      const core = ctx.createRadialGradient(lx, ly, 12, lx, ly, r * 0.45);
-      core.addColorStop(0, "rgba(255,190,110,0.12)");
+      const core = ctx.createRadialGradient(lx, ly, 20, lx, ly, 200);
+      core.addColorStop(0, "rgba(255,200,120,0.1)");
       core.addColorStop(1, "rgba(0,0,0,0)");
       ctx.fillStyle = core;
       ctx.fillRect(0, 0, VIEW_W, VIEW_H);
-      // pitch beyond sight — signature Diablo look
-      const fog = ctx.createRadialGradient(lx, ly, r * 0.35, lx, ly, r * 1.15);
-      fog.addColorStop(0, "rgba(0,0,0,0)");
-      fog.addColorStop(0.55, "rgba(0,0,0,0.35)");
-      fog.addColorStop(0.85, "rgba(0,0,0,0.78)");
-      fog.addColorStop(1, "rgba(0,0,0,0.94)");
-      ctx.fillStyle = fog;
-      ctx.fillRect(0, 0, VIEW_W, VIEW_H);
-    } else {
-      ctx.fillStyle = "rgba(0,0,0,0.75)";
-      ctx.fillRect(0, 0, VIEW_W, VIEW_H);
     }
+    const vig = ctx.createRadialGradient(
+      VIEW_W / 2,
+      VIEW_H / 2,
+      VIEW_H * 0.2,
+      VIEW_W / 2,
+      VIEW_H / 2,
+      VIEW_H * 0.95,
+    );
+    vig.addColorStop(0, "rgba(0,0,0,0)");
+    vig.addColorStop(0.7, "rgba(0,0,0,0.15)");
+    vig.addColorStop(1, "rgba(0,0,0,0.55)");
+    ctx.fillStyle = vig;
+    ctx.fillRect(0, 0, VIEW_W, VIEW_H);
 
     // --- DIABLO HUD ---
     const hp = Number(blob.hp ?? player?.health?.hp ?? 0);
@@ -1502,8 +1531,6 @@ async function main(): Promise<void> {
       ctx.fillText("Reload the page to rise again at the Lychgate", VIEW_W / 2, VIEW_H / 2 + 28);
       ctx.textAlign = "left";
     }
-
-    requestAnimationFrame(frame);
   }
 
   requestAnimationFrame(frame);

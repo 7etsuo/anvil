@@ -3,6 +3,16 @@
   "name": "Tyrant Plate",
   "rarity": "rare",
   "slot": "chest",
-  "stats": { "armor": 14, "maxHp": 40 },
-  "flavor": "Rib-forged plate of the Bonekeep."
+  "stats": {
+    "armor": 14,
+    "maxHp": 40
+  },
+  "flavor": "Rib-forged plate of the Bonekeep.",
+  "visual": {
+    "sprite": "gear/tyrant_plate.png",
+    "ox": 0,
+    "oy": 0.05,
+    "z": 20
+  },
+  "icon": "gear/tyrant_plate.png"
 }

@@ -3,9 +3,24 @@ import { Inventory } from "./Inventory.js";
 import { computeFinalStats, emptyStats } from "./stats.js";
 import type {
   CharacterSaveBlob,
+  EquipSlot,
+  EquippedVisualLayer,
   ItemDef,
   Stats,
 } from "./types.js";
+
+/** Default draw order for paper-doll layers (body under gear under weapon). */
+const SLOT_Z: Partial<Record<EquipSlot, number>> = {
+  feet: 10,
+  chest: 20,
+  hands: 25,
+  head: 30,
+  offhand: 35,
+  weapon: 40,
+  ring: 5,
+  amulet: 6,
+  trinket: 7,
+};
 
 export interface CharacterSheetOpts {
   baseStats?: Stats;
@@ -101,6 +116,47 @@ export class CharacterSheet {
 
   unequip(slot: import("./types.js").EquipSlot) {
     return this.equipment.unequip(slot);
+  }
+
+  /**
+   * Diablo paper-doll: resolved visual layers for currently equipped gear.
+   * Renderers draw body base first, then these sorted by z.
+   */
+  equippedVisuals(): EquippedVisualLayer[] {
+    const out: EquippedVisualLayer[] = [];
+    for (const [slot, uid] of Object.entries(this.equipment.all()) as Array<
+      [EquipSlot, string | null]
+    >) {
+      if (!uid) continue;
+      const stack = this.inventory.get(uid);
+      if (!stack) continue;
+      const def = this.defs[stack.defId];
+      const sprite = def?.visual?.sprite ?? def?.icon;
+      if (!sprite) continue;
+      out.push({
+        slot,
+        defId: stack.defId,
+        sprite,
+        ox: def?.visual?.ox ?? 0,
+        oy: def?.visual?.oy ?? 0,
+        z: def?.visual?.z ?? SLOT_Z[slot] ?? 20,
+      });
+    }
+    out.sort((a, b) => a.z - b.z);
+    return out;
+  }
+
+  /**
+   * Optional body base override from equipped items (usually chest armor).
+   * First non-empty bodyVariant wins (highest z chest preferred).
+   */
+  bodyVariant(): string | null {
+    const layers = this.equippedVisuals();
+    for (let i = layers.length - 1; i >= 0; i--) {
+      const def = this.defs[layers[i]!.defId];
+      if (def?.visual?.bodyVariant) return def.visual.bodyVariant;
+    }
+    return null;
   }
 
   toJSON(): CharacterSaveBlob {

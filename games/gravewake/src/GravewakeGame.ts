@@ -631,21 +631,40 @@ export class GravewakeGame {
   private autoPickupGold(): void {
     const pos = this.sim?.getPlayerPos();
     if (!pos) return;
-    for (const e of this.world.all()) {
+    // Diablo-style: gold + small radius auto-grab; gear needs F or very close
+    for (const e of [...this.world.all()]) {
       if (!e.tags.includes("loot") || !e.transform) continue;
-      const loot = e.data.loot as { defId?: string; gold?: number } | undefined;
-      if (!loot || loot.defId !== "gold") continue;
-      if (Math.hypot(e.transform.x - pos.x, e.transform.y - pos.y) > 40)
+      const loot = e.data.loot as { defId?: string; gold?: number; qty?: number } | undefined;
+      if (!loot) continue;
+      const d = Math.hypot(e.transform.x - pos.x, e.transform.y - pos.y);
+      if (loot.defId === "gold") {
+        if (d > 48) continue;
+        this.sheet.addGold(loot.gold ?? 0);
+        this.world.destroy(e.id);
+        this.pushFx({
+          kind: "float",
+          x: e.transform.x,
+          y: e.transform.y,
+          text: `+${loot.gold}g`,
+          color: "#fd4",
+          t: 0.8,
+        });
         continue;
-      this.sheet.addGold(loot.gold ?? 0);
+      }
+      // magnetic gear pickup when standing on it
+      if (d > 22) continue;
+      const ok = this.sheet.pickup(loot.defId!, loot.qty ?? 1);
+      if (!ok) continue;
       this.world.destroy(e.id);
+      this.autoEquipBest();
+      this.syncPlayerFromSheet();
       this.pushFx({
         kind: "float",
         x: e.transform.x,
         y: e.transform.y,
-        text: `+${loot.gold}g`,
-        color: "#fd4",
-        t: 0.8,
+        text: this.items[loot.defId!]?.name ?? "Loot",
+        color: "#acf",
+        t: 1,
       });
     }
   }
@@ -896,6 +915,9 @@ export class GravewakeGame {
       cds: { ...this.cd },
       lastSkill: this.lastSkill,
       quest: questObj,
+      /** Paper-doll layers from CharacterSheet (engine) */
+      visualLayers: this.sheet.equippedVisuals(),
+      bodyVariant: this.sheet.bodyVariant(),
       portals: (area?.portals ?? []).map((pr) => ({
         x: pr.x,
         y: pr.y,

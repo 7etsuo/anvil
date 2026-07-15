@@ -46,6 +46,22 @@ export const ZERO_STATS: Stats = {
 
 export type ItemRarity = "common" | "magic" | "rare" | "unique" | "set";
 
+/**
+ * Visual layer for paper-doll / Diablo-style gear appearance.
+ * Paths are asset keys (e.g. "gear/rusty_sword.png").
+ */
+export interface ItemVisual {
+  /** Sprite path drawn over the body when equipped */
+  sprite?: string;
+  /** Optional replace body base when this item is worn (usually chest) */
+  bodyVariant?: string;
+  /** Offset as fraction of body size (0 = center) */
+  ox?: number;
+  oy?: number;
+  /** Draw order — higher on top. Defaults by slot. */
+  z?: number;
+}
+
 /** Content definition (JSON). */
 export interface ItemDef {
   id: string;
@@ -59,9 +75,21 @@ export interface ItemDef {
   stats?: Partial<Stats>;
   /** Flavor / icon path */
   icon?: string;
+  /** Diablo-style paper-doll visuals */
+  visual?: ItemVisual;
   flavor?: string;
   /** Game-specific payload */
   data?: Record<string, unknown>;
+}
+
+/** Resolved equipped layer for renderers. */
+export interface EquippedVisualLayer {
+  slot: EquipSlot;
+  defId: string;
+  sprite: string;
+  ox: number;
+  oy: number;
+  z: number;
 }
 
 /** Runtime inventory row. */

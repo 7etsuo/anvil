@@ -261,8 +261,17 @@ export function itemPowerScore(
     (stats.damage ?? 0) * 3 +
     (stats.armor ?? 0) * 2 +
     (stats.maxHp ?? 0) * 0.5 +
+    (stats.speed ?? 0) * 0.15 +
     (stats.critChance ?? 0) * 40 +
     (stats.critMult ?? 0) * 5 +
+    Object.entries(stats).reduce(
+      (total, [key, value]) =>
+        total +
+        (key.startsWith("resist") && typeof value === "number"
+          ? value * 25
+          : 0),
+      0,
+    ) +
     itemLevel
   );
 }

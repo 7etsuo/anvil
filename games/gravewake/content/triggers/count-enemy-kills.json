@@ -1,0 +1,7 @@
+{
+  "id": "count-enemy-kills",
+  "when": { "op": "event", "name": "enemy.killed" },
+  "then": [
+    { "op": "add_counter", "key": "combat.enemy_kills", "amount": 1 }
+  ]
+}

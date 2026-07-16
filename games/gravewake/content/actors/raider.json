@@ -1,5 +1,6 @@
 {
   "id": "raider",
+  "prefab": "melee-enemy",
   "name": "Ash Raider",
   "hp": 42,
   "speed": 95,

@@ -138,7 +138,7 @@ schemaVersion: 1
     fs.rmSync(d, { recursive: true, force: true });
   });
 
-  it("catalog remains 12 codes", () => {
-    expect(ERROR_CODES).toHaveLength(12);
+  it("catalog includes the engine and authoring diagnostics", () => {
+    expect(ERROR_CODES).toHaveLength(18);
   });
 });

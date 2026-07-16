@@ -70,6 +70,59 @@ describe("Inventory + Equipment + CharacterSheet", () => {
     expect(sheet.finalStats().damage).toBe(10);
   });
 
+  it("equips the best wearable item for every slot and keeps stable ties", () => {
+    const defs: Record<string, ItemDef> = {
+      weak: {
+        id: "weak",
+        name: "Weak Sword",
+        slot: "weapon",
+        stats: { damage: 2 },
+      },
+      strong: {
+        id: "strong",
+        name: "Strong Sword",
+        slot: "weapon",
+        stats: { damage: 9 },
+      },
+      future: {
+        id: "future",
+        name: "Future Sword",
+        slot: "weapon",
+        stats: { damage: 99 },
+      },
+      mail: {
+        id: "mail",
+        name: "Mail",
+        slot: "chest",
+        stats: { armor: 8, maxHp: 12 },
+      },
+    };
+    const sheet = new CharacterSheet({ level: 5, itemDefs: defs });
+    expect(sheet.pickup("weak")).toBe(true);
+    expect(sheet.pickup("strong")).toBe(true);
+    expect(
+      sheet.pickup("future", 1, { itemLevel: 10, reqLevel: 10 }),
+    ).toBe(true);
+    expect(sheet.pickup("mail")).toBe(true);
+    expect(sheet.equip(sheet.inventory.findByDef("weak")!.uid).ok).toBe(true);
+
+    const result = sheet.equipBest();
+    expect(result.changes.map((change) => change.slot).sort()).toEqual([
+      "chest",
+      "weapon",
+    ]);
+    expect(sheet.inventory.get(sheet.equipment.get("weapon")!)?.defId).toBe(
+      "strong",
+    );
+    expect(sheet.inventory.get(sheet.equipment.get("chest")!)?.defId).toBe(
+      "mail",
+    );
+    expect(
+      result.changes.some((change) => change.defId === "future"),
+    ).toBe(false);
+    expect(sheet.equipBest().changes).toEqual([]);
+  });
+
   it("stacks potions", () => {
     const inv = new Inventory(10);
     inv.add("potion", 5, { maxStack: 20 });
@@ -187,6 +240,35 @@ describe("Inventory + Equipment + CharacterSheet", () => {
       next: null,
       needed: 0,
       ratio: 1,
+      atMaxLevel: true,
+    });
+  });
+
+  it("extrapolates an explicit level curve beyond its authored table", () => {
+    const sheet = new CharacterSheet({ level: 14, xp: 3600 });
+    const curve = {
+      thresholds: [
+        0, 40, 100, 180, 280, 400, 550, 750, 1000, 1300, 1700, 2200,
+        2800, 3600, 4500,
+      ],
+      growth: 1.12,
+      maxLevel: 100,
+    };
+
+    const gain = sheet.addXpDetailed(3500, curve);
+    expect(gain.beforeLevel).toBe(14);
+    expect(gain.afterLevel).toBeGreaterThan(15);
+    expect(gain.levelsGained).toBe(gain.afterLevel - 14);
+    expect(sheet.xpProgress(curve)).toMatchObject({ atMaxLevel: false });
+  });
+
+  it("honors an explicit maximum level after extrapolation", () => {
+    const sheet = new CharacterSheet({ level: 2, xp: 40 });
+    const curve = { thresholds: [0, 40], growth: 1.1, maxLevel: 4 };
+    sheet.addXp(10000, curve);
+    expect(sheet.level).toBe(4);
+    expect(sheet.xpProgress(curve)).toMatchObject({
+      next: null,
       atMaxLevel: true,
     });
   });

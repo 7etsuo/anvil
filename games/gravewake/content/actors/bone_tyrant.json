@@ -1,5 +1,6 @@
 {
   "id": "bone_tyrant",
+  "prefab": "melee-boss",
   "name": "Bone Tyrant",
   "hp": 420,
   "speed": 65,

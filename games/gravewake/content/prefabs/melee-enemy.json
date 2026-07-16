@@ -1,0 +1,11 @@
+{
+  "id": "melee-enemy",
+  "traits": ["living", "enemy", "melee"],
+  "components": {
+    "actor": {
+      "hp": 30,
+      "speed": 95,
+      "contactDamage": 8
+    }
+  }
+}

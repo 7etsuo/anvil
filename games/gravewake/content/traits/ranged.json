@@ -1,0 +1,16 @@
+{
+  "id": "ranged",
+  "requires": ["enemy"],
+  "conflicts": ["melee"],
+  "components": {
+    "actor": {
+      "ai": "keep_distance_ranged",
+      "contactDamage": 0,
+      "preferredRange": 120,
+      "preferredRangeBand": 30,
+      "projectileSpeed": 220,
+      "projectileCooldownMs": 900,
+      "projectileLifetimeMs": 2500
+    }
+  }
+}

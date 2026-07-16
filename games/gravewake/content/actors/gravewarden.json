@@ -1,5 +1,6 @@
 {
   "id": "gravewarden",
+  "prefab": "player-character",
   "name": "Gravewarden",
   "hp": 120,
   "speed": 200,

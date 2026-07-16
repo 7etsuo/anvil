@@ -1,5 +1,6 @@
 {
   "id": "scuttler",
+  "prefab": "melee-enemy",
   "name": "Scuttler",
   "hp": 28,
   "speed": 110,

@@ -1,0 +1,8 @@
+{
+  "id": "living",
+  "components": {
+    "actor": {
+      "radius": 12
+    }
+  }
+}

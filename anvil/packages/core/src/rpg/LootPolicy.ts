@@ -40,6 +40,12 @@ export type LootPolicyOpts = {
   zoneLevel?: number;
   /** Force a specific item level (tests) */
   itemLevel?: number;
+  /** Clamp rolled item power without changing table selection. */
+  maxItemLevel?: number;
+  /** Cap the equip requirement independently from item power. */
+  maxRequiredLevel?: number;
+  /** Use the softer item-level-to-requirement curve before applying the cap. */
+  softRequirement?: boolean;
 };
 
 export function dropFromTable(
@@ -80,9 +86,24 @@ export function dropFromTable(
         opts.zoneLevel ?? 1,
         rng,
       );
-    const inst = rollItemInstance(def, itemLevel, { rng });
+    if (opts.maxItemLevel !== undefined) {
+      itemLevel = Math.min(
+        itemLevel,
+        Math.max(1, Math.floor(opts.maxItemLevel)),
+      );
+    }
+    const inst = rollItemInstance(def, itemLevel, {
+      rng,
+      softReq: opts.softRequirement,
+    });
     itemLevel = inst.itemLevel;
-    reqLevel = inst.reqLevel;
+    reqLevel =
+      opts.maxRequiredLevel === undefined
+        ? inst.reqLevel
+        : Math.min(
+            inst.reqLevel,
+            Math.max(1, Math.floor(opts.maxRequiredLevel)),
+          );
     rolledStats = inst.rolledStats;
   }
   const id = spawnGroundLoot(world, jx, jy, {

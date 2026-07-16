@@ -7,10 +7,22 @@ import type {
   StatBreakdown,
   Stats,
 } from "@anvil/core";
+import type { ArpgRuleSnapshot } from "@anvil/genre-arpg";
+import type { StateMachineDef, TriggerDef } from "@anvil/schema";
 
 export type AreaId = string;
 
 export type AreaKind = "hub" | "overworld" | "dungeon";
+
+export interface GravewakeAuthoringData {
+  readonly sourceHash: string;
+  readonly rules: {
+    readonly triggers: Readonly<Record<string, Readonly<TriggerDef>>>;
+    readonly machines: Readonly<Record<string, Readonly<StateMachineDef>>>;
+  };
+  readonly actorPrefabs: Readonly<Record<string, string | null>>;
+  readonly prefabs: Readonly<Record<string, { readonly traits: readonly string[] }>>;
+}
 
 export interface EdgeExit {
   edge: "north" | "south" | "east" | "west";
@@ -79,6 +91,11 @@ export interface AreaMapDef {
 export interface ProgressionDef {
   xpPerKill: Record<string, number>;
   xpToLevel: number[];
+  /** Continue beyond the authored cumulative thresholds. */
+  xpCurve?: {
+    growth: number;
+    maxLevel?: number;
+  };
   meleeDamage: number;
   meleeRange: number;
   startGold: number;
@@ -234,6 +251,14 @@ export interface GravewakeObservation {
   walls: Array<{ x: number; y: number; w: number; h: number }>;
   mapW: number;
   mapH: number;
+  /** Compiled source provenance so agents can connect runtime state to authored data. */
+  authoring: {
+    sourceHash: string;
+    actorPrefabs: Readonly<Record<string, string | null>>;
+    prefabs: Readonly<Record<string, { readonly traits: readonly string[] }>>;
+  };
+  /** Executable trigger/state-machine state owned by genre-arpg. */
+  declarative: ArpgRuleSnapshot;
   topdown: Record<string, unknown>;
   [key: string]: unknown;
 }

@@ -19,6 +19,7 @@
     "bone_tyrant": 350
   },
   "xpToLevel": [0, 40, 100, 180, 280, 400, 550, 750, 1000, 1300, 1700, 2200, 2800, 3600, 4500],
+  "xpCurve": { "growth": 1.12, "maxLevel": 100 },
   "meleeDamage": 11,
   "meleeRange": 80,
   "startGold": 40,

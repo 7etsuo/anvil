@@ -1,8 +1,13 @@
 id: gravewake
 title: Gravewake
-genre: none
+version: 0.0.0
+genre: arpg
 modules:
+  - genre-arpg
   - ./dist/module.js
 entryScene: main
 seed: 1
-schemaVersion: 1
+contentRoot: content
+assetsRoot: public/assets
+schemaVersion: 2
+intent: game.spec.yaml

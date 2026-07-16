@@ -1,102 +1,69 @@
-import type {
-  GenreModule,
-  KernelInternals,
-  SceneContext,
+import {
+  getGameReadyAudioCues,
+  installGameAudio,
+  type InputMap,
 } from "@anvil/core";
-import { getGameReadyAudioCues, installGameAudio } from "@anvil/core";
+import {
+  defineArpgGame,
+  type ArpgGameSession,
+} from "@anvil/genre-arpg";
 import { GravewakeGame } from "./GravewakeGame.js";
-import { loadGravewakeContent } from "./loadContent.js";
+import {
+  loadGravewakeContent,
+  type GravewakeContent,
+} from "./loadContent.js";
+import type { GravewakeObservation } from "./types.js";
 
-export type GravewakeApi = {
-  game: GravewakeGame | null;
-};
-
-let activeApi: GravewakeApi | null = null;
-
-export function getGravewakeApi(): GravewakeApi | null {
-  return activeApi;
+interface GravewakeSession extends ArpgGameSession<GravewakeObservation> {
+  readonly game: GravewakeGame;
 }
 
-export const gravewakeModule: GenreModule = {
+const binding = defineArpgGame<
+  GravewakeContent,
+  GravewakeObservation,
+  GravewakeSession
+>({
   id: "gravewake",
-
-  register(
-    kernel: KernelInternals & {
-      setGenreObserve?: (fn: () => Record<string, unknown>) => void;
-    },
-  ): void {
-    // Node/headless only: bundled catalog uses filesystem. Browser installs cues
-    // from content/audio.json in browser/main.ts (installGameAudio).
-    if (
-      kernel.audio &&
-      kernel.events &&
-      typeof process !== "undefined" &&
-      !!(process as { versions?: { node?: string } }).versions?.node
-    ) {
-      try {
-        installGameAudio(
-          kernel.events,
-          kernel.audio,
-          getGameReadyAudioCues("audio"),
-        );
-      } catch {
-        /* catalog optional */
-      }
+  content: loadGravewakeContent,
+  register({ events, audio }): void {
+    // Headless catalog install is optional; browser installs its embedded cues.
+    if (!events || !audio || typeof process === "undefined") return;
+    try {
+      installGameAudio(events, audio, getGameReadyAudioCues("audio"));
+    } catch {
+      /* optional local catalog */
     }
-    kernel.setGenreObserve?.(() => {
-      const api = getGravewakeApi();
-      if (!api?.game) return {};
-      return { gravewake: api.game.observeBlob() };
-    });
   },
-
-  defaultScenes() {
-    return [
-      {
-        name: "main",
-        factory: (ctx: SceneContext) => {
-          const root = ctx.assets.getGameRoot();
-          const content = loadGravewakeContent(root);
-          for (const e of ctx.world.all()) ctx.world.destroy(e.id);
-          const game = new GravewakeGame(
-            ctx.world,
-            content.actors,
-            content.areas,
-            content.progression,
-            content.items,
-            content.lootTables,
-            ctx.random ?? Math.random,
-            {
-              particles: ctx.particles,
-              quests: ctx.quests,
-              events: ctx.events,
-              audio: ctx.audio,
-              statuses: ctx.statuses,
-              abilities: ctx.abilities,
-              projectiles: ctx.projectiles,
-              resources: ctx.resources,
-              interactables: ctx.interactables,
-              triggers: ctx.triggers,
-              floatText: ctx.floatText,
-              transitions: ctx.transitions,
-              threat: ctx.threat,
-              death: ctx.death,
-            },
-          );
-          activeApi = { game };
-          return {
-            enter() {},
-            update(dt: number) {
-              game.update(dt, ctx.input);
-            },
-            exit() {
-              if (activeApi?.game === game) activeApi = null;
-            },
-          };
-        },
+  create(ctx, content): GravewakeSession {
+    const game = new GravewakeGame(
+      ctx.world,
+      content.actors,
+      content.areas,
+      content.progression,
+      content.items,
+      content.lootTables,
+      ctx.random ?? Math.random,
+      ctx,
+      content.authoring,
+    );
+    return {
+      game,
+      update(dt: number, input: InputMap): void {
+        game.update(dt, input);
       },
-    ];
+      observe(): GravewakeObservation {
+        return game.observeBlob();
+      },
+    };
   },
-};
+});
 
+export type GravewakeApi = { game: GravewakeGame | null };
+
+export function getGravewakeApi(): GravewakeApi | null {
+  const session = binding.getSession();
+  return session ? { game: session.game } : null;
+}
+
+export const gravewakeModule = binding.module;
 export default gravewakeModule;

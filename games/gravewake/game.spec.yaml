@@ -1,0 +1,97 @@
+schemaVersion: 2
+summary: A dark isometric action RPG with responsive click-to-move combat, dangerous connected procedural zones, expressive character builds, readable loot, and an endless post-boss progression loop.
+quality: excellent
+players:
+  min: 1
+  max: 1
+platforms:
+  - web
+  - desktop
+requirements:
+  - id: lifecycle.start
+    category: lifecycle
+    priority: must
+    description: Start in Ashen Lychgate with a living controllable hero and no blocking modal.
+    weight: 10
+    verify:
+      - start_town
+  - id: input.click_move
+    category: input
+    priority: must
+    description: Click-to-move and WASD both move the hero while attack, abilities, potion, loot, and panels remain independently usable.
+    weight: 10
+    verify:
+      - enter_wastes
+  - id: spatial.connected_instances
+    category: spatial
+    priority: must
+    description: Every generated overworld and dungeon keeps its spawn, objectives, encounters, portals, and exits mutually reachable with player clearance.
+    weight: 10
+    verify:
+      - instance-spawns
+      - enter_wastes
+  - id: spatial.path_feedback
+    category: feedback
+    priority: must
+    description: Click navigation renders a readable destination or no-path response and never silently strands the player.
+    weight: 9
+    verify:
+      - enter_wastes
+  - id: rules.combat_loop
+    category: rules
+    priority: must
+    description: Enemies can be attacked, damaged, killed, looted, and respawned while threat and rewards scale deterministically.
+    weight: 10
+    verify:
+      - melee_and_xp
+  - id: state.character_build
+    category: state
+    priority: must
+    description: Character level and XP progress through the explicit level-100 curve; resources, base stats, equipment modifiers, inventory contents, quests, and zone progress remain coherent and observable.
+    weight: 10
+    verify:
+      - start_town
+      - melee_and_xp
+  - id: state.inventory
+    category: state
+    priority: must
+    description: The character panel exposes equipped paper-doll slots and a capacity-aware 32-slot backpack with working equip, unequip, and one-click Equip Best interactions.
+    weight: 10
+    verify:
+      - start_town
+  - id: content.world_depth
+    category: content
+    priority: must
+    description: The hub, overworld, three dungeons, distinct bosses, enemy packs, loot tiers, quests, shrine, and build progression form a complete repeatable campaign loop.
+    weight: 9
+    verify:
+      - enter_wastes
+      - melee_and_xp
+  - id: feedback.combat
+    category: feedback
+    priority: must
+    description: Hits, criticals, damage, healing, deaths, loot, ability state, and travel transitions have immediate visual or audio feedback.
+    weight: 9
+    verify:
+      - melee_and_xp
+  - id: presentation.arpg_readability
+    category: presentation
+    priority: must
+    description: Camera, silhouettes, floor and wall contrast, HUD, minimap, inventory, and effects preserve combat and navigation readability at supported viewport sizes.
+    weight: 9
+    verify:
+      - start_town
+  - id: win_loss.continuation
+    category: win_loss
+    priority: must
+    description: Death has a recoverable restart path and boss milestones never terminate the endless ARPG loop.
+    weight: 9
+    verify:
+      - melee_and_xp
+  - id: restart.recovery
+    category: restart
+    priority: must
+    description: A failed or completed combat state can return to active play without a page reload or corrupted run state.
+    weight: 9
+    verify:
+      - start_town

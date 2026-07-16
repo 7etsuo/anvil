@@ -1,0 +1,11 @@
+{
+  "id": "melee",
+  "requires": ["enemy"],
+  "conflicts": ["ranged"],
+  "components": {
+    "actor": {
+      "ai": "chase_melee",
+      "meleeRange": 40
+    }
+  }
+}

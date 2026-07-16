@@ -1,5 +1,6 @@
 {
   "id": "fallen",
+  "prefab": "melee-enemy",
   "name": "Fallen",
   "hp": 18,
   "speed": 130,

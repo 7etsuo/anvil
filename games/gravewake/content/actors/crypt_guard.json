@@ -1,5 +1,6 @@
 {
   "id": "crypt_guard",
+  "prefab": "melee-enemy",
   "name": "Crypt Guard",
   "hp": 80,
   "speed": 85,

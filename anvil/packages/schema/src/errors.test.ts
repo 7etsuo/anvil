@@ -9,9 +9,15 @@ import {
 } from "./errors.js";
 
 describe("ErrorCode catalog (S-ERRORS exhaustive)", () => {
-  it("has exactly the documented v1 codes", () => {
+  it("has exactly the documented engine and authoring codes", () => {
     expect(ERROR_CODES).toEqual([
       "SCHEMA_INVALID",
+      "SCHEMA_VERSION_UNSUPPORTED",
+      "MIGRATION_REQUIRED",
+      "INTENT_INVALID",
+      "COMPILE_FAILED",
+      "PREFAB_CYCLE",
+      "PREFAB_CONFLICT",
       "REF_MISSING",
       "ASSET_MISSING",
       "MODULE_UNKNOWN",
@@ -24,7 +30,7 @@ describe("ErrorCode catalog (S-ERRORS exhaustive)", () => {
       "NOT_IMPLEMENTED",
       "INTERNAL",
     ]);
-    expect(ERROR_CODES).toHaveLength(12);
+    expect(ERROR_CODES).toHaveLength(18);
   });
 
   it("documents every code", () => {
@@ -51,7 +57,9 @@ describe("ErrorCode catalog (S-ERRORS exhaustive)", () => {
         path: "p",
         hint: "h",
         example: { code },
+        fingerprint: e.fingerprint,
       });
+      expect(e.fingerprint).toMatch(/^anvil-[0-9a-f]{8}$/);
     }
   });
 

@@ -88,6 +88,20 @@ export class SkillTree {
     return true;
   }
 
+  /** Nodes that can consume a point now; useful for UI/prompt decisions. */
+  unlockable(characterLevel = 99): SkillNodeDef[] {
+    return this.def.nodes.filter((node) =>
+      this.canUnlock(node.id, characterLevel),
+    );
+  }
+
+  /** True once every node has reached its maximum rank. */
+  isComplete(): boolean {
+    return this.def.nodes.every(
+      (node) => this.rank(node.id) >= (node.maxRank ?? 1),
+    );
+  }
+
   /**
    * Spend points to raise rank. Returns false if locked.
    */

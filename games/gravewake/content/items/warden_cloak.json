@@ -9,5 +9,13 @@
     "resistCold": 0.05,
     "speed": 8
   },
-  "flavor": "Ash-grey cloak of the Lychgate watch."
+  "flavor": "Ash-grey cloak of the Lychgate watch.",
+  "icon": "icons/warden_cloak.png",
+  "visual": {
+    "sprite": "gear/warden_cloak.png",
+    "ox": 0,
+    "oy": 0.04,
+    "scale": 0.5,
+    "z": 18
+  }
 }

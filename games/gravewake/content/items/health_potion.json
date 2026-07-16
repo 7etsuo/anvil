@@ -3,5 +3,6 @@
   "name": "Health Potion",
   "rarity": "common",
   "maxStack": 20,
-  "flavor": "Bitter red. It will keep you standing."
+  "flavor": "Bitter red. It will keep you standing.",
+  "icon": "icons/health_potion.png"
 }

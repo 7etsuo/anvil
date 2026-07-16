@@ -3,6 +3,10 @@
   "name": "Sapphire",
   "rarity": "magic",
   "maxStack": 20,
-  "stats": { "armor": 2, "resistCold": 0.08 },
-  "flavor": "Socket for armor and cold resist."
+  "stats": {
+    "armor": 2,
+    "resistCold": 0.08
+  },
+  "flavor": "Socket for armor and cold resist.",
+  "icon": "icons/sapphire_gem.png"
 }

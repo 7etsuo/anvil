@@ -9,5 +9,13 @@
     "resistCold": 0.06,
     "resistHoly": 0.04
   },
-  "flavor": "Cold as a sealed tomb."
+  "flavor": "Cold as a sealed tomb.",
+  "icon": "icons/grave_ring.png",
+  "visual": {
+    "sprite": "gear/grave_ring.png",
+    "ox": 0.28,
+    "oy": 0.12,
+    "scale": 0.22,
+    "z": 35
+  }
 }

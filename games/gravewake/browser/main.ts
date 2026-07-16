@@ -62,19 +62,38 @@ const ASSET_URLS: Record<string, string> = {
   "env/ruin_arch.png": "/assets/env/ruin_arch.png",
   "fx/portal.png": "/assets/fx/portal.png",
   "fx/loot_pile.png": "/assets/fx/loot_pile.png",
+  "fx/slash.png": "/assets/fx/slash.png",
+  "fx/smite.png": "/assets/fx/smite.png",
+  "fx/explosion.png": "/assets/fx/explosion.png",
   "gear/rusty_sword.png": "/assets/gear/rusty_sword.png",
   "gear/bone_cleaver.png": "/assets/gear/bone_cleaver.png",
   "gear/warden_blade.png": "/assets/gear/warden_blade.png",
   "gear/ash_mail.png": "/assets/gear/ash_mail.png",
   "gear/tyrant_plate.png": "/assets/gear/tyrant_plate.png",
   "gear/iron_helm.png": "/assets/gear/iron_helm.png",
+  "gear/grave_ring.png": "/assets/gear/grave_ring.png",
+  "gear/warden_cloak.png": "/assets/gear/warden_cloak.png",
+  "icons/health_potion.png": "/assets/icons/health_potion.png",
+  "icons/ruby_gem.png": "/assets/icons/ruby_gem.png",
+  "icons/sapphire_gem.png": "/assets/icons/sapphire_gem.png",
+  "icons/emerald_gem.png": "/assets/icons/emerald_gem.png",
+  "icons/topaz_gem.png": "/assets/icons/topaz_gem.png",
+  "icons/grave_ring.png": "/assets/icons/grave_ring.png",
+  "icons/warden_cloak.png": "/assets/icons/warden_cloak.png",
+  "props/chest.png": "/assets/props/chest.png",
+  "props/shrine.png": "/assets/props/shrine.png",
+  "props/waypoint.png": "/assets/props/waypoint.png",
+  "ui/skill_slash.png": "/assets/ui/skill_slash.png",
+  "ui/skill_whirl.png": "/assets/ui/skill_whirl.png",
+  "ui/skill_smite.png": "/assets/ui/skill_smite.png",
+  "ui/skill_potion.png": "/assets/ui/skill_potion.png",
 };
 for (const id of ACTOR_IDS) {
   ASSET_URLS[`actors/${id}.png`] = `/assets/actors/${id}.png`;
   ASSET_URLS[`actors/${id}_down.png`] = `/assets/actors/${id}_down.png`;
   ASSET_URLS[`actors/${id}_right.png`] = `/assets/actors/${id}_right.png`;
+  ASSET_URLS[`actors/${id}_up.png`] = `/assets/actors/${id}_up.png`;
 }
-ASSET_URLS["actors/gravewarden_up.png"] = "/assets/actors/gravewarden_up.png";
 ASSET_URLS["actors/gravewarden_body.png"] = "/assets/actors/gravewarden_body.png";
 
 /** Identity map — each mob uses its own sheet. */
@@ -220,9 +239,16 @@ function drawSkillSlot(
   ready: boolean,
   cdPct = 0,
   accent = "#e8c878",
+  icon: HTMLImageElement | null = null,
 ): void {
   ctx.fillStyle = "#1a1410";
   ctx.fillRect(x, y, size, size);
+  if (icon && icon.complete && icon.naturalWidth > 0) {
+    const pad = 6;
+    ctx.globalAlpha = ready ? 1 : 0.45;
+    ctx.drawImage(icon, x + pad, y + pad, size - pad * 2, size - pad * 2);
+    ctx.globalAlpha = 1;
+  }
   const g = ctx.createLinearGradient(x, y, x + size, y + size);
   g.addColorStop(0, ready ? "#8a7040" : "#403830");
   g.addColorStop(1, ready ? "#3a2a18" : "#1a1510");
@@ -1213,49 +1239,60 @@ async function main(): Promise<void> {
     }
 
     // Engine projectile system (holy smite bolts etc.)
+    const smiteImg = images.get("fx/smite.png");
     for (const p of handle.projectiles.all()) {
       const { x: sx, y: sy } = wp(p.x, p.y);
       const holy = p.damageType === "holy";
-      const g = ctx.createRadialGradient(sx, sy, 1, sx, sy, 14);
-      g.addColorStop(
-        0,
-        holy ? "rgba(200,230,255,0.98)" : "rgba(180,140,255,0.95)",
-      );
-      g.addColorStop(
-        1,
-        holy ? "rgba(80,120,220,0)" : "rgba(80,40,160,0)",
-      );
-      ctx.fillStyle = g;
-      ctx.beginPath();
-      ctx.arc(sx, sy, 12, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.fillStyle = holy ? "#eef6ff" : "#e0d0ff";
-      ctx.beginPath();
-      ctx.arc(sx, sy, 3.5, 0, Math.PI * 2);
-      ctx.fill();
+      if (holy && smiteImg?.complete) {
+        ctx.save();
+        ctx.translate(sx, sy);
+        ctx.rotate(Math.atan2(p.vy, p.vx) + Math.PI / 2);
+        ctx.drawImage(smiteImg, -18, -28, 36, 56);
+        ctx.restore();
+      } else {
+        const g = ctx.createRadialGradient(sx, sy, 1, sx, sy, 14);
+        g.addColorStop(
+          0,
+          holy ? "rgba(200,230,255,0.98)" : "rgba(180,140,255,0.95)",
+        );
+        g.addColorStop(
+          1,
+          holy ? "rgba(80,120,220,0)" : "rgba(80,40,160,0)",
+        );
+        ctx.fillStyle = g;
+        ctx.beginPath();
+        ctx.arc(sx, sy, 12, 0, Math.PI * 2);
+        ctx.fill();
+      }
     }
 
-    // World interactables (chests / shrines) markers
+    // World interactables (chests / shrines / waypoints) — real prop art
     for (const it of blob.interactables) {
       if (it.used && it.kind === "chest") continue;
       const { x: sx, y: sy } = wp(it.x, it.y);
+      const data = (it as { data?: Record<string, unknown> }).data ?? {};
+      let propKey = "props/shrine.png";
+      if (it.kind === "chest") propKey = "props/chest.png";
+      else if (data.heal || data.mana || String(it.id).includes("waypoint"))
+        propKey = "props/waypoint.png";
+      else if (it.kind === "shrine") propKey = "props/shrine.png";
+      const propImg = images.get(propKey);
       ctx.save();
-      if (it.kind === "chest") {
+      if (propImg && propImg.complete) {
+        const pw = it.kind === "chest" ? 56 : 64;
+        const ph = pw;
+        ctx.drawImage(propImg, sx - pw / 2, sy - ph * 0.85, pw, ph);
+      } else if (it.kind === "chest") {
         ctx.fillStyle = "rgba(180,140,40,0.9)";
         ctx.fillRect(sx - 10, sy - 12, 20, 14);
-        ctx.fillStyle = "#fc6";
-        ctx.fillRect(sx - 10, sy - 14, 20, 4);
-      } else if (it.kind === "shrine") {
+      } else {
         ctx.strokeStyle = "rgba(120,180,255,0.85)";
-        ctx.lineWidth = 2;
         ctx.beginPath();
         ctx.moveTo(sx, sy - 22);
         ctx.lineTo(sx + 8, sy - 4);
         ctx.lineTo(sx - 8, sy - 4);
         ctx.closePath();
         ctx.stroke();
-        ctx.fillStyle = "rgba(100,160,255,0.35)";
-        ctx.fill();
       }
       ctx.restore();
     }
@@ -1312,6 +1349,8 @@ async function main(): Promise<void> {
       if (f.kind === "slash") {
         const { x: sx, y: sy } = wp(f.x, f.y);
         const skill = f.skill;
+        const slashArt = images.get("fx/slash.png");
+        const smiteArt = images.get("fx/smite.png");
         if (skill === "whirl") {
           ctx.strokeStyle = `rgba(255,150,40,${alpha})`;
           ctx.lineWidth = 6;
@@ -1323,7 +1362,17 @@ async function main(): Promise<void> {
           ctx.beginPath();
           ctx.arc(sx, sy, 50 * (1.15 - f.t * 0.4), 0.2, Math.PI * 1.6);
           ctx.stroke();
+          if (slashArt?.complete) {
+            ctx.globalAlpha = alpha * 0.75;
+            ctx.drawImage(slashArt, sx - 48, sy - 48, 96, 96);
+            ctx.globalAlpha = 1;
+          }
         } else if (skill === "smite") {
+          if (smiteArt?.complete) {
+            ctx.globalAlpha = alpha;
+            ctx.drawImage(smiteArt, sx - 24, sy - 72, 48, 80);
+            ctx.globalAlpha = 1;
+          }
           ctx.strokeStyle = `rgba(120,180,255,${alpha})`;
           ctx.lineWidth = 4;
           ctx.beginPath();
@@ -1336,6 +1385,11 @@ async function main(): Promise<void> {
           ctx.arc(sx, sy, 28, 0, Math.PI * 2);
           ctx.fill();
         } else {
+          if (slashArt?.complete) {
+            ctx.globalAlpha = alpha * 0.85;
+            ctx.drawImage(slashArt, sx - 40, sy - 40, 80, 80);
+            ctx.globalAlpha = 1;
+          }
           ctx.strokeStyle = `rgba(255,210,120,${alpha})`;
           ctx.lineWidth = 5;
           ctx.beginPath();
@@ -1534,6 +1588,7 @@ async function main(): Promise<void> {
         key: "SPC",
         cdMax: 280,
         accent: "#e8c878",
+        icon: "ui/skill_slash.png",
       },
       {
         id: "whirl",
@@ -1541,6 +1596,7 @@ async function main(): Promise<void> {
         key: "2",
         cdMax: 850,
         accent: "#ff9a40",
+        icon: "ui/skill_whirl.png",
       },
       {
         id: "smite",
@@ -1548,6 +1604,7 @@ async function main(): Promise<void> {
         key: "3",
         cdMax: 650,
         accent: "#80c0ff",
+        icon: "ui/skill_smite.png",
       },
       {
         id: "potion",
@@ -1555,6 +1612,7 @@ async function main(): Promise<void> {
         key: "1",
         cdMax: 400,
         accent: "#e06060",
+        icon: "ui/skill_potion.png",
       },
     ] as const;
     const totalW = skills.length * slot + (skills.length - 1) * gap;
@@ -1578,6 +1636,7 @@ async function main(): Promise<void> {
         ready,
         cdP,
         s.accent,
+        images.get(s.icon) ?? null,
       );
     }
 

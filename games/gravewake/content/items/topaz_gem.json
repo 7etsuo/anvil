@@ -3,6 +3,10 @@
   "name": "Topaz",
   "rarity": "magic",
   "maxStack": 20,
-  "stats": { "resistLightning": 0.1, "critChance": 0.02 },
-  "flavor": "Socket for lightning resist and crit."
+  "stats": {
+    "resistLightning": 0.1,
+    "critChance": 0.02
+  },
+  "flavor": "Socket for lightning resist and crit.",
+  "icon": "icons/topaz_gem.png"
 }

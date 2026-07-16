@@ -1,32 +1,47 @@
-# Code Style (agents + humans)
+# Code style and package boundaries
 
 ## TypeScript
 
-- `strict: true`  
-- No `any` unless justified with comment  
-- Prefer `interface` for object shapes  
-- Named exports only from package barrels  
+- Keep strict TypeScript enabled.
+- Avoid `any`; when an external boundary requires it, isolate and justify it.
+- Prefer interfaces for public object shapes and discriminated unions for
+  finite protocols.
+- Export public symbols through package barrels with JSDoc where behavior is
+  not self-evident.
+- Use deterministic iteration/order where output reaches tests, hashes, saves,
+  diagnostics, or observations.
 
 ## Naming
 
-| Kind | Style |
-|------|-------|
-| Files | `PascalCase.ts` classes; `camelCase.ts` functions/modules |
-| Packages | `@anvil/<kebab>` |
-| Content ids | `snake` or `kebab` lowercase |
-| Events | `domain:action` |
+| Kind | Convention |
+|------|------------|
+| Classes/types | PascalCase |
+| Functions/modules | camelCase |
+| Packages | `@anvil/<kebab-case>` |
+| Content ids | lower snake/kebab/dotted ids accepted by the applicable schema |
+| Events | `domain:action` for engine events; declarative event ids follow `EntityId` |
 
 ## Imports
 
-- Games/examples: only `@anvil/core`, `@anvil/genre-*`, `@anvil/schema`  
-- **Forbidden:** `phaser` outside `packages/render-phaser`  
-- **Forbidden:** relative imports that cross package boundaries  
+- Games/examples use public exports from `@anvil/core`, selected
+  `@anvil/genre-*`, and `@anvil/schema`.
+- Schema-v2 Node/Vite host boundaries may use `@anvil/authoring` and
+  `@anvil/authoring/vite`.
+- Only `packages/render-phaser` may import `phaser`.
+- Do not use relative paths to cross package boundaries; use workspace package
+  exports.
+- Do not import `KernelInternals` into ordinary game code. ARPG titles use the
+  restricted services from `defineArpgGame`.
 
-## Formatting
+## Engine/game split
 
-- Prettier defaults (printWidth 100) if configured; else 2-space indent  
+Reusable combat, input, loot, navigation, observation, multiplayer, or
+authoring capability belongs in Anvil. Lore, named skills, area art, balance,
+and title-specific presentation belong in the game. Prefer extending an
+existing engine package to creating a parallel title implementation.
 
-## Comments
+## Formatting and comments
 
-- Public API JSDoc on exports  
-- No narrating comments  
+Use the configured ESLint/TypeScript rules and two-space indentation. Do not
+reformat unrelated files. Comments should explain ownership, invariants, safety
+constraints, or non-obvious decisions—not narrate the code line by line.

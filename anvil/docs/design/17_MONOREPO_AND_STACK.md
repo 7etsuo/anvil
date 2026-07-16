@@ -1,138 +1,93 @@
-# 17 — Monorepo Layout and Tech Stack (locked for M1)
+# 17 — Monorepo layout and stack
 
-## 1. Stack lock
+This is the implemented repository layout, not the original M1 target tree.
 
-| Item | Choice | Notes |
-|------|--------|-------|
-| Language | TypeScript **5.x** | strict mode |
-| Package manager | **pnpm** workspaces | lockfile committed |
-| Node | **20 LTS** or **22 LTS** | engines field in root package.json |
-| Bundler / dev | **Vite 6.x** | game examples + playground |
-| Test runner | **Vitest** | unit + integration |
-| Schema | **Zod 3.x** | `@anvil/schema` |
-| Render backend | **Phaser 3.80.x** | **only** `@anvil/render-phaser` (never core) |
-| Lint | ESLint + typescript-eslint | ban `phaser` import outside render package |
-| CI | GitHub Actions | see `18` |
-| License | **MIT** | T-M1-019 |
-| Node (single) | **22 LTS** | engines field exact major |
+## Toolchain
 
-## 2. Target monorepo tree (create in M1)
+| Item | Current choice |
+|------|----------------|
+| Language | TypeScript 5.7, strict configs |
+| Package manager | pnpm 9.15.9 workspaces |
+| Node requirement | 22 or newer |
+| Bundler/dev server | Vite 6 |
+| Unit/integration runner | Vitest 2 plus Node/tsx scripts where appropriate |
+| Schema | Zod 3 |
+| Render backend | Phaser 3 only inside `@anvil/render-phaser`; core also has null/canvas facades |
+| Desktop | Electron shell package |
+| Multiplayer | Legacy transport spike plus Colyseus adapter |
+| Lint | ESLint + typescript-eslint |
+| CI | GitHub Actions, Node 22/pnpm 9 |
+| License | MIT |
+
+## Current high-level tree
 
 ```text
-anvil/
-  package.json                 # private workspace root
-  pnpm-workspace.yaml
-  tsconfig.base.json
-  .npmrc
-  .gitignore
-  LICENSE                      # M1
+x-game/
+  AGENTS.md
   README.md
-  docs/                        # already exists
-  packages/
-    core/
-      package.json             # @anvil/core
-      src/
-        index.ts               # public API barrel
-        kernel/
-        world/
-        scene/
-        assets/
-        input/
-        events/
-        observe/
-        test/
-        render/                # facade types only OR
-    render-phaser/
-      package.json             # @anvil/render-phaser
-      src/
-        PhaserRenderFacade.ts
-    schema/
-      package.json             # @anvil/schema
-      src/
-        gameDescriptor.ts
-        content/
-        errors.ts
-    cli/
-      package.json             # @anvil/cli
-      src/
-        index.ts               # bin: anvil
-        commands/
-    recipes/
-      package.json             # @anvil/recipes
-      src/
-        index.ts
-      recipes/                 # yaml recipes filled M3+
-    genre-card/
-      package.json
-      src/
-    genre-topdown2d/
-      package.json
-      src/
-    genre-vn/
-      package.json
-      src/
-    genre-shmup/
-      package.json
-      src/
-    genre-fps2/                # M7
-      package.json
-      src/
-  templates/                   # populated M3+
-    card-starter/
-    topdown-starter/
-    vn-starter/
-    shmup-starter/
-  examples/
-    hello-empty/               # M1 smoke
-    hello-card/                # M3
-    hello-topdown/             # M4
-    hello-vn/                  # M5
-    hello-shmup/               # M5
-    hello-fps2/                # M7
-  .github/
-    workflows/
-      ci.yml                   # M1/M6
+  .github/workflows/ci.yml
+  anvil/
+    package.json
+    pnpm-workspace.yaml
+    tsconfig.base.json
+    ENGINE.md
+    CHANGELOG.md
+    assets/
+    docs/
+    examples/
+      hello-empty/ hello-card/ hello-topdown/ hello-vn/
+      hello-shmup/ hello-fps2/ hello-net/
+    templates/
+      card-starter/ topdown-starter/ vn-starter/
+      shmup-starter/ fps2-starter/
+    packages/
+      schema/ core/ authoring/ cli/ recipes/
+      render-phaser/ desktop/
+      genre-card/ genre-topdown2d/ genre-vn/
+      genre-shmup/ genre-fps2/ genre-net/ genre-arpg/
+      net-colyseus/
+  games/
+    gravewake/
+      game.yaml game.spec.yaml content/ src/ browser/ tests/ docs/
 ```
 
-## 3. Package dependency rules
+Generated `dist/`, `dist-web/`, and dependency directories are build artifacts,
+not source documentation.
+
+## Dependency rules
 
 ```text
-cli → core, schema, recipes
-examples → core, genre-*, render-phaser
-genre-* → core, schema
 core → schema
-render-phaser → core (implements facade)
-recipes → (data only; no runtime deps on phaser)
+authoring → schema
+genre-card/topdown/vn/shmup/fps2/net → core (+ schema where needed)
+genre-arpg → core + schema + genre-topdown2d
+render-phaser → core
+cli → core + schema + recipes (+ authoring after pending M10 wiring)
+examples/games → public core + selected genre packages
+schema-v2 host boundary → authoring compiler
 ```
 
-**Forbidden:** `examples/*` or `genre-*` import `phaser` directly.
+No package except `render-phaser` may import Phaser. Games may not import
+kernel internals. `defineArpgGame` deliberately narrows the title surface.
 
-## 4. Public API surface of `@anvil/core` (M1 minimum)
+## Workspace scripts
 
-Must export (names locked unless ADR):
+The actual root scripts are in [`../../package.json`](../../package.json).
+Important boundaries:
 
-```ts
-createGame(opts: CreateGameOptions): Promise<GameHandle>
-validateProject(root: string): Promise<ValidationResult>
-runTests(root: string, opts?: TestOpts): Promise<TestReport>
-observe(handle: GameHandle, opts?: ObserveOpts): Promise<ObserveSnapshot>
-```
+- `pnpm -r run build` builds every package that defines a build script.
+- `pnpm test` uses an explicit package filter and currently omits authoring and
+  genre-arpg even though it includes the CLI tests.
+- `pnpm validate:examples` and `pnpm test:examples` cover all seven hello
+  projects.
+- `pnpm check` adds lint, examples, Gravewake validate/test/lint, and the
+  Gravewake production web build.
 
-Full method list expands in M1 with JSDoc; if renamed, write ADR.
+The current gate status and CI differences are documented in
+[`18_TESTING_AND_CI.md`](./18_TESTING_AND_CI.md).
 
-## 5. `game.yaml` location
+## Game descriptors
 
-Always at package root of a game (template/example).
-
-## 6. Workspace scripts (root)
-
-```json
-{
-  "scripts": {
-    "build": "pnpm -r run build",
-    "test": "pnpm -r run test",
-    "validate:examples": "anvil validate examples/hello-empty",
-    "lint": "eslint ."
-  }
-}
-```
+Every game/example/template keeps `game.yaml` at its package root. Schema-v2
+projects also point to an intent file. Existing examples/templates are still
+v1; Gravewake is v2. See [`06_DATA_MODEL.md`](./06_DATA_MODEL.md).

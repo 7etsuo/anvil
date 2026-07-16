@@ -1,4 +1,11 @@
-# Gravewake — Audio Design
+# Gravewake — original audio design (historical)
+
+> **Historical design archive — not a current runtime contract.** This file
+> preserves the original vertical-slice intent. Do not use its controls,
+> filenames, IDs, scope, balance numbers, scene plan, or asset status to change
+> the active game. Start with [`../README.md`](../README.md),
+> [`INDEX.md`](./INDEX.md), [`SYSTEMS.md`](./SYSTEMS.md), current `content/`, and
+> current source.
 
 v1 may ship with **placeholder/free** SFX. Every **cue ID** is listed so implementation never invents silent gaps.  
 Replace files later without code changes.

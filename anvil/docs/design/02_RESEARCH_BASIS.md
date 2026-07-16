@@ -1,6 +1,8 @@
 # 02 — Research Basis (claims ↔ papers)
 
 Every major Anvil decision traces to a local PDF under `../research/papers/`.
+Research justifies design choices; it does not override current API/status
+documents or executable tests.
 
 ## 1. Paper registry
 
@@ -37,6 +39,7 @@ Every major Anvil decision traces to a local PDF under `../research/papers/`.
 | C12 | Interactive browser eval is complementary to engine eval | WG |
 | C13 | Runtime verification can inject/check game state | GV |
 | C14 | Playing agents ≠ authoring engines (separate problem) | LS |
+| C15 | Deterministic intent/IR gives agents a stable executable world model | Synthesis of C1–C3, C7, C9, C13 |
 
 ## 3. Mapping claims → Anvil features
 
@@ -55,6 +58,7 @@ Every major Anvil decision traces to a local PDF under `../research/papers/`.
 | C12 | Web host for dev preview | 07 |
 | C13 | Headless state assertions | 10 |
 | C14 | Do not build “LLM NPC brain” as core | 01 |
+| C15 | Schema-v2 intent, immutable IR, finite rules, provenance | S-AUTHORING, S-ARPG |
 
 ## 4. What we deliberately do *not* copy
 

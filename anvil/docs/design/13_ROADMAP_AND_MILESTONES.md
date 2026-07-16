@@ -1,48 +1,65 @@
-# 13 — Roadmap and Milestones
+# 13 — Roadmap and milestones
 
-Engine-first. Games (Gravewake) after M6 minimum.
+Anvil follows an engine-first loop: a title requirement becomes a reusable
+engine capability when it applies beyond that title. The authoritative task
+status is [`20_FULL_TASK_BREAKDOWN.md`](./20_FULL_TASK_BREAKDOWN.md).
 
-## 1. Milestone table
+## Milestone status
 
-| ID | Name | Exit criteria | REQs |
-|----|------|---------------|------|
-| **M0** | Docs freeze | This design suite complete; papers on disk | — |
-| **M1** | Kernel + ACI | `new` (none), `validate`, `dev`, `test`, `observe` JSON | P01–P07, K01–K07, K12, A01–A03 |
-| **M2** | Assets + save | Greybox, shot, cinematic, audio, **save/load**, manifest | P08–P09, K08–K11, S01–S04 |
-| **M3** | genre-card | hello-card playable + ≥5 card recipes + tests | G01, A04–A05 partial |
-| **M4** | genre-topdown2d | hello-topdown + topdown recipes | G02 |
-| **M5** | vn + shmup | two hellos + recipes ≥15 total | G03–G04, A05 |
-| **M6** | Agent-ready | AGENTS.md, CI all examples, error codes stable | A06, NFR-03 |
-| **M7** | fps2 | hello-fps2 greybox | G05 |
-| **M8** | net spike | design + optional 2p prototype | G06 |
-| **M9** | First title | e.g. Gravewake on Anvil only | product |
+| ID | Outcome | Current status |
+|----|---------|----------------|
+| M0 | Design and agent documentation baseline | Complete |
+| M1 | Kernel, schema v1, CLI ACI, empty scaffold | Complete |
+| M2 | Assets, media, save/load, screenshots | Complete |
+| M3 | Card genre, recipes, starter | Complete |
+| M4 | Top-down 2D genre, navigation/combat foundation | Complete |
+| M5 | Visual-novel and scrolling-shooter genres | Complete |
+| M6 | Agent-ready errors, docs, CI, static build | Complete |
+| M7 | Raycast FPS genre | Complete |
+| M8 | Transport-neutral multiplayer spike | Complete |
+| M9 | Gravewake built only on Anvil APIs | Complete and subsequently expanded |
+| M10 | Schema-v2 intent, compiler, migration, capabilities, Vite bridge | Libraries complete; CLI/scaffold/example integration pending |
+| M11 | Declarative ARPG runtime and Gravewake IR integration | Library/title complete; generic loader/scaffold and full gate pending |
 
-## 2. M0 checklist (planning)
+## Current delivery boundary
 
-- [x] Papers downloaded to `docs/research/papers/`  
-- [x] Design suite `00`–`19` + master `README.md`  
-- [x] Gap register `16` (honest incomplete items listed)  
-- [x] Diagram index  
-- [x] Monorepo/stack `17`, testing/CI `18`, ADRs `19`  
-- [x] Deprecated duplicate docs redirected  
-- [x] Gravewake parked  
-- [x] Planning accepted **to start M1** (not “zero gaps forever”)
+M1–M9 are the stable runtime baseline. M10/M11 have useful implemented APIs,
+but are not release-complete until the generic CLI can create, migrate,
+describe, validate, test, and launch the new project form without title-local
+wiring.
 
-## 3. Definition of done per milestone
+The immediate roadmap is therefore integration rather than another genre:
 
-Must update `14_ACCEPTANCE_AND_TRACEABILITY.md` checkboxes when completing a milestone.
+1. implement M10 CLI commands and schema-v2 default scaffolding;
+2. migrate examples/templates and route generic verification through the
+   authoring compiler;
+3. load `genre-arpg` generically and add an ARPG starter;
+4. include authoring/ARPG coverage in the normal test and CI gates; and
+5. make the complete engine plus Gravewake gate green.
 
-## 4. Risk register
+## Definition of done
+
+A milestone is complete only when:
+
+- every required task is checked in `20`;
+- its targeted unit and integration tests pass;
+- affected examples or titles validate, test, and build;
+- public API, CLI, and agent workflow docs match implementation; and
+- acceptance traceability is updated.
+
+Code existing in a package is not sufficient when the milestone also promises
+generic CLI or scaffold behavior.
+
+## Current risks
 
 | Risk | Mitigation |
 |------|------------|
-| Building engine forever | Hard exit criteria; M3 demo early |
-| Phaser leaks into games | Lint boundary + code review |
-| Scope creep MMO | G06 spike only |
-| Ignoring research eval | Every milestone has test/observe |
+| Agents invoke designed but absent commands | Status callouts plus `pnpm anvil --help` as command authority |
+| Schema v1 and v2 boundaries are confused | Document compiler/core distinction and keep migration explicit |
+| Title glue becomes an engine fork | Promote reusable capability to Anvil; restrict title hook ownership |
+| Phaser leaks into games | ESLint boundary and renderer facade |
+| New packages evade routine tests | Add them to root scripts and CI in M10/M11 pending tasks |
+| Game-only changes receive no CI | Expand workflow path filters before relying on CI for title safety |
 
-## 5. What not to schedule before M6
-
-- Gravewake dungeon content  
-- Multiplayer production  
-- Art pipelines in engine  
+The original pre-M6 scheduling restrictions are historical and no longer
+apply; the repository has already passed those milestones.

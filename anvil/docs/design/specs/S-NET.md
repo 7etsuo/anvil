@@ -1,48 +1,51 @@
-# Spec: genre-net (legacy spike)
+# Spec: `@anvil/genre-net` legacy replication layer
 
-**Not production multiplayer.**  
-**Use `@anvil/net-colyseus` → [S-NET-COLYSEUS.md](./S-NET-COLYSEUS.md).**
+**Milestone:** M8 spike
 
-**Milestone:** M8 spike only.  
-**Implementation:** `@anvil/genre-net` · `packages/genre-net/SPIKE.md` · `examples/hello-net`
+**Production-oriented alternative:** [`S-NET-COLYSEUS.md`](./S-NET-COLYSEUS.md)
 
-## 1. Goals
+`@anvil/genre-net` is a small host-authoritative replication experiment. It is
+not an authenticated, persistent, scalable multiplayer service, but it is no
+longer loopback-only: raw WebSocket transports and a relay server are present.
 
-- 2 peers share a topdown or empty room  
-- Replicate `transform` + `health` for player entities  
-- Loopback transport for tests  
+## Shipped surfaces
 
-## 2. Transport interface
+| Surface | Role |
+|---------|------|
+| `Transport` | Byte send/message/close abstraction |
+| `LoopbackTransport` | Deterministic in-process pair |
+| `MemoryHub` / `MemoryTransport` | Multi-peer in-memory transport |
+| `WebSocketTransport` | Adapter around an already-open socket-like client |
+| `NetServer` | Minimal Node `ws` relay |
+| `WsClientTransport` | Node/browser client for `NetServer` |
+| `NetRoom` | Host/client state and input replication |
+| `createLoopbackSession` | Two-peer test harness |
+| `netModule` | Kernel integration and observation |
 
-```ts
-interface Transport {
-  send(bytes: Uint8Array): void
-  onMessage(cb: (bytes: Uint8Array) => void): void
-  close(): void
-}
-```
+## Protocol and authority
 
-`LoopbackTransport.pair()` links two in-process peers (sync delivery for deterministic tests).
+JSON protocol v1 uses `hello`, `input`, and `state` messages. Clients send
+semantic action names with tick/peer id. The host integrates the last known
+inputs and is the only authority for position and health; clients replace
+their replicated entity table from host state.
 
-## 3. Messages (JSON v1)
+## Appropriate use
 
-| type | payload |
-|------|---------|
-| `hello` | `{ peerId }` |
-| `state` | `{ tick, entities: [{ id, x, y, hp }] }` |
-| `input` | `{ tick, actions: string[], peerId }` |
+Use this package for deterministic tests, transport experiments, local demos,
+and compatibility work. Prefer `@anvil/net-colyseus` for rooms, validation,
+reconnects, health/metrics, Redis presence, and operational deployment.
 
-## 4. Authority
+## Explicit limitations
 
-- Host authoritative for hp and positions  
-- Clients send input; host simulates; broadcast state  
+The raw relay has no identity/authentication, matchmaking, persistence,
+anti-cheat, lag compensation, rate limits, durable rooms, TLS termination, or
+horizontal scale. Do not expose it as a production Internet service.
 
-## 5. Out of scope
+## Acceptance
 
-Shards, matchmaking, anti-cheat, persistence, lag compensation advanced, MMO scale, real WebSocket/WebRTC (implement `Transport` later).
+- Loopback peers replicate movement within the tick budget.
+- Only the host changes authoritative health.
+- The real WebSocket test connects two clients to an ephemeral local server
+  and relays state/messages.
 
-## 6. Acceptance
-
-Loopback 2 logical peers: move one, other observe sees position update within N ticks.
-
-Covered by `packages/genre-net/src/NetRoom.test.ts` and `examples/hello-net`.
+Run `pnpm --filter @anvil/genre-net test`.

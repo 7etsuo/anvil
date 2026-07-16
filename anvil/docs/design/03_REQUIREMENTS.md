@@ -68,6 +68,20 @@ Sources: (GC)=GameCraft, (GD)=GameDevBench, (DG)=DreamGarden, (SW)=SWE-agent, (V
 | **REQ-S03** | Missing asset → greybox + label, game still runs | GD |
 | **REQ-S04** | Optional manifest is path list only | — |
 
+### 1.6 Schema-v2 authoring and ARPG
+
+| ID | Requirement | Status source |
+|----|-------------|---------------|
+| **REQ-U01** | Schema-v2 project declares intent and compiles deterministic immutable IR | S-AUTHORING |
+| **REQ-U02** | Traits/prefabs compose with finite merge/reference diagnostics | S-AUTHORING |
+| **REQ-U03** | Triggers/state machines use a finite non-eval rule language | S-AUTHORING |
+| **REQ-U04** | Migration preview is read-only; applied migration is transactional/idempotent | S-AUTHORING |
+| **REQ-U05** | Capabilities and diagnostics are machine-readable | S-AUTHORING |
+| **REQ-U06** | Node and browser consume the same content-hashed IR | S-AUTHORING, S-ARPG |
+| **REQ-G07** | `genre-arpg` materializes reusable ARPG content/rules behind restricted hooks | S-ARPG |
+| **REQ-A07** | Generic CLI can migrate/describe/capability-report schema-v2 projects | S-CLI; pending |
+| **REQ-A08** | Generic CLI can scaffold/load a declarative ARPG | S-CLI, S-ARPG; pending |
+
 ## 2. Non-functional requirements
 
 | ID | Requirement |
@@ -76,7 +90,7 @@ Sources: (GC)=GameCraft, (GD)=GameDevBench, (DG)=DreamGarden, (SW)=SWE-agent, (V
 | **NFR-02** | Example games run on desktop Chrome/Firefox |
 | **NFR-03** | Headless tests run in CI without GPU GUI |
 | **NFR-04** | Deterministic tests with fixed seed |
-| **NFR-05** | Docs + papers are authoritative over chat memory |
+| **NFR-05** | Specs/status docs and executable examples are authoritative over chat memory; research papers provide rationale, not current API |
 | **NFR-06** | Single package manager (pnpm workspaces) |
 
 ## 3. Out of scope requirements (do not implement)

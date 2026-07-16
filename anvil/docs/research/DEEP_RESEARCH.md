@@ -1,5 +1,11 @@
 # Anvil — Deep Research: Agent-Native Game Engines
 
+> **Historical research synthesis, not current implementation documentation.**
+> The engine and Gravewake now exist. Use [`../../ENGINE.md`](../../ENGINE.md),
+> [`../design/README.md`](../design/README.md), and the current gap register for
+> live behavior/status. “Later” and “do not build until” statements below
+> describe the sequence at the time of research.
+
 **Purpose:** Ground Anvil design in published work, production lessons, and failure modes.  
 **Priority shift:** Build **Anvil first**. Games (including Gravewake) come **after** the engine is usable.  
 **Date:** 2026-07-15
@@ -177,7 +183,8 @@ If the agent must learn 800 engine classes, **we failed**.
         ┌──────────────────┼──────────────────┐
         ▼                  ▼                  ▼
    genre-card         genre-topdown2d      genre-fps2
-   genre-vn           genre-shmup          genre-net (later)
+   genre-vn           genre-shmup          genre-fps2 / genre-net
+   authoring IR       genre-arpg           net-colyseus
 ```
 
 **Runtime host:** TypeScript + Vite; render via **Phaser or Pixi behind a facade** (agent never imports raw Phaser for standard games).
@@ -204,7 +211,7 @@ If the agent must learn 800 engine classes, **we failed**.
 
 ## 10. Conclusions for Anvil product direction
 
-1. **Engine first** — no Gravewake implementation until core + ≥2 genre modules work.  
+1. **Engine first** — the historical gate required core + ≥2 genre modules before Gravewake; that gate has been satisfied.
 2. **Trivial agent UX** is the primary KPI, not feature parity with Unity.  
 3. **Declarative games + tiny command set + observe/test loops.**  
 4. **Assets = files**; no generator vendor in the engine.  

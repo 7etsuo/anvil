@@ -90,8 +90,8 @@ requirements:
       - melee_and_xp
   - id: restart.recovery
     category: restart
-    priority: must
-    description: A failed or completed combat state can return to active play without a page reload or corrupted run state.
-    weight: 9
+    priority: should
+    description: After death, reloading the page restores the latest valid saved run without corrupting character, inventory, area, or progression state.
+    weight: 7
     verify:
       - start_town

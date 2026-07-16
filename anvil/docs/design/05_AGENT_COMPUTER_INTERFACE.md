@@ -1,111 +1,112 @@
-# 05 — Agent–Computer Interface (ACI)
+# 05 — Agent-computer interface
 
-**Research:** SWE-agent (arXiv:2405.15793) — interface design determines agent success.  
-GameCraft-Bench §5.1 — bash thrashing ≠ quality; perception-guided iteration helps.
+The ACI gives a coding agent a small structured loop: discover, validate, test,
+act, observe, compare, and replay. It avoids renderer documentation and raw key
+codes for standard tasks.
 
-## 1. Design principles
+## Principles
 
-1. **Small surface** — ≤30 commands/tools total for v1 (REQ-A01)  
-2. **Structured I/O** — JSON errors with fix hints (REQ-A02)  
-3. **Eyes** — observe JSON + screenshot (REQ-P07/P08)  
-4. **Verify** — test after edit, not only compile (GC D-III)  
-5. **No engine dump** — agents never need Phaser docs for standard games  
+1. Keep the required command/tool surface small.
+2. Prefer JSON diagnostics with path, hint, expected/actual, and stable code.
+3. Use semantic actions and structured state, not canvas scraping alone.
+4. Treat tests as the primary success signal; observe after failures and visual
+   changes.
+5. Do not advertise commands before they appear in live help and pass tests.
 
-## 2. Command catalog (complete v1)
+## Current CLI surface
 
-| Command | Args | Output | REQ |
-|---------|------|--------|-----|
-| `anvil new <name>` | `--genre card\|topdown2d\|vn\|shmup\|fps2` | Creates package | P01 |
-| `anvil validate` | `[path]` | OK or error list | P04 |
-| `anvil dev` | `[path]` | Dev server URL | P05 |
-| `anvil test` | `[path] [--seed N]` | Pass/fail report | P06 |
-| `anvil observe` | `[--json] [--shot]` | State + optional PNG | P07–P08 |
-| `anvil assets missing` | | List of paths | P09 |
-| `anvil recipe list` | | Recipe ids | P10 |
-| `anvil recipe show <id>` | | Files to write | P10 |
-| `anvil build` | `[path] [--out dir]` | Static web/data build | P05/M6 |
-| `anvil version` | | Version string | — |
+Run `pnpm anvil --help` from `anvil/` for the authoritative list.
 
-**Forbidden as required workflow:** ad-hoc `rm -rf`, editing `node_modules`, importing `phaser` in game src.
+| Workflow | Commands |
+|----------|----------|
+| Project lifecycle | `version`, `new`, `validate`, `dev`, `build` |
+| Verification | `test`, `observe`, `doctor` |
+| Discovery | `tools`, `recipe list/show`, `content list` |
+| Asset discovery | `assets missing`, `audio list`, `sprites list` |
+| Operations | `net health` |
 
-## 3. Error format (mandatory)
+Full arguments and current limitations are in [`specs/S-CLI.md`](./specs/S-CLI.md).
+In particular, `migrate`, `describe`, `capabilities`, and ARPG scaffolding are
+planned but absent.
 
-```json
-{
-  "ok": false,
-  "errors": [
-    {
-      "code": "SCHEMA_INVALID",
-      "path": "content/cards/strike.json",
-      "message": "Missing required field 'cost'",
-      "hint": "Add integer cost >= 0",
-      "example": { "id": "strike", "cost": 1, "effects": [] }
-    }
-  ]
-}
-```
+## Canonical loops
 
-Codes: see **`specs/S-ERRORS.md`** (authoritative exhaustive list for v1).
-
-## 4. Canonical agent loop (normative)
+### Existing schema-v1 project
 
 ```mermaid
 flowchart TD
-  A[anvil new] --> B[Edit content JSON]
-  B --> C[anvil validate]
-  C -->|fail| B
-  C -->|ok| D[anvil test]
-  D -->|fail| E[anvil observe]
-  E --> B
-  D -->|ok| F[Optional: add asset files]
-  F --> G[anvil assets missing]
-  G --> H[anvil dev play]
-  H -->|bug| E
-  H -->|done| I[Stop]
+  New[anvil new] --> Edit[Edit manifest, content, tests]
+  Edit --> Validate[anvil validate --json]
+  Validate -->|errors| Edit
+  Validate --> Test[anvil test --json]
+  Test -->|failure| Observe[anvil observe --json or --shot]
+  Observe --> Edit
+  Test -->|pass| Build[anvil build or dev]
 ```
 
-## 5. Observe payload (contract)
+### Schema-v2 project today
 
-```json
-{
-  "anvilVersion": "0.x",
-  "scene": "battle",
-  "time": 12.4,
-  "seed": 42,
-  "entities": [
-    { "id": "player", "tags": ["player"], "hp": 10, "x": 1, "y": 2 }
-  ],
-  "ui": {},
-  "genre": {},
-  "screenshot": "artifacts/observe.png"
-}
-```
+1. Parse/compile with `compileProject` in the host or title test boundary.
+2. Inspect sorted `AnvilError` diagnostics.
+3. Materialize the IR for the applicable genre.
+4. Run the title's headless scenarios and browser build.
+5. Use engine `observe` plus title observation data.
 
-Genre modules may add fields under `genre` only.
+The generic CLI does not yet perform step 1 for the agent.
 
-## 6. Programmatic API (mirror CLI)
+## Structured programmatic actions
 
 ```ts
-import { createGame, validateProject, runTests, observe } from '@anvil/core'
+type AgentAction =
+  | { type: "noop" }
+  | { type: "move"; dir: "up" | "down" | "left" | "right"; holdFrames?: number }
+  | { type: "move_stop" }
+  | { type: "press" | "release" | "tap"; action: string }
+  | { type: "wait"; frames: number }
+  | { type: "set_down"; actions: Record<string, boolean> };
 ```
 
-CLI is a thin wrapper — same code paths (testability).
+`agentStep` advances a live handle; `observeDiff` returns changed positions,
+health, entities, scene, and genre summary. `ReplayRecorder` captures version-1
+tapes and `playReplay` rejects seed mismatches before replaying them.
 
-## 7. AGENTS.md contract (ship with Anvil)
+## Observe contract
 
-Must include:
+The current `ObserveSnapshot` includes:
 
-1. Allowed commands only  
-2. Content edit rules  
-3. No raw Phaser  
-4. validate → test → observe order  
-5. Pointer to this doc + `00_INDEX.md`  
+- runtime `anvilVersion` and observation `schemaVersion: 1`;
+- scene, time, tick, seed, and pause state;
+- simplified entities and current semantic input state;
+- `genre` and first-class `engine` observations;
+- an LLM-friendly `summary` and `allowedActions`; and
+- optional screenshot path.
 
-## 8. Anti-patterns (from research)
+The observation schema version is independent of project `game.yaml`
+`schemaVersion`.
 
-| Anti-pattern | Paper | Anvil mitigation |
-|--------------|-------|------------------|
-| Write all files then bash-debug forever | GC §5.1 | Force validate/test early |
-| Ignore visual state | GD, GC | observe --shot |
-| Invent APIs | GD Godot halluc. | schema + facade |
-| Partial artifact | GC D-II | new + launch gate in test |
+## Programmatic API
+
+```ts
+import {
+  agentStep,
+  createGame,
+  observe,
+  observeDiff,
+  playReplay,
+  ReplayRecorder,
+  runTests,
+  validateProject,
+} from "@anvil/core";
+```
+
+Schema-v2 compiler/migration/capability APIs come from `@anvil/authoring`; the
+ARPG materializer/rules/hook come from `@anvil/genre-arpg`.
+
+## Forbidden shortcuts
+
+- importing Phaser in a game or non-render package;
+- editing dependencies under `node_modules`;
+- treating a successful build as proof that interactions work;
+- dumping entire snapshots into prompts when the summary/diff is sufficient;
+- inventing title-local versions of reusable engine systems; and
+- calling designed but absent M10/M11 CLI commands.

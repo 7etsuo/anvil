@@ -1,11 +1,20 @@
-# Gravewake — Asset Master Checklist
+# Gravewake — original asset checklist (historical)
+
+> **Historical design archive — not a current runtime contract.** This file
+> preserves the original vertical-slice intent. Do not use its controls,
+> filenames, IDs, scope, balance numbers, scene plan, or asset status to change
+> the active game. Start with [`../README.md`](../README.md),
+> [`INDEX.md`](./INDEX.md), [`SYSTEMS.md`](./SYSTEMS.md), current `content/`, and
+> current source.
 
 **Game:** Gravewake  
-**Rule:** Every **Required** row checked before art-complete.  
+**Archive rule:** Every **Required** row was to be checked before the original
+art-complete milestone. These rows are not a current asset inventory.
 **Names/behaviors:** CONTENT_BIBLE, TILES_AND_ENV, ITEMS_AND_LOOT, AUDIO  
 **Pipeline:** ASSET_PIPELINE  
 
-Status: `[ ]` todo · `[~]` wip · `[x]` done · `[-]` cut (needs PLAN/GDD edit)
+Status below applies only to the archived proposal: `[ ]` todo · `[~]` wip ·
+`[x]` done · `[-]` cut.
 
 ---
 

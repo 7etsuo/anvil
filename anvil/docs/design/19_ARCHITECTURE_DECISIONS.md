@@ -27,7 +27,7 @@ Format: status, context, decision, consequences, research link.
 
 - **Status:** Accepted  
 - **Context:** Agents fail on large engine APIs.  
-- **Decision:** Games import `@anvil/core` only; Phaser isolated in render package.  
+- **Decision:** Games import public Anvil packages only; Phaser is isolated in the render package.
 - **Consequences:** Lint ban; swap renderer later.  
 - **Research:** SWE-agent ACI; LLMR.  
 
@@ -78,11 +78,16 @@ Format: status, context, decision, consequences, research link.
 
 ---
 
-## ADR-009: MMO/net is tier-3 spike only
+## ADR-009: Full MMO scope is excluded; multiplayer adapters remain modular
 
 - **Status:** Accepted  
 - **Context:** User wants multi-genre including MMO; research shows authoring MMO is out of band for v1.  
-- **Decision:** Design spike M8; no production MMO claim.  
+- **Decision:** Keep the M8 transport spike small; support authoritative room
+  multiplayer through a separate Colyseus adapter without claiming a complete
+  MMO platform.
+- **Consequences:** Real WebSocket and Colyseus code may exist while shards,
+  account economy, matchmaking product, anti-cheat, and MMO operations remain
+  outside core engine scope.
 
 ---
 
@@ -91,3 +96,31 @@ Format: status, context, decision, consequences, research link.
 - **Status:** Accepted  
 - **Context:** Cannot freeze all genre algorithms before M1.  
 - **Decision:** Gap register `16`; close GAP-* when milestone needs them.  
+
+---
+
+## ADR-011: Schema-v2 source compiles to immutable canonical IR
+
+- **Status:** Accepted
+- **Context:** Agents need a deterministic, inspectable world model shared by
+  headless and browser verification without executing arbitrary content code.
+- **Decision:** A v2 manifest points to an intent contract; host-side
+  `@anvil/authoring` compiles intent and JSON into sorted, deeply frozen IR with
+  a canonical source hash.
+- **Consequences:** Node/browser consumers can prove content provenance;
+  migration and IR versions are explicit; generic CLI integration is required
+  before v2 becomes the default path.
+
+---
+
+## ADR-012: Declarative ARPG layer with restricted title hooks
+
+- **Status:** Accepted
+- **Context:** Gravewake required reusable ARPG content/rule capability without
+  giving a title control of kernel scheduling or the renderer.
+- **Decision:** `@anvil/genre-arpg` materializes compiled IR, executes finite
+  rules, and creates title sessions through `defineArpgGame` with narrowed
+  scene services.
+- **Consequences:** Title content/balance remains outside the engine; the same
+  IR feeds Node and Vite; renderer/kernel ownership stays enforceable; generic
+  CLI loader/scaffold work remains a milestone acceptance condition.

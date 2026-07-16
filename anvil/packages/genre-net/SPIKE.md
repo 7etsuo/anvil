@@ -1,37 +1,44 @@
-# genre-net spike (M8)
+# `@anvil/genre-net` implementation note
 
-**Not production multiplayer.** See `docs/design/specs/S-NET.md`.
+This M8 package is an experimental replication layer, not production
+multiplayer. For an operational room server, use `@anvil/net-colyseus` and
+[`../../docs/design/specs/S-NET-COLYSEUS.md`](../../docs/design/specs/S-NET-COLYSEUS.md).
 
-## What shipped
+## What is implemented
 
 | Piece | Location |
 |-------|----------|
-| `Transport` + `LoopbackTransport` | `src/transport.ts` |
-| Messages `hello` / `state` / `input` | `src/messages.ts` |
+| `Transport` and deterministic pair | `src/transport.ts` |
+| Memory hub/client and open-socket adapter | `src/MemoryTransport.ts` |
+| Minimal Node WebSocket relay and client | `src/NetServer.ts` |
+| `hello` / `state` / `input` codec | `src/messages.ts` |
 | Host-authoritative `NetRoom` | `src/NetRoom.ts` |
-| 2-peer harness | `src/loopbackSession.ts` |
-| Kernel module (observe) | `src/module.ts` |
-| Acceptance tests | `src/NetRoom.test.ts` |
-| Demo example | `examples/hello-net` |
+| Two-peer harness | `src/loopbackSession.ts` |
+| Kernel module and observation | `src/module.ts` |
+| Unit and real local-socket tests | `src/*.test.ts` |
+| Demonstration project | `examples/hello-net` |
 
 ## Authority model
 
-1. Client sends `{ type: "input", actions, peerId }` each step  
-2. Host integrates movement for all entities from last inputs  
-3. Host broadcasts `{ type: "state", tick, entities: [{ id, x, y, hp }] }`  
-4. Client replaces local entity table with host state  
+1. A client sends its latest semantic actions and tick.
+2. The host integrates peer movement from last inputs.
+3. The host broadcasts position/health snapshots.
+4. A client replaces its replicated table with host state.
 
-Host alone may change `hp` (`damage()`).
+Only the host may apply `damage()` to authoritative health.
 
-## Acceptance (automated)
+## Verification
 
 ```bash
 pnpm --filter @anvil/genre-net test
-# "move one peer; other observes position within N ticks"
 ```
 
-## Out of scope (explicit)
+Tests cover loopback replication and an ephemeral local `ws` server with real
+clients.
 
-Shards, matchmaking, anti-cheat, persistence, lag compensation, real sockets, MMO scale.
+## Do not infer production guarantees
 
-WebSocket / WebRTC can implement `Transport` later without changing `NetRoom`.
+`NetServer` is a minimal unauthenticated relay. It does not provide TLS,
+identity, input validation, persistence, matchmaking, reconnect seats, rate
+limits, anti-cheat, lag compensation, or scaling. Those concerns belong in
+the Colyseus adapter or a product-specific backend.

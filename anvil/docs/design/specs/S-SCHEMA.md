@@ -1,157 +1,128 @@
-# Spec: `@anvil/schema` — Full schemas
+# Spec: `@anvil/schema`
 
-**Milestone:** M1 (game.yaml); content schemas grow with genres
+**Milestones:** M1 manifest/content schemas; M10 intent and declarative authoring
 
-## 1. game.yaml (normative fields)
+## 1. Manifest schema
+
+The current `GameYamlSchema` accepts both migration-era versions:
 
 ```ts
-// Zod-equivalent — implement exactly
 {
-  id: z.string().regex(/^[a-z0-9-]+$/),
-  title: z.string().min(1),
-  version: z.string().default('0.0.0'),
-  anvil: z.string().optional(),          // semver range, not enforced M1
-  genre: z.enum(['none','card','topdown2d','vn','shmup','fps2']),
-  modules: z.array(z.string()).default([]),
-  entryScene: z.string().min(1),
-  seed: z.number().int().optional(),
-  contentRoot: z.string().default('content'),
-  assetsRoot: z.string().default('assets'),
-  schemaVersion: z.literal(1).default(1),
+  id: /^[a-z0-9-]+$/,
+  title: string,
+  version: string = "0.0.0",
+  anvil?: string,
+  genre: "none" | "card" | "topdown2d" | "vn" | "shmup" | "fps2" | "arpg",
+  modules: string[] = [],
+  entryScene: string,
+  seed?: integer,
+  contentRoot: string = "content",
+  assetsRoot: string = "assets",
+  intent: relativePath = "game.spec.yaml",
+  schemaVersion: 1 | 2 = 1,
 }
 ```
 
-**hello-empty:** `genre: none`, `modules: []`, `entryScene: main`.
+`LegacyGameYamlSchema` accepts version 1 only and omits `intent`. `intent` is
+parsed/defaulted by `GameYamlSchema` for either version, but only the v2
+authoring compiler reads and requires the referenced file.
 
-**Module ids allowed:** `core` (implicit), `genre-card`, `genre-topdown2d`, `genre-vn`, `genre-shmup`, `genre-fps2`, `genre-net`.
+Built-in module ids are `genre-card`, `genre-topdown2d`, `genre-vn`,
+`genre-shmup`, `genre-fps2`, `genre-arpg`, and `genre-net`; `core` is implicit.
+The manifest's module array is a string array so project-relative and custom
+module ids can also be declared.
 
-Unknown module → `MODULE_UNKNOWN`.  
-If `genre` is `card` and `genre-card` not in modules, validator MUST auto-include or error `GENRE_MISMATCH` — **Decision: auto-append genre module if missing** (agent-friendly).
+`normalizeModules(genre, modules)` removes explicit `core` and auto-appends the
+matching built-in genre module. It does not prove that the CLI can load every
+normalized id; `genre-arpg` loader wiring is pending.
 
-## 2. Shared primitives
+## 2. Safe shared primitives
 
 ```ts
-AssetPath = z.string().min(1).refine(p => !p.includes('..') && !p.startsWith('/'))
-EntityId = z.string().regex(/^[a-zA-Z0-9_.:-]+$/)
-NonNegInt = z.number().int().min(0)
-PositiveNumber = z.number().positive()
+AssetPath = nonEmptyString without ".." and without a leading "/"
+EntityId = /^[a-zA-Z0-9_.:-]+$/
 ```
 
-## 3. Content path registry
+Content, intent, and asset paths are project-relative. Runtime filesystem
+boundaries perform additional root-containment checks.
 
-| Glob | Schema owner | Genre |
-|------|--------------|-------|
-| `content/meta.json` | schema | all |
-| `content/cards/*.json` | genre-card | card |
-| `content/enemies/*.json` | genre-card or topdown | card/topdown |
-| `content/battles/*.json` | genre-card | card |
-| `content/actors/*.json` | topdown/shmup/fps2 | those |
-| `content/maps/*.json` | topdown/fps2 | those |
-| `content/scripts/*.json` | vn | vn |
-| `content/waves/*.json` | shmup | shmup |
-| `content/weapons/*.json` | fps2 | fps2 |
-| `content/audio.json` | core | all |
-| `content/cinematics.json` | core | all |
+## 3. Schema-v2 intent
 
-## 4. Referential integrity (validate)
+`GameIntentSchema` requires:
 
-1. Parse all JSON under contentRoot  
-2. For each AssetPath field, record required asset (missing = warn; strict = ASSET_MISSING)  
-3. Card battles: every enemy id exists; every deck card id exists  
-4. Maps: every spawn actor id exists in actors  
-5. VN: every `next` and choice next resolves to a node id; start exists  
-6. Failures → `REF_MISSING` with path  
+- `schemaVersion: 2`;
+- a non-empty summary;
+- `quality`: `smoke`, `playable`, or `excellent` (default `playable`);
+- players with integer `min >= 1` and `max >= min`;
+- at least one platform from `web`, `desktop`, `mobile`; and
+- at least one uniquely identified requirement.
 
-## 5. ValidationResult
+Requirements have a category, priority (`must`, `should`, `could`),
+description, weight from 1–10, and zero or more verifier ids. The full authoring
+contract is [`S-AUTHORING.md`](./S-AUTHORING.md).
+
+## 4. Declarative authoring schemas
+
+| Schema | Required shape |
+|--------|----------------|
+| `TraitDefSchema` | `id`, `requires[]`, `conflicts[]`, `components{}` |
+| `PrefabDefSchema` | `id`, optional `parent`, ordered `traits[]`, `components{}` |
+| `TriggerDefSchema` | `id`, `when`, non-empty `then[]`, optional `else[]`, `once`, `cooldownMs` |
+| `StateMachineDefSchema` | `id`, valid `initial`, non-empty states with local transition targets |
+
+Conditions and effects are finite discriminated unions; see
+[`S-AUTHORING.md`](./S-AUTHORING.md#rule-dsl).
+
+## 5. Content path registry
+
+The core/genre validator and the v2 compiler have different responsibilities.
+The compiler retains every JSON file by its path and gives special treatment
+to traits, prefabs, triggers, and machines. Runtime genres validate their own
+content shapes.
+
+| Path | Principal owner |
+|------|-----------------|
+| `content/meta.json` | schema/core |
+| `content/cards/*.json`, `battles/*.json` | genre-card |
+| `content/actors/*.json` | topdown2d, shmup, fps2, or ARPG materializer |
+| `content/maps/*.json` | topdown2d/fps2 |
+| `content/scripts/*.json` | genre-vn |
+| `content/waves/*.json` | genre-shmup |
+| `content/weapons/*.json` | genre-fps2 |
+| `content/areas/*.json`, `items/*.json`, `loot/*.json`, `progression.json` | genre-arpg/core RPG |
+| `content/traits/*.json`, `prefabs/*.json`, `triggers/*.json`, `machines/*.json` | authoring compiler |
+| `content/audio.json`, `cinematics.json` | core media services |
+
+Detailed genre field tables live in their component specs and exported Zod
+schemas. Those exports are authoritative when an older prose example differs.
+
+## 6. Referential integrity
+
+Core validation parses JSON and checks known genre references and assets. The
+authoring compiler additionally checks duplicate declarative ids, prefab
+parents, trait requirements/conflicts, actor prefab references, spawn prefab
+references, cycles, and state-machine targets. ARPG materialization then checks
+the resolved actor requirements.
+
+## 7. Validation result
 
 ```ts
 type ValidationResult =
   | { ok: true; warnings?: AnvilError[] }
-  | { ok: false; errors: AnvilError[] }
+  | { ok: false; errors: AnvilError[] };
 ```
 
-## 6. Content schemas (field tables)
+`compileProject` has its own `CompileResult` with either immutable `ir` plus
+warnings or sorted errors.
 
-### meta.json
-`{ "title"?: string, "description"?: string }`
+## 8. Optional asset manifest
 
-### CardDef (`content/cards/*.json`)
-```ts
-{
-  id: EntityId,
-  name: string,
-  cost: NonNegInt,
-  art?: AssetPath,
-  effects: Effect[],
-  tags?: string[]
-}
-Effect =
-  | { op: 'damage'; amount: number; target: 'enemy'|'all_enemies'|'self' }
-  | { op: 'block'; amount: number; target?: 'self'|'enemy' }  // default self
-  | { op: 'draw'; amount: number }
-  | { op: 'apply_status'; status: 'weak'|'vulnerable'; amount: number; target: 'enemy'|'self'|'all_enemies' }
-```
-
-### EnemyDef card (`content/enemies/*.json`)
-```ts
-{
-  id: EntityId,
-  name: string,
-  hp: number,
-  art?: AssetPath,
-  intents: Array<
-    | { kind: 'attack'; amount: number }
-    | { kind: 'block'; amount: number }
-    | { kind: 'buff'; status: string; amount: number }
-  >
-}
-```
-
-### BattleDef (`content/battles/*.json`)
-```ts
-{
-  id: EntityId,
-  playerHp: number,
-  energyMax: number,
-  handSize?: number,          // default 5
-  deck: EntityId[],           // card def ids
-  enemies: EntityId[]
-}
-```
-
-### ActorDef (`content/actors/*.json`)
-```ts
-{
-  id: EntityId,
-  hp: number,
-  speed: number,
-  damage?: number,            // contact default 1
-  ai?: 'none'|'chase_melee'|'keep_distance_ranged',
-  aiParams?: {
-    meleeRange?: number,      // default 24
-    bandMin?: number,         // default 120
-    bandMax?: number,         // default 200
-    fireCooldownMs?: number,     // default 800
-    projectileSpeed?: number  // default 220
-  },
-  animations: Record<string, AssetPath[]>,
-  collider?: { kind: 'circle'; r: number } | { kind: 'aabb'; w: number; h: number },
-  team?: 'player'|'enemy'
-}
-```
-
-### MapDef — see S-TOPDOWN  
-### VnScript — see S-VN  
-### WaveDef — see S-SHMUP  
-### audio.json
-`{ "cues": Record<string, AssetPath> }`  
-### cinematics.json
-`{ "items": Array<{ id: string, video: AssetPath, skippable?: boolean, loop?: boolean }> }`  
-
-## 7. Optional assets/manifest.yaml
+`assets/manifest.yaml` contains a `required` array of project-relative paths:
 
 ```yaml
 required:
-  - relative/path.png
+  - actors/player.png
+  - audio/hit.ogg
 ```
-Paths only. No prompts. Validate as string array.
+
+Missing files warn by default and fail strict asset validation.

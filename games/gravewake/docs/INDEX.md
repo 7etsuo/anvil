@@ -1,35 +1,53 @@
-# Gravewake — Documentation Index
+# Gravewake documentation index
 
-**Game:** Gravewake (active M9 title)
-**Engine/SDK:** [Anvil](../../../anvil/README.md) (repo `anvil/` — not mixed into this game)
+Gravewake is an active schema-v2 ARPG on Anvil. This directory contains both
+current operational documentation and the historical vertical-slice design.
 
-**Read order:**
+## Current operational references
 
-1. **GDD.md** — product (town → overworld → dungeon)  
-2. **PLAN.md** — game build order (uses Anvil)  
-3. **PROGRESSION.md** — XP & levels 1–20  
-4. **OVERWORLD_CINDER_PARISH.md** — open grind zone  
-5. **DUNGEON_BELLCRYPT.md** — instance dungeon  
-6. **CONTENT_BIBLE.md** — entities & abilities  
-7. **TILES_AND_ENV.md** — plates & props  
-8. **ITEMS_AND_LOOT.md** — gear & drops  
-9. **COMBAT_BALANCE.md** — numbers  
-10. **SYSTEMS.md** — game systems (to map onto Anvil)  
-11. **AUDIO.md** — sound cues  
-12. **ASSET_PIPELINE.md** — Imagine workflow (game-level)  
-13. **ASSET_CHECKLIST.md** — every file  
+Read these when changing or testing the shipped game:
 
-The detailed design files capture the original vertical-slice intent. For current runtime scope and commands, start with [`../README.md`](../README.md); source and content are authoritative where older Cinder Parish/Bellcrypt-only notes differ.
+1. [`../README.md`](../README.md) — run commands, controls, world, limitations
+2. [`PLAN.md`](./PLAN.md) — implementation status and remaining work
+3. [`SYSTEMS.md`](./SYSTEMS.md) — real architecture and engine/title ownership
+4. [`PROGRESSION.md`](./PROGRESSION.md) — current authored/runtime numbers
+5. [`../game.spec.yaml`](../game.spec.yaml) — executable player-experience intent
+6. [`../content/`](../content/) and [`../src/`](../src/) — authoritative data and behavior
+
+For engine APIs, use [`../../../anvil/ENGINE.md`](../../../anvil/ENGINE.md),
+[`S-AUTHORING`](../../../anvil/docs/design/specs/S-AUTHORING.md), and
+[`S-ARPG`](../../../anvil/docs/design/specs/S-ARPG.md).
+
+## Historical design archive
+
+These documents describe the original one-overworld/one-dungeon vertical
+slice. They are retained for creative provenance and possible future content,
+but they are not the current runtime contract:
+
+- [`GDD.md`](./GDD.md)
+- [`CONTENT_BIBLE.md`](./CONTENT_BIBLE.md)
+- [`OVERWORLD_CINDER_PARISH.md`](./OVERWORLD_CINDER_PARISH.md)
+- [`DUNGEON_BELLCRYPT.md`](./DUNGEON_BELLCRYPT.md)
+- [`TILES_AND_ENV.md`](./TILES_AND_ENV.md)
+- [`ITEMS_AND_LOOT.md`](./ITEMS_AND_LOOT.md)
+- [`COMBAT_BALANCE.md`](./COMBAT_BALANCE.md)
+- [`AUDIO.md`](./AUDIO.md)
+- [`ASSET_PIPELINE.md`](./ASSET_PIPELINE.md)
+- [`ASSET_CHECKLIST.md`](./ASSET_CHECKLIST.md)
+
+Do not copy their Cinder Parish naming, level-20 cap, Q/E/Space kit, fixed room
+graph, cinematic promises, file inventory, or balance values into current code
+without a new product decision and synchronized data/spec change.
 
 ## Current loop
 
-**Ashen Lychgate** → **Ashen Wastes** → **Bellcrypt / Howling Catacombs / Bonekeep** → endless threat scaling. Levels + loot + crafting.
-
-## Monorepo
-
 ```text
-x-game/
-  anvil/              # framework only
-  games/
-    gravewake/        # active first title
+Ashen Lychgate
+      ↓
+Ashen Wastes
+  ├─ Bellcrypt
+  ├─ Howling Catacombs
+  └─ Bonekeep
+      ↓
+repeat with increasing level, kills, bosses, loot, and threat
 ```

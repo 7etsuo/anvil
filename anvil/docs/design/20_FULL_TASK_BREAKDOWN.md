@@ -1,6 +1,7 @@
-# 20 — Full Task Breakdown (entire Anvil engine)
+# 20 — Full task breakdown and implementation status
 
-**Spec-driven development:** this file is the **complete implementation plan** as ordered atomic tasks.  
+**Spec-driven development:** this file is the implementation plan and current
+status for M1–M11.
 Agents implement tasks in order within a milestone; do not skip dependencies.  
 Format inspired by GitHub Spec Kit `tasks` phase + SDD (arXiv:2602.00180).
 
@@ -10,7 +11,7 @@ Format inspired by GitHub Spec Kit `tasks` phase + SDD (arXiv:2602.00180).
 
 ## M1 — Kernel + ACI + monorepo
 
-| ID | Task | Depends | Spec |
+| ID | Task | Depends | Spec | Status |
 |----|------|---------|------|
 | T-M1-001 | Create pnpm workspace root (`package.json`, `pnpm-workspace.yaml`, `tsconfig.base.json`) | — | 17 | **[x]** |
 | T-M1-002 | Create `@anvil/schema` package + Zod for `game.yaml` | T-M1-001 | 06, S-SCHEMA | **[x]** |
@@ -162,9 +163,51 @@ Format inspired by GitHub Spec Kit `tasks` phase + SDD (arXiv:2602.00180).
 |----|------|---------|------|--------|
 | T-M9-001 | Unpark game decision (Gravewake or other) | M6+ | games/gravewake/PARKED | **[x]** Gravewake |
 | T-M9-002 | Implement game **only** on Anvil APIs under `games/` | T-M9-001 | games/gravewake docs | **[x]** |
-| T-M9-003 | Full content + tests + assets | T-M9-002 | — | **[x]** greybox slice |
+| T-M9-003 | Playable campaign content + tests + first production asset pass | T-M9-002 | Gravewake operational docs | **[x]** |
 | T-M9-004 | Harden procedural instance entry + interactive paper-doll/backpack inventory | T-M9-003 | S-RPG, S-TOPDOWN | **[x]** |
 | T-M9-005 | Guarantee connected procedural landmarks, corridor clearance, and path feedback | T-M9-004 | S-TOPDOWN | **[x]** |
+
+---
+
+## M10 — Schema-v2 agent-native authoring
+
+Library implementation is present, but the CLI migration and default-project
+cutover are not complete. See [`specs/S-AUTHORING.md`](./specs/S-AUTHORING.md).
+
+| ID | Task | Depends | Spec | Status |
+|----|------|---------|------|--------|
+| T-M10-001 | Add schema-v2 manifest fields and `game.spec.yaml` intent contract | M9 | S-SCHEMA, S-AUTHORING | **[x]** |
+| T-M10-002 | Add trait, prefab, trigger, effect, and state-machine schemas | T-M10-001 | S-AUTHORING | **[x]** |
+| T-M10-003 | Implement deterministic `compileProject` and deeply frozen canonical IR | T-M10-002 | S-AUTHORING | **[x]** |
+| T-M10-004 | Implement prefab merge, reference, cycle, requirement, and conflict diagnostics | T-M10-003 | S-AUTHORING, S-ERRORS | **[x]** |
+| T-M10-005 | Implement transactional, idempotent `migrateProject` library API | T-M10-001 | S-AUTHORING | **[x]** |
+| T-M10-006 | Implement capability catalog and per-project descriptors | T-M10-003 | S-AUTHORING | **[x]** |
+| T-M10-007 | Implement Vite `virtual:anvil-game-ir` bridge | T-M10-003 | S-AUTHORING | **[x]** |
+| T-M10-008 | Wire CLI `migrate`, `describe`, and `capabilities` with JSON output | T-M10-005,006 | S-CLI, S-AUTHORING | **[ ]** |
+| T-M10-009 | Make `anvil new` emit schema v2 plus an intent file | T-M10-005 | S-CLI, S-AUTHORING | **[ ]** |
+| T-M10-010 | Migrate active examples and templates to schema v2 | T-M10-009 | S-AUTHORING, 11 | **[ ]** |
+| T-M10-011 | Integrate authoring compilation with generic validate/test/dev paths | T-M10-003,008 | S-CLI, S-TEST | **[ ]** |
+| T-M10-012 | Include authoring tests in the root `pnpm test` suite | T-M10-003 | 18 | **[ ]** |
+| T-M10-013 | M10 acceptance: CLI integration tests and complete repository gate pass | T-M10-008..012 | 14, 18 | **[ ]** |
+
+---
+
+## M11 — Declarative ARPG runtime and Gravewake integration
+
+The package and title integration are implemented. Generic CLI loading and
+scaffolding remain pending. See [`specs/S-ARPG.md`](./specs/S-ARPG.md).
+
+| ID | Task | Depends | Spec | Status |
+|----|------|---------|------|--------|
+| T-M11-001 | Create `@anvil/genre-arpg` and deterministic IR materialization | M10 compiler | S-ARPG | **[x]** |
+| T-M11-002 | Implement finite deterministic `ArpgRuleRuntime` | T-M11-001 | S-ARPG, S-AUTHORING | **[x]** |
+| T-M11-003 | Implement `defineArpgGame` restricted title hook | T-M11-001 | S-ARPG | **[x]** |
+| T-M11-004 | Compile Gravewake through the same IR in Node and Vite/browser | T-M11-001 | S-ARPG | **[x]** |
+| T-M11-005 | Author Gravewake archetypes, campaign rules, and observation provenance | T-M11-002,004 | S-ARPG | **[x]** |
+| T-M11-006 | Add `genre-arpg` to the generic CLI module loader | T-M11-001 | S-CLI, S-ARPG | **[ ]** |
+| T-M11-007 | Add a schema-v2 `anvil new --genre arpg` starter | T-M10-009,T-M11-006 | S-CLI, S-ARPG | **[ ]** |
+| T-M11-008 | Include ARPG tests in root `pnpm test` and CI paths | T-M11-001 | 18 | **[ ]** |
+| T-M11-009 | M11 acceptance: generic ARPG scaffold plus complete repository gate pass | T-M11-006..008 | 14, 18 | **[ ]** |
 
 ---
 
@@ -182,11 +225,13 @@ flowchart LR
   M6 --> M7
   M6 --> M8
   M6 --> M9
+  M9 --> M10
+  M10 --> M11
 ```
 
 ## How an agent uses this file
 
-1. Find first `[ ]` task whose depends are done.  
+1. Find the first `[ ]` task whose dependencies are done.
 2. Read linked Spec.  
 3. Implement.  
 4. Run tests for that milestone.  

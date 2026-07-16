@@ -6,8 +6,8 @@ Thin dispatcher for coding agents ([agents.md](https://agents.md/) format).
 
 | Path | Status | Work allowed |
 |------|--------|--------------|
-| `anvil/` | **Active** — game engine (M1–M8 done) | Yes |
-| `games/gravewake/` | **Active M9** — Diablo-like ARPG on Anvil | Yes (Anvil APIs only) |
+| `anvil/` | **Active** — M1–M9 runtime complete; M10/M11 integration in progress | Yes |
+| `games/gravewake/` | **Active** — playable schema-v2 ARPG on Anvil | Yes (Anvil APIs only) |
 | `games/*` | Future titles | When unparked |
 
 Framework and games stay separate. Never put game content inside `anvil/`.
@@ -37,11 +37,12 @@ Recent examples of the right loop: `CharacterSheet` / loot, `playerMeleeNearest`
 cd anvil
 pnpm install
 pnpm -r run build
-pnpm test
+pnpm test                       # established M1–M9 package suite
+pnpm --filter @anvil/authoring --filter @anvil/genre-arpg test
 pnpm lint
 pnpm validate:examples
 pnpm test:examples
-pnpm check                # full active engine + Gravewake gate
+pnpm check                # intended full gate; see known status below
 
 # CLI
 pnpm anvil version
@@ -54,6 +55,13 @@ pnpm anvil new demo --genre topdown2d
 ```
 
 Supported genres: `none`, `card`, `topdown2d`, `vn`, `shmup`, `fps2`.
+
+Current integration boundary: `anvil new` emits schema v1. Schema-v2
+compilation, migration, capability discovery, and ARPG runtime APIs exist as
+libraries, but `anvil migrate`, `anvil describe`, `anvil capabilities`, and
+`anvil new --genre arpg` are not implemented. The current `pnpm check` fails
+three CLI integration tests for those pending commands/scaffolds. See
+`anvil/docs/design/16_PLANNING_STATUS_AND_GAPS.md` before changing this area.
 
 ## Hard rules
 

@@ -1,96 +1,143 @@
 # Spec: declarative ARPG authoring and runtime
 
-**Milestone:** M11  
-**Package:** `@anvil/genre-arpg`  
+**Milestone:** M11
+
+**Package:** `@anvil/genre-arpg`
+
 **Depends on:** S-AUTHORING, S-RPG, S-TOPDOWN, S-AGENT
 
-## 1. Purpose
+## Implementation status
 
-`genre-arpg` turns schema-v2 authoring data into a browser-safe action-RPG
-runtime. It is a reusable layer above `core` and `genre-topdown2d`; title lore,
-balance, maps, art, and named skills remain in the game.
+| Surface | Status in this checkout |
+|---------|-------------------------|
+| `materializeArpgContent` | Implemented and tested |
+| `ArpgRuleRuntime` | Implemented and tested |
+| `defineArpgGame` restricted hook | Implemented and tested |
+| `arpgModule` export | Implemented |
+| Vite/Node immutable-IR use in Gravewake | Implemented |
+| Gravewake declarative archetypes/campaign rules/provenance | Implemented |
+| Generic CLI loader for `genre-arpg` | **Not implemented** |
+| `anvil new --genre arpg` | **Not implemented** |
+| Full repository gate | **Not green**; blocked by pending CLI integration tests |
 
-The design is optimized for coding agents:
+## 1. Purpose and boundary
 
-- one compiled, immutable IR is the source of truth in Node and browser builds;
-- archetypes use composable traits and prefabs instead of copied actor fields;
-- finite conditions, effects, triggers, and state machines execute at runtime;
-- rule state and recent decisions are structured observations;
-- game hooks cannot take renderer, kernel, or scheduler ownership.
+`@anvil/genre-arpg` turns schema-v2 authoring IR into a browser-safe
+action-RPG runtime layer above core and topdown2d. Reusable ARPG mechanics live
+here or in core; title lore, balance, maps, art, and named skills remain in the
+game.
 
-## 2. Compiled content
+The IR is the shared Node/browser content source. Traits and prefabs reduce
+copied actor fields. Finite triggers and state machines drive campaign rules.
+The title hook cannot take renderer, kernel, scene-registration, or scheduler
+ownership.
 
-`materializeArpgContent(ir)` MUST:
+## 2. Materialize compiled content
 
-1. extract actors, areas, items, loot tables, and progression from canonical IR
-   content paths;
-2. resolve an actor's optional `prefab` from `ir.prefabs`;
-3. merge `prefab.components.actor` beneath the actor's authored overrides;
-4. retain prefab/trait provenance for observation and diagnostics;
-5. reject missing prefabs and actors missing required top-down fields;
-6. return the IR source hash and declarative rules with the materialized data.
+```ts
+import { compileProject } from "@anvil/authoring";
+import { materializeArpgContent } from "@anvil/genre-arpg";
 
-The function MUST be deterministic and browser-safe. It MUST NOT read files.
+const result = compileProject(root);
+if (!result.ok) throw new Error("Authoring compilation failed");
+const content = materializeArpgContent(result.ir);
+```
+
+`materializeArpgContent(ir)`:
+
+1. extracts actors, areas, items, loot tables, and progression from canonical
+   content-relative IR paths;
+2. resolves each actor's optional prefab;
+3. merges `prefab.components.actor` beneath authored actor overrides;
+4. retains source hash, actor-prefab mapping, trait provenance, and rules;
+5. rejects missing prefabs and actors without positive `hp` or non-negative
+   `speed`; and
+6. performs no filesystem access.
+
+The materialized object contains `actors`, `areas`, `items`, `lootTables`,
+`progression`, `rules`, `authoring`, `raw`, and `sourceHash`.
 
 ## 3. Rule runtime
 
 `ArpgRuleRuntime` executes the S-AUTHORING condition/effect language.
 
-- `dispatch(event, data, context)` evaluates triggers and one transition per
-  state machine in deterministic id order.
-- `update(dtMs, context)` advances the logical clock and evaluates persistent
+- `dispatch(event, data, context)` evaluates triggers and at most one
+  transition per state machine in deterministic id order.
+- `update(dtMs, context)` advances a logical clock and evaluates persistent
   conditions.
-- `set_flag`, `add_counter`, and `emit` are built in. Other effects are passed
-  to a typed title/engine adapter.
-- `once` and `cooldownMs` are enforced by the logical clock, never wall time.
-- value paths can read `event`, `state`, `flags`, and `counters`.
-- snapshots expose logical time, current states, flags, counters, fired
+- `set_flag`, `add_counter`, and `emit` are built in. Other effects go to the
+  title/engine adapter supplied by the caller.
+- `once` and `cooldownMs` use logical time, never wall-clock time.
+- Value paths read `event`, `state`, `flags`, and `counters`.
+- Nested dispatch is queued and bounded so cyclic authored events cannot hang
+  the simulation.
+- Snapshots expose logical time, current states, flags, counters, fired
   triggers, transitions, and the last event.
 
-Invalid paths are `undefined`, comparisons are type-safe, nested dispatch is
-queued, and a bounded drain prevents cyclic authored events from hanging play.
+## 4. Restricted title hook
 
-## 4. Restricted game hook
+`defineArpgGame(definition)` returns an `ArpgGameBinding` with a `module` and
+`getSession()` accessor.
 
-`defineArpgGame(definition)` creates a `GenreModule` and session accessor.
-Definitions may load/provide compiled content and create a session with:
+```ts
+import { defineArpgGame } from "@anvil/genre-arpg";
 
-- world, input, deterministic random, and public `SceneContext` services;
-- `update`, `observe`, and optional `dispose` lifecycle callbacks.
+const binding = defineArpgGame({
+  id: "my-arpg",
+  content,
+  create(services, compiledContent) {
+    return {
+      update(dt, input) { /* title-specific orchestration */ },
+      observe() { return { ready: true }; },
+    };
+  },
+});
 
-Definitions MUST NOT receive `Kernel`, `KernelInternals`, renderer access,
-scene registration, or system scheduling. The factory owns scene cleanup and
-registers the structured observation under the title's id.
+export default binding.module;
+```
+
+`create` receives the public scene services minus assets/data/seed plus the
+definition's content. It does not receive `Kernel`, `KernelInternals`, renderer
+access, scene registration, or scheduling controls. Optional `register`
+receives only event and audio services. The factory owns cleanup and registers
+the session's structured observation under `observeKey` or the title id.
 
 ## 5. Browser compiler bridge
 
-`@anvil/authoring/vite` MUST compile the game root during Vite configuration
-and expose `virtual:anvil-game-ir`. It MUST:
+Use `anvilGameIr` from `@anvil/authoring/vite` and import
+`virtual:anvil-game-ir`. Then call `materializeArpgContent` in the browser. This
+keeps filesystem/compiler code out of the browser graph while consuming the
+same content hash as headless play.
 
-- fail the build with formatted compiler diagnostics;
-- serialize the same immutable IR used by headless play;
-- invalidate when `game.yaml`, the intent file, or content changes;
-- keep Node built-ins and the authoring compiler out of the browser graph.
+See the production example:
 
-## 6. Gravewake acceptance
+- [`../../../../games/gravewake/src/loadContent.ts`](../../../../games/gravewake/src/loadContent.ts)
+- [`../../../../games/gravewake/src/module.ts`](../../../../games/gravewake/src/module.ts)
+- [`../../../../games/gravewake/browser/contentEmbed.ts`](../../../../games/gravewake/browser/contentEmbed.ts)
+- [`../../../../games/gravewake/vite.config.ts`](../../../../games/gravewake/vite.config.ts)
 
-M11 is accepted when Gravewake:
+## 6. Current CLI limitation
 
-- declares genre `arpg` and consumes `@anvil/genre-arpg` in Node and browser;
-- loads canonical content from compiled IR in both environments;
-- materializes every actor through authored prefab/trait archetypes;
-- dispatches area-entry, enemy-kill, boss-kill, and level-up events;
-- drives campaign state through authored triggers/state machines;
-- exposes declarative rule state and source provenance in observations;
-- retains connected instance movement, inventory, progression, combat, and
-  browser production-build regressions;
-- passes the complete repository check.
+`GameYamlSchema` and module normalization know the `arpg` genre and
+`genre-arpg` id. The CLI's runtime module loader does not yet import
+`@anvil/genre-arpg`; unknown non-relative ids are currently skipped. Gravewake
+still runs because it also declares `./dist/module.js`, whose default export is
+the title module created by `defineArpgGame`.
 
-## 7. Research rationale
+Do not use `anvil new --genre arpg` or assume that a manifest containing only
+`modules: [genre-arpg]` will launch a generic ARPG. Complete the M11 CLI tasks
+first.
 
-M11 follows the evidence that agent-authored interactive systems benefit from
-structured executable world models, concise world scaffolds, semantic rules,
-explicit action/observation boundaries, and verifier-driven execution. Anvil
-implements these as versioned IR + finite rules + structured observations +
-executable acceptance tests, while retaining ordinary TypeScript escape hatches
-behind restricted genre hooks.
+## 7. Gravewake acceptance status
+
+| Condition | Status |
+|-----------|--------|
+| Declares `genre: arpg`; consumes ARPG package in Node/browser | Pass |
+| Uses canonical compiled IR in both environments | Pass |
+| Materializes actor prefab/trait archetypes with provenance | Pass |
+| Dispatches area, kill, boss, and level events | Pass |
+| Drives campaign state through authored rules | Pass |
+| Preserves movement, inventory, progression, combat, and web build tests | Pass in title test/build commands |
+| Complete repository check | Pending due to CLI integration failures |
+
+Tasks: [`../20_FULL_TASK_BREAKDOWN.md`](../20_FULL_TASK_BREAKDOWN.md#M11--declarative-arpg-runtime-and-gravewake-integration).

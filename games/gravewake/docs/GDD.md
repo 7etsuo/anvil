@@ -1,26 +1,36 @@
-# Gravewake — Game Design Document (Locked)
+# Gravewake — original game design document (historical)
 
-**Status:** Decisions locked for vertical slice v1.  
+> **Historical design archive — not a current runtime contract.** This file
+> preserves the original vertical-slice intent. Do not use its controls,
+> filenames, IDs, scope, balance numbers, scene plan, or asset status to change
+> the active game. Start with [`../README.md`](../README.md),
+> [`INDEX.md`](./INDEX.md), [`SYSTEMS.md`](./SYSTEMS.md), current `content/`, and
+> current source.
+
+**Archive status:** This records decisions that were locked for the original
+vertical slice, not for the active game.
+
 ** codename / folder:** `x-game`  
 **Title:** **Gravewake**
 
-This document is authoritative for product design.  
-Content IDs, assets, numbers: see linked docs. Do not invent parallel lore or systems mid-slice.
+The text below is authoritative only when reconstructing that historical
+design. Current intent lives in `game.spec.yaml`; current IDs and numbers live
+in `content/`.
 
 | Doc | Role |
 |-----|------|
 | [CONTENT_BIBLE.md](./CONTENT_BIBLE.md) | Every entity, ability, animation, FX ID |
 | [OVERWORLD_CINDER_PARISH.md](./OVERWORLD_CINDER_PARISH.md) | Open grind map, packs, respawns, POIs |
 | [DUNGEON_BELLCRYPT.md](./DUNGEON_BELLCRYPT.md) | Instance dungeon graph, rooms, spawns |
-| [PROGRESSION.md](./PROGRESSION.md) | XP, levels 1–20, level rewards |
+| [PROGRESSION.md](./PROGRESSION.md) | Current progression replacement; the archived proposal below used levels 1–20 |
 | [TILES_AND_ENV.md](./TILES_AND_ENV.md) | Every plate, tile, prop |
 | [ITEMS_AND_LOOT.md](./ITEMS_AND_LOOT.md) | Every item, drop table, vendor |
 | [COMBAT_BALANCE.md](./COMBAT_BALANCE.md) | Stats, damage formulas, tuning |
-| [SYSTEMS.md](./SYSTEMS.md) | Engine modules, data, save, scenes |
+| [SYSTEMS.md](./SYSTEMS.md) | Current implementation map; replaces the archived scene plan |
 | [AUDIO.md](./AUDIO.md) | Every sound/music cue (stub assets OK) |
 | [ASSET_PIPELINE.md](./ASSET_PIPELINE.md) | How Imagine produces frames |
 | [ASSET_CHECKLIST.md](./ASSET_CHECKLIST.md) | File-by-file tick list |
-| [PLAN.md](./PLAN.md) | Build phases |
+| [PLAN.md](./PLAN.md) | Current implementation status and next work |
 
 ---
 

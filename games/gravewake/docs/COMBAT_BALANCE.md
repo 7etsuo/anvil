@@ -1,4 +1,11 @@
-# Gravewake — Combat & Balance (Locked v1 targets)
+# Gravewake — original combat and balance targets (historical)
+
+> **Historical design archive — not a current runtime contract.** This file
+> preserves the original vertical-slice intent. Do not use its controls,
+> filenames, IDs, scope, balance numbers, scene plan, or asset status to change
+> the active game. Start with [`../README.md`](../README.md),
+> [`INDEX.md`](./INDEX.md), [`SYSTEMS.md`](./SYSTEMS.md), current `content/`, and
+> current source.
 
 Numbers are **starting targets**. Tune after greybox, but do not add new stats without docs update.
 

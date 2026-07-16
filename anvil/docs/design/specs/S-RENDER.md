@@ -19,13 +19,23 @@ export interface RenderFacade {
 }
 ```
 
-## Phaser package rules
+## Implementations and package rules
 
-- ONLY package that may `import 'phaser'`  
-- MUST implement full interface  
-- Headless: NullRenderFacade implements no-ops except capture returns empty or minimal PNG  
+- `NullRenderFacade` (core) no-ops and returns a minimal 1×1 PNG.
+- `CanvasRenderFacade` (core) owns/reuses an HTML canvas, supports a simple
+  world-space top-left camera, draws through Canvas2D, and captures PNG.
+- `PhaserRenderFacade` (`@anvil/render-phaser`) constructs a Phaser game and
+  implements the same facade.
+- Only `@anvil/render-phaser` may import `phaser`.
+
+`createGame` defaults to `NullRenderFacade`; browser hosts must pass the canvas
+or Phaser facade they want. Browser mode also tells the kernel to skip its
+default draw so a title-owned presentation loop is not cleared/overdrawn.
 
 ## Coordinates
 
 - Screen space pixels; origin top-left  
-- World→screen conversion is genre/camera responsibility (pass already-transformed coords to draw*)  
+- World→screen conversion is genre/camera responsibility. Canvas facade quad
+  and sprite calls apply its configured top-left camera; text remains HUD
+  screen space. Consumers should not assume every renderer applies the same
+  implicit camera—prefer `ViewCamera`/explicit projection in game presentation.

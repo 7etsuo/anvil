@@ -10,8 +10,9 @@ sequenceDiagram
   participant R as RenderFacade
   participant A as AssetServer
 
-  Host->>K: start(gameDescriptor)
-  K->>A: preload(manifest paths)
+  Host->>K: createGame(options + loaded modules)
+  K->>A: configure game/assets roots
+  K->>K: register main + module scenes; enter entryScene
   loop every frame
     Host->>K: frame(wallDt)
     K->>K: accumulate fixed timestep
@@ -46,26 +47,24 @@ stateDiagram-v2
 
 Scenes are named strings registered by modules (`title`, `battle`, `dungeon`, …).
 
-## 4. System order (default)
+## 4. System order
 
-1. InputSystem  
-2. GenreGameplaySystems (module-defined)  
-3. Physics/Collision (if any)  
-4. AnimationSystem  
-5. AudioSystem  
-6. Lifetime/Despawn  
-7. Observe sampling (if requested)  
-
-Modules append systems with explicit priority integers.
+Modules append systems with explicit numeric priorities; lower numbers run
+first. Historical conventions place input near 0, genre work at 100–199,
+collision near 200, animation near 300, audio near 400, and lifetime near 500.
+First-class kernel services also update through the kernel's implemented order.
+Do not depend on an undocumented relative order; choose an explicit priority or
+use events/public service APIs.
 
 ## 5. Render facade
 
-Canonical: **`specs/S-RENDER.md`**.  
-Implementation package: **`@anvil/render-phaser` only**.
+Canonical: **`specs/S-RENDER.md`**. Core supplies null and canvas facades;
+`@anvil/render-phaser` is the only Phaser-backed implementation and the only
+package permitted to import Phaser.
 
 ## 6. Headless mode
 
-- Same kernel; RenderFacade is null renderer except screenshot noop or canvas  
+- Same kernel; default renderer is `NullRenderFacade`; callers may supply canvas/Phaser
 - `anvil test` uses headless  
 - Satisfies GC “CLI/headless-friendly” preference  
 
@@ -78,6 +77,10 @@ On `anvil test` / package run:
 3. Create kernel  
 4. Enter `entryScene`  
 5. If throw → `LAUNCH_FAIL` (GC BUILD=0 analogue)  
+
+Schema-v2 note: this generic launch gate currently parses `GameYamlSchema` but
+does not call `compileProject`. An authoring-aware title/host must compile first
+until M10 CLI integration lands.
 
 ## 8. Performance budgets (v1 soft)
 

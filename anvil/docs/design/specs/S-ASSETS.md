@@ -8,6 +8,10 @@
 - MUST reject `..` and absolute paths at validate  
 - Extensions: `.png .webp .jpg .jpeg .ogg .wav .mp3 .mp4 .webm`  
 
+Bundled audio is available under `anvil/assets/audio`; bundled sprites are not
+currently populated. A catalog API existing does not imply that asset files
+ship.
+
 ## 2. Resolve algorithm
 
 ```
@@ -45,3 +49,9 @@ Missing audio → null handle; play is no-op + one log.
 ## 8. Video cinematic
 
 Missing video → skip cinematic + log; emit finished immediately.
+
+## 9. Browser boundary
+
+Browser `AssetServer.has()` cannot stat files and returns false; browser texture
+and audio handles load through URLs and record a miss on failure. Hosts must
+serve the declared `assetsRoot` at the expected public path.

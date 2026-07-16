@@ -1,4 +1,11 @@
-# Cinder Parish — Open Overworld (Locked)
+# Cinder Parish — original overworld design (historical)
+
+> **Historical design archive — not a current runtime contract.** This file
+> preserves the original vertical-slice intent. Do not use its controls,
+> filenames, IDs, scope, balance numbers, scene plan, or asset status to change
+> the active game. Start with [`../README.md`](../README.md),
+> [`INDEX.md`](./INDEX.md), [`SYSTEMS.md`](./SYSTEMS.md), current `content/`, and
+> current source.
 
 **Zone ID:** `cinder_parish`  
 **Display name:** Cinder Parish  

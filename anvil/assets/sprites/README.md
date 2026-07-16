@@ -1,27 +1,28 @@
-# Bundled sprite library (optional)
+# Bundled sprite directory
 
-Mirror of the audio library idea: drop **CC0** sprite sheets / tiles here so
-agents can pick paths without hunting online.
+This directory reserves the same catalog layout used by bundled audio, but the
+current checkout contains **no sprite assets or `catalog.json`**. Do not tell an
+agent to select or link sprites from here until a licensed pack is actually
+added.
 
-## Layout
+The intended future layout is:
 
-```
+```text
 sprites/
-  catalog.json     # generated index (optional)
-  LICENSES.md      # provenance
-  characters/      # walk cycles, idle
-  tiles/           # floors, walls
-  ui/              # panels, icons
-  fx/              # slash, explosion frames
-  items/           # loot icons
+  catalog.json
+  LICENSES.md
+  characters/
+  tiles/
+  ui/
+  fx/
+  items/
 ```
 
-## Agent API
+Core exports `listBundledSprites` and `loadBundledSpriteCatalog`; with the
+current empty directory they cannot provide a usable asset inventory. Games
+should keep their own images under the declared `assetsRoot` and may use Anvil
+greyboxes while art is missing.
 
-Use `listBundledSprites()` / `loadBundledSpriteCatalog()` from `@anvil/core`
-(same pattern as audio). Paths are relative to this folder; symlink into a game
-as `assets/sprites`.
-
-## License
-
-Only **CC0 / public domain** assets. See `LICENSES.md` when packs are added.
+Only CC0/public-domain assets with recorded provenance may be added. Update
+[`LICENSES.md`](./LICENSES.md), generate a catalog, and update this status in
+the same change.

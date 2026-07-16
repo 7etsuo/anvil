@@ -1,17 +1,20 @@
 {
   "id": "crypt_pack",
   "entries": [
-    { "item": "gold", "weight": 32, "min": 10, "max": 40 },
-    { "item": "health_potion", "weight": 20, "min": 1, "max": 3 },
-    { "item": "bone_cleaver", "weight": 14, "min": 1, "max": 1 },
-    { "item": "ash_mail", "weight": 12, "min": 1, "max": 1 },
-    { "item": "iron_helm", "weight": 10, "min": 1, "max": 1 },
-    { "item": "grave_ring", "weight": 6, "min": 1, "max": 1 },
-    { "item": "rusty_sword", "weight": 6, "min": 1, "max": 1 },
-    { "item": "ruby_gem", "weight": 8, "min": 1, "max": 2 },
-    { "item": "sapphire_gem", "weight": 7, "min": 1, "max": 1 },
-    { "item": "emerald_gem", "weight": 6, "min": 1, "max": 1 },
-    { "item": "topaz_gem", "weight": 5, "min": 1, "max": 1 },
-    { "item": "warden_cloak", "weight": 5, "min": 1, "max": 1 }
+    { "item": "gold", "weight": 28, "min": 12, "max": 45 },
+    { "item": "health_potion", "weight": 14, "min": 1, "max": 3 },
+    { "item": "bone_cleaver", "weight": 10, "min": 1, "max": 1 },
+    { "item": "bellwardens_brand", "weight": 6, "min": 1, "max": 1 },
+    { "item": "ash_mail", "weight": 8, "min": 1, "max": 1 },
+    { "item": "bone_greaves", "weight": 9, "min": 1, "max": 1 },
+    { "item": "crypt_grips", "weight": 9, "min": 1, "max": 1 },
+    { "item": "iron_helm", "weight": 6, "min": 1, "max": 1 },
+    { "item": "plague_shield", "weight": 7, "min": 1, "max": 1 },
+    { "item": "grave_ring", "weight": 5, "min": 1, "max": 1 },
+    { "item": "ashen_amulet", "weight": 5, "min": 1, "max": 1 },
+    { "item": "ruby_gem", "weight": 6, "min": 1, "max": 2 },
+    { "item": "sapphire_gem", "weight": 5, "min": 1, "max": 1 },
+    { "item": "emerald_gem", "weight": 5, "min": 1, "max": 1 },
+    { "item": "topaz_gem", "weight": 4, "min": 1, "max": 1 }
   ]
 }

@@ -1,0 +1,10 @@
+{
+  "id": "tyrant_edge",
+  "name": "Tyrant Edge",
+  "rarity": "unique",
+  "slot": "weapon",
+  "stats": { "damage": 18, "critChance": 0.08, "critMult": 0.35, "armor": 2 },
+  "flavor": "The Bonekeep's last decree.",
+  "icon": "icons/tyrant_edge.png",
+  "visual": { "sprite": "gear/tyrant_edge.png", "ox": 0.34, "oy": 0.02, "scale": 0.42, "z": 40 }
+}

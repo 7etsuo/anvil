@@ -41,6 +41,14 @@ import sapphire_gem from "../content/items/sapphire_gem.json";
 import emerald_gem from "../content/items/emerald_gem.json";
 import topaz_gem from "../content/items/topaz_gem.json";
 import warden_cloak from "../content/items/warden_cloak.json";
+import ash_boots from "../content/items/ash_boots.json";
+import bone_greaves from "../content/items/bone_greaves.json";
+import grave_gauntlets from "../content/items/grave_gauntlets.json";
+import crypt_grips from "../content/items/crypt_grips.json";
+import ashen_amulet from "../content/items/ashen_amulet.json";
+import tyrant_edge from "../content/items/tyrant_edge.json";
+import bellwardens_brand from "../content/items/bellwardens_brand.json";
+import plague_shield from "../content/items/plague_shield.json";
 
 import wastes_pack from "../content/loot/wastes_pack.json";
 import crypt_pack from "../content/loot/crypt_pack.json";
@@ -91,6 +99,14 @@ export const embeddedItems: Record<string, ItemDef> = {
   emerald_gem: emerald_gem as ItemDef,
   topaz_gem: topaz_gem as ItemDef,
   warden_cloak: warden_cloak as ItemDef,
+  ash_boots: ash_boots as ItemDef,
+  bone_greaves: bone_greaves as ItemDef,
+  grave_gauntlets: grave_gauntlets as ItemDef,
+  crypt_grips: crypt_grips as ItemDef,
+  ashen_amulet: ashen_amulet as ItemDef,
+  tyrant_edge: tyrant_edge as ItemDef,
+  bellwardens_brand: bellwardens_brand as ItemDef,
+  plague_shield: plague_shield as ItemDef,
 };
 
 export const embeddedLoot = {

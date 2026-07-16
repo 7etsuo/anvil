@@ -1,0 +1,10 @@
+{
+  "id": "ash_boots",
+  "name": "Ash Treads",
+  "rarity": "common",
+  "slot": "feet",
+  "stats": { "armor": 2, "speed": 12, "maxHp": 6 },
+  "flavor": "Soot-caked soles of the Lychgate watch.",
+  "icon": "icons/ash_boots.png",
+  "visual": { "sprite": "gear/ash_boots.png", "ox": 0, "oy": 0.38, "scale": 0.28, "z": 12 }
+}

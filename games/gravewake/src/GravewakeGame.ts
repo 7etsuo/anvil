@@ -2634,6 +2634,17 @@ export class GravewakeGame {
                 ? "#6868ff"
                 : "#d0d0d0",
       });
+      // Player-facing rarity labels (unique ≈ legendary)
+      if (rarity === "unique" || rarity === "rare") {
+        this.pushFx({
+          kind: "banner",
+          text:
+            rarity === "unique"
+              ? `★ LEGENDARY — ${drop.name}`
+              : `◆ RARE — ${drop.name}`,
+          t: 2.2,
+        });
+      }
       this.services.audio?.play("equip_metal", "sfx");
     }
   }

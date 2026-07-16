@@ -73,6 +73,14 @@ const ASSET_URLS: Record<string, string> = {
   "gear/iron_helm.png": "/assets/gear/iron_helm.png",
   "gear/grave_ring.png": "/assets/gear/grave_ring.png",
   "gear/warden_cloak.png": "/assets/gear/warden_cloak.png",
+  "gear/ash_boots.png": "/assets/gear/ash_boots.png",
+  "gear/bone_greaves.png": "/assets/gear/bone_greaves.png",
+  "gear/grave_gauntlets.png": "/assets/gear/grave_gauntlets.png",
+  "gear/crypt_grips.png": "/assets/gear/crypt_grips.png",
+  "gear/ashen_amulet.png": "/assets/gear/ashen_amulet.png",
+  "gear/tyrant_edge.png": "/assets/gear/tyrant_edge.png",
+  "gear/bellwardens_brand.png": "/assets/gear/bellwardens_brand.png",
+  "gear/plague_shield.png": "/assets/gear/plague_shield.png",
   "icons/health_potion.png": "/assets/icons/health_potion.png",
   "icons/ruby_gem.png": "/assets/icons/ruby_gem.png",
   "icons/sapphire_gem.png": "/assets/icons/sapphire_gem.png",
@@ -80,6 +88,14 @@ const ASSET_URLS: Record<string, string> = {
   "icons/topaz_gem.png": "/assets/icons/topaz_gem.png",
   "icons/grave_ring.png": "/assets/icons/grave_ring.png",
   "icons/warden_cloak.png": "/assets/icons/warden_cloak.png",
+  "icons/ash_boots.png": "/assets/icons/ash_boots.png",
+  "icons/bone_greaves.png": "/assets/icons/bone_greaves.png",
+  "icons/grave_gauntlets.png": "/assets/icons/grave_gauntlets.png",
+  "icons/crypt_grips.png": "/assets/icons/crypt_grips.png",
+  "icons/ashen_amulet.png": "/assets/icons/ashen_amulet.png",
+  "icons/tyrant_edge.png": "/assets/icons/tyrant_edge.png",
+  "icons/bellwardens_brand.png": "/assets/icons/bellwardens_brand.png",
+  "icons/plague_shield.png": "/assets/icons/plague_shield.png",
   "props/chest.png": "/assets/props/chest.png",
   "props/shrine.png": "/assets/props/shrine.png",
   "props/waypoint.png": "/assets/props/waypoint.png",
@@ -510,9 +526,27 @@ async function main(): Promise<void> {
             VIEW_H,
             screen.x,
             screen.y,
+            {
+              button: e.button,
+              shift: e.shiftKey,
+              canSell: true,
+            },
           );
           if (action?.kind === "equip") gw.equipItem(action.uid);
           else if (action?.kind === "unequip") gw.unequipItem(action.slot);
+          else if (action?.kind === "sell") gw.sellItem(action.uid);
+          else if (action?.kind === "sell_junk") gw.sellJunk();
+        } else if (e.button === 2) {
+          // right-click sell from bag
+          const action = inventoryPanelActionAt(
+            blob.inventoryView,
+            VIEW_W,
+            VIEW_H,
+            screen.x,
+            screen.y,
+            { button: 2, canSell: true },
+          );
+          if (action?.kind === "sell") gw.sellItem(action.uid);
         }
         e.preventDefault();
         return;
@@ -882,7 +916,57 @@ async function main(): Promise<void> {
 
     if (area) {
       drawIsoFloor(ctx, area, cam, VIEW_W, VIEW_H, floorTex, mood);
+      // Atmosphere tint per zone so maps read distinct
+      if (mood === "dungeon") {
+        ctx.fillStyle = "rgba(20,10,40,0.18)";
+        ctx.fillRect(0, 0, VIEW_W, VIEW_H);
+      } else if (mood === "overworld") {
+        ctx.fillStyle = "rgba(80,50,20,0.12)";
+        ctx.fillRect(0, 0, VIEW_W, VIEW_H);
+      } else {
+        ctx.fillStyle = "rgba(40,50,70,0.08)";
+        ctx.fillRect(0, 0, VIEW_W, VIEW_H);
+      }
       drawIsoWalls(ctx, area, cam, VIEW_W, VIEW_H, wallTex, 42);
+      // Decorative props for map interest (deterministic scatter)
+      const pillar = images.get("env/ruin_pillar.png");
+      const arch = images.get("env/ruin_arch.png");
+      if (pillar || arch) {
+        const seed = String(blob.area ?? "x")
+          .split("")
+          .reduce((a, c) => a + c.charCodeAt(0), 0);
+        for (let i = 0; i < 14; i++) {
+          const px =
+            ((seed * 17 + i * 97) % Math.max(40, area.width - 80)) + 40;
+          const py =
+            ((seed * 31 + i * 53) % Math.max(40, area.height - 80)) + 40;
+          // skip if on wall-ish
+          let blocked = false;
+          for (const w of area.walls ?? []) {
+            if (
+              px >= w.x &&
+              px <= w.x + w.w &&
+              py >= w.y &&
+              py <= w.y + w.h
+            ) {
+              blocked = true;
+              break;
+            }
+          }
+          if (blocked) continue;
+          const s = handle.camera.project(px, py);
+          if (s.x < -40 || s.y < -40 || s.x > VIEW_W + 40 || s.y > VIEW_H + 40)
+            continue;
+          const img = i % 3 === 0 ? arch : pillar;
+          if (!img?.complete) continue;
+          const sc = i % 3 === 0 ? 0.55 : 0.42;
+          const iw = img.naturalWidth * sc;
+          const ih = img.naturalHeight * sc;
+          ctx.globalAlpha = mood === "dungeon" ? 0.85 : 0.7;
+          ctx.drawImage(img, s.x - iw / 2, s.y - ih * 0.9, iw, ih);
+          ctx.globalAlpha = 1;
+        }
+      }
     } else {
       ctx.fillStyle = "#1a1510";
       ctx.fillRect(0, 0, VIEW_W, VIEW_H);
@@ -1817,6 +1901,7 @@ async function main(): Promise<void> {
           level: blob.level,
           gold: blob.gold,
           stats: blob.combatStats,
+          canSell: true,
         },
         images,
         VIEW_W,

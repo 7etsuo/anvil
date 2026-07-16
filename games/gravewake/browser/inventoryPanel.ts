@@ -9,13 +9,18 @@ type Rect = { x: number; y: number; w: number; h: number };
 
 export type InventoryPanelAction =
   | { kind: "equip"; uid: string }
-  | { kind: "unequip"; slot: EquipSlot };
+  | { kind: "unequip"; slot: EquipSlot }
+  | { kind: "sell"; uid: string }
+  | { kind: "sell_junk" };
 
 export interface InventoryPanelModel {
   inventory: CharacterInventoryView;
   level: number;
   gold: number;
   stats: Stats;
+  /** Per-uid sell prices (only bag items). */
+  sellValues?: Record<string, number>;
+  canSell?: boolean;
 }
 
 export interface InventoryPointer {
@@ -38,9 +43,17 @@ const SLOT_LABEL: Record<EquipSlot, string> = {
 const RARITY_COLOR: Record<string, string> = {
   common: "#b8b8b8",
   magic: "#7373ff",
-  rare: "#f0c94c",
-  unique: "#c88648",
+  rare: "#f0c94c", // epic-tier yellow
+  unique: "#c88648", // legendary orange
   set: "#48c868",
+};
+
+const RARITY_LABEL: Record<string, string> = {
+  common: "COMMON",
+  magic: "MAGIC",
+  rare: "RARE / EPIC",
+  unique: "LEGENDARY",
+  set: "SET",
 };
 
 function contains(rect: Rect, x: number, y: number): boolean {
@@ -146,12 +159,50 @@ export function inventoryPanelActionAt(
   viewH: number,
   x: number,
   y: number,
+  opts?: { button?: number; shift?: boolean; canSell?: boolean },
 ): InventoryPanelAction | null {
+  const l = layout(viewW, viewH, view.capacity);
+  // Sell-junk button (bottom-right of panel)
+  const junkBtn: Rect = {
+    x: l.panel.x + l.panel.w - 168,
+    y: l.panel.y + l.panel.h - 52,
+    w: 140,
+    h: 26,
+  };
+  if (opts?.canSell !== false && contains(junkBtn, x, y)) {
+    return { kind: "sell_junk" };
+  }
   const hit = itemAt(view, viewW, viewH, x, y);
   if (!hit) return null;
   if (hit.equippedSlot) return { kind: "unequip", slot: hit.equippedSlot };
+  // Right-click or Shift+click bag item → sell
+  if (
+    opts?.canSell !== false &&
+    !hit.equippedSlot &&
+    (opts?.button === 2 || opts?.shift)
+  ) {
+    return { kind: "sell", uid: hit.item.uid };
+  }
   if (hit.item.slot && hit.item.canEquip) return { kind: "equip", uid: hit.item.uid };
+  // Non-equippable bag items (gems/pots): right-click already handled; left no-op
+  if (opts?.canSell !== false && !hit.item.slot) {
+    return { kind: "sell", uid: hit.item.uid };
+  }
   return null;
+}
+
+export function inventorySellJunkButton(
+  viewW: number,
+  viewH: number,
+  capacity: number,
+): Rect {
+  const l = layout(viewW, viewH, capacity);
+  return {
+    x: l.panel.x + l.panel.w - 168,
+    y: l.panel.y + l.panel.h - 52,
+    w: 140,
+    h: 26,
+  };
 }
 
 function drawPanelFrame(ctx: CanvasRenderingContext2D, rect: Rect): void {
@@ -272,7 +323,9 @@ function tooltipLines(
   view: CharacterInventoryView,
 ): string[] {
   const lines = [item.name];
-  lines.push(`${item.rarity.toUpperCase()}${item.itemLevel ? ` · ITEM LV ${item.itemLevel}` : ""}`);
+  lines.push(
+    `${RARITY_LABEL[item.rarity] ?? item.rarity.toUpperCase()}${item.itemLevel ? ` · ITEM LV ${item.itemLevel}` : ""}`,
+  );
   for (const [key, value] of Object.entries(item.stats)) {
     if (typeof value !== "number" || value === 0) continue;
     const pct = key.toLowerCase().includes("crit") || key.toLowerCase().includes("resist");
@@ -295,7 +348,15 @@ function tooltipLines(
     }
   }
   if (item.flavor) lines.push(item.flavor.slice(0, 46));
-  if (item.slot) lines.push(equipped ? "Click to move to backpack" : "Click to equip");
+  if (item.slot) {
+    lines.push(
+      equipped
+        ? "Click to move to backpack"
+        : "Left-click equip · Right-click / Shift-click sell",
+    );
+  } else {
+    lines.push("Click to sell (or right-click)");
+  }
   return lines;
 }
 
@@ -400,12 +461,33 @@ export function drawInventoryPanel(
 
   ctx.fillStyle = "#9d9283";
   ctx.font = "bold 11px system-ui";
-  ctx.fillText(statText(model.stats), l.panel.x + 24, l.panel.y + l.panel.h - 24);
+  ctx.fillText(statText(model.stats), l.panel.x + 24, l.panel.y + l.panel.h - 56);
+  // Sell junk button
+  if (model.canSell !== false) {
+    const junk: Rect = {
+      x: l.panel.x + l.panel.w - 168,
+      y: l.panel.y + l.panel.h - 52,
+      w: 140,
+      h: 26,
+    };
+    const jh = contains(junk, pointer.x, pointer.y);
+    ctx.fillStyle = jh ? "rgba(120,80,30,0.95)" : "rgba(70,50,20,0.95)";
+    ctx.fillRect(junk.x, junk.y, junk.w, junk.h);
+    ctx.strokeStyle = "#c9a46c";
+    ctx.strokeRect(junk.x + 0.5, junk.y + 0.5, junk.w - 1, junk.h - 1);
+    ctx.fillStyle = "#e8c878";
+    ctx.font = "bold 12px system-ui";
+    ctx.textAlign = "center";
+    ctx.fillText("SELL JUNK", junk.x + junk.w / 2, junk.y + 17);
+    ctx.textAlign = "left";
+  }
   ctx.fillStyle = "#756b5e";
   ctx.font = "10px system-ui";
-  ctx.textAlign = "right";
-  ctx.fillText("Click bag gear to equip · click worn gear to unequip", l.panel.x + l.panel.w - 22, l.panel.y + l.panel.h - 24);
-  ctx.textAlign = "left";
+  ctx.fillText(
+    "L-click equip · R-click / Shift sell · unequip worn",
+    l.panel.x + 24,
+    l.panel.y + l.panel.h - 18,
+  );
 
   const hovered = itemAt(view, viewW, viewH, pointer.x, pointer.y);
   if (hovered) {

@@ -1,0 +1,10 @@
+{
+  "id": "grave_gauntlets",
+  "name": "Grave Gauntlets",
+  "rarity": "common",
+  "slot": "hands",
+  "stats": { "armor": 2, "damage": 1, "maxHp": 5 },
+  "flavor": "Cold iron fingerbones.",
+  "icon": "icons/grave_gauntlets.png",
+  "visual": { "sprite": "gear/grave_gauntlets.png", "ox": 0.22, "oy": 0.18, "scale": 0.22, "z": 28 }
+}

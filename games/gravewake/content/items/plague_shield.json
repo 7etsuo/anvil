@@ -1,0 +1,10 @@
+{
+  "id": "plague_shield",
+  "name": "Plague Buckler",
+  "rarity": "magic",
+  "slot": "offhand",
+  "stats": { "armor": 8, "maxHp": 12, "resistPoison": 0.12 },
+  "flavor": "Pitted wood that still holds.",
+  "icon": "icons/plague_shield.png",
+  "visual": { "sprite": "gear/plague_shield.png", "ox": -0.3, "oy": 0.08, "scale": 0.36, "z": 25 }
+}

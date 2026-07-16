@@ -1,176 +1,129 @@
-# 04 — System Architecture
+# 04 — System architecture
 
-**Research:** GC desiderata; DG submodule pattern; SW ACI; LR high-level API.
+Anvil separates safe declarative source, host-side compilation, deterministic
+runtime services, genre rules, title code, and rendering. The schema-v1 path
+can go directly from manifest/content to the runtime; schema-v2 projects first
+compile to immutable IR.
 
-## 1. Context diagram
+## Context
 
 ```mermaid
 flowchart LR
-  subgraph Agents
-    A[Coding Agent / Human]
-  end
-  subgraph AnvilCLI[Anvil CLI - ACI]
-    C[new validate dev test observe assets recipe]
-  end
-  subgraph GamePkg[Game Package]
-    Y[game.yaml]
-    J[content/*.json]
-    F[assets/*]
-    T[tests/*]
-  end
-  subgraph Runtime
-    K[Core Kernel]
-    M[Genre Modules]
-    R[Render Facade]
-  end
-  A --> C
-  C --> GamePkg
-  C --> K
-  K --> M
-  K --> R
-  K --> F
-  K --> J
+  Agent[Coding agent or human] --> CLI[Anvil CLI]
+  Agent --> Source[Game manifest, intent, JSON, assets, tests]
+  CLI --> Validator[Core validator and test runner]
+  Source --> Validator
+  Source --> Compiler[Authoring compiler - schema v2]
+  Compiler --> IR[Immutable AnvilGameIR]
+  IR --> Arpg[ARPG materializer and rule runtime]
+  Source --> Runtime[Core kernel]
+  Arpg --> Title[Restricted title module]
+  Title --> Runtime
+  Runtime --> Genres[Genre modules]
+  Runtime --> Render[Render facade]
+  Validator --> Runtime
 ```
 
-## 2. Package UML (logical)
+The current generic CLI does not yet connect the compiler/ARPG boxes. Gravewake
+does so explicitly in its Node and Vite host boundaries.
+
+## Package view
 
 ```mermaid
-classDiagram
-  direction TB
-  class AnvilCLI {
-    +new()
-    +validate()
-    +dev()
-    +test()
-    +observe()
-    +assetsMissing()
-    +recipeList()
-  }
-  class GameDescriptor {
-    +id: string
-    +genre: string
-    +modules: string[]
-    +contentRoot: string
-    +assetsRoot: string
-  }
-  class Kernel {
-    +tick()
-    +pause()
-    +seed: number
-  }
-  class World {
-    +spawn()
-    +destroy()
-    +query()
-  }
-  class Entity {
-    +id: string
-    +components: Map
-  }
-  class System {
-    <<interface>>
-    +update(dt, world)
-  }
-  class SceneManager {
-    +push()
-    +pop()
-    +replace()
-  }
-  class AssetServer {
-    +getTexture(path)
-    +getAudio(path)
-    +greybox(path)
-  }
-  class ObserveService {
-    +snapshotJSON()
-    +screenshot()
-  }
-  class GenreModule {
-    <<interface>>
-    +register(kernel)
-  }
-  class CardModule
-  class TopdownModule
-  class VnModule
-  class ShmupModule
-  class Fps2Module
-  class RenderFacade {
-    +drawSprite()
-    +drawText()
-  }
+flowchart TD
+  Schema[@anvil/schema]
+  Core[@anvil/core]
+  Authoring[@anvil/authoring]
+  Genres[@anvil/genre-card, topdown2d, vn, shmup, fps2]
+  Arpg[@anvil/genre-arpg]
+  LegacyNet[@anvil/genre-net]
+  Colyseus[@anvil/net-colyseus]
+  Renderer[@anvil/render-phaser]
+  Recipes[@anvil/recipes]
+  CLI[@anvil/cli]
+  Desktop[@anvil/desktop]
+  Games[examples and games]
 
-  AnvilCLI --> GameDescriptor
-  AnvilCLI --> Kernel
-  AnvilCLI --> ObserveService
-  Kernel --> World
-  Kernel --> SceneManager
-  Kernel --> AssetServer
-  Kernel --> RenderFacade
-  World "1" *-- "many" Entity
-  Kernel --> System
-  GenreModule <|-- CardModule
-  GenreModule <|-- TopdownModule
-  GenreModule <|-- VnModule
-  GenreModule <|-- ShmupModule
-  GenreModule <|-- Fps2Module
-  GenreModule --> Kernel
+  Core --> Schema
+  Authoring --> Schema
+  Genres --> Core
+  Genres --> Schema
+  Arpg --> Core
+  Arpg --> Schema
+  Arpg --> Topdown[@anvil/genre-topdown2d]
+  LegacyNet --> Core
+  Colyseus --> Core
+  Renderer --> Core
+  CLI --> Core
+  CLI --> Schema
+  CLI --> Recipes
+  Games --> Core
+  Games --> Genres
+  Games --> Arpg
+  Games -. host only .-> Authoring
+  Desktop --> Games
 ```
 
-## 3. Layering rules
+## Runtime components
 
-| Layer | May depend on | Must not depend on |
-|-------|---------------|--------------------|
-| Game package content | schemas only | Phaser, kernel internals |
-| Genre modules | core | other genres (except via events) |
-| Core | render facade interface | game content |
-| CLI | core + schema + recipes | game-specific code |
-| Render backend (Phaser) | nothing above | — |
+| Component | Responsibility |
+|-----------|----------------|
+| Kernel/GameHandle | Fixed-step scheduling, service lifetime, public runtime handle |
+| World | Entity storage and queries |
+| SceneManager | Scene stack and lifecycle |
+| ModuleRegistry | Genre/module registration and systems/scenes |
+| InputMap | Semantic actions, keyboard/gamepad bindings, edge latching |
+| EventBus | Typed-by-convention system decoupling |
+| AssetServer | Root-safe lookup and deterministic greybox handles |
+| RenderFacade | Renderer-neutral drawing and capture |
+| Observe/agent ACI | Snapshot, summary, semantic step, diff, replay |
+| RPG/combat services | Character, items, resources, abilities, statuses, projectiles, death, etc. |
+| Authoring compiler | Intent/content parsing, composition, diagnostics, canonical frozen IR |
+| ARPG layer | IR materialization, finite rules, restricted title hook |
 
-**Dependency rule (REQ-A03):** game code imports `@anvil/core` and `@anvil/genre-*` only.
+## Dependency and ownership rules
 
-## 4. Directory layout (repo)
+| Layer | May depend on | Must not own/import |
+|-------|---------------|---------------------|
+| Declarative game content | Schema-defined JSON/YAML concepts | Executable code, absolute paths, renderer internals |
+| Game host/build boundary | Public Anvil packages, authoring compiler | Phaser, kernel internals |
+| Title runtime module | Core/genre public APIs | Renderer, `KernelInternals`, scheduler, scene registration through restricted ARPG hook |
+| Genre modules | Core and schema; ARPG also topdown2d | Title content or title lore |
+| Core | Schema and render-facade interface | A particular game or Phaser |
+| CLI | Core, schema, recipes; authoring after pending M10 wiring | Hard-coded title behavior |
+| Phaser backend | Core facade types | Game content decisions |
 
-**Canonical tree:** [`17_MONOREPO_AND_STACK.md`](./17_MONOREPO_AND_STACK.md)  
-(includes `render-phaser`, `hello-empty`, `hello-fps2`, `fps2-starter`).
+Game code may import `@anvil/core`, appropriate `@anvil/genre-*` packages, and
+schema/authoring at safe host boundaries. Only `@anvil/render-phaser` may import
+Phaser.
 
-## 5. Component responsibilities
+## Deployment views
 
-| Component | Responsibility | REQ |
-|-----------|----------------|-----|
-| CLI | ACI entry | P01–P10 |
-| Schema | Zod/JSON Schema validate | P04 |
-| Kernel | tick, seed, pause | K01–K02 |
-| World | entities/components | K04 |
-| Systems | behavior | K05 |
-| SceneManager | flow | K03 |
-| AssetServer | paths + greybox | K08, S01–S03 |
-| Input | action map | K07 |
-| Events | decouple systems | K06 |
-| ObserveService | agent eyes | P07–P08 |
-| TestRunner | headless scenarios | P06 |
-| Genre modules | domain rules | G01–G06 |
-| Recipes | verified snippets | A05, VY |
-| RenderFacade | draw abstraction | K12 |
-
-## 6. Deployment views
-
-### 6.1 Dev (agent loop)
+### Schema-v1 development
 
 ```text
-Agent → CLI → Vite dev server → Browser
-                ↘ headless test process
+agent → CLI → validate/test or Vite → core + built-in genre → facade
 ```
 
-### 6.2 CI
+### Schema-v2 Gravewake development
 
 ```text
-git push → pnpm test → anvil validate (all examples) → anvil test (all examples)
+Node tests: files → compileProject → IR → materialize → title module → core
+Browser:    files → Vite host plugin → virtual IR → materialize → title module
 ```
 
-## 7. Security / sandbox (agent safety)
+### CI
 
-- CLI operates only within project root  
-- No privileged host commands in recipes  
-- Tests run sandboxed cwd  
+The current workflow builds, lints, runs the configured package suite, checks
+recipes, builds selected examples, and validates/tests Gravewake and all hello
+examples. See [`18_TESTING_AND_CI.md`](./18_TESTING_AND_CI.md) for known path and
+M10/M11 coverage gaps.
 
-(Aligns with agent failure catalogs; keep destructive ops out of ACI.)
+## Safety properties
+
+- Project paths are resolved inside declared roots.
+- Declarative authoring never executes content as code.
+- Recipes describe game-root files and do not run privileged commands.
+- Tests use deterministic seeds and fixed timesteps.
+- Authoring output excludes timestamps and absolute paths.
+- No image-generation API is part of the engine.

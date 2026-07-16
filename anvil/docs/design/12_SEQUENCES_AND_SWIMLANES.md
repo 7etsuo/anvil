@@ -76,11 +76,15 @@ sequenceDiagram
   participant Ker as Kernel
 
   Boot->>Desc: load game.yaml
-  Boot->>Reg: resolve modules[]
+  Boot->>Boot: host/CLI resolves module ids to GenreModule values
+  Boot->>Reg: pass loaded modules to createGame
   Reg->>Card: register(kernel)
   Card->>Ker: add systems + scenes + schemas
   Boot->>Ker: enter entryScene
 ```
+
+The current CLI loader supports established schema-v1 genres, `genre-net`, and
+relative modules. It does not yet resolve `genre-arpg` by id.
 
 ## 5. Swimlane: debug after test fail (research-aligned)
 
@@ -160,3 +164,26 @@ flowchart TB
   Node --> Browser
   Node --> Disk[(project files)]
 ```
+
+## 10. Schema-v2 authoring flow
+
+```mermaid
+sequenceDiagram
+  participant FS as game.yaml + intent + content
+  participant Host as Node or Vite host
+  participant AU as @anvil/authoring
+  participant IR as immutable IR
+  participant AR as @anvil/genre-arpg
+  participant K as Core runtime
+
+  Host->>AU: compileProject(gameRoot)
+  AU->>FS: read safe YAML/JSON
+  AU-->>Host: diagnostics or frozen IR + sourceHash
+  Host->>AR: materializeArpgContent(IR)
+  AR-->>Host: browser-safe content + rules + provenance
+  Host->>K: createGame(modules: [titleModule])
+```
+
+In a browser build, the Vite plugin performs compilation on the host and the
+browser imports `virtual:anvil-game-ir`; compiler filesystem code is excluded
+from the browser graph.

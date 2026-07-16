@@ -53,8 +53,8 @@ Legacy `@anvil/genre-net` loopback/raw `ws` relay is for tests/spikes only.
 docker compose -f packages/net-colyseus/deploy/docker-compose.yml up -d
 REDIS_URL=redis://127.0.0.1:6379 pnpm --filter @anvil/net-colyseus dev:server
 
-# agent/ops probe
-anvil net health --url http://127.0.0.1:2567
+# agent/ops probe from anvil/
+pnpm anvil net health --url http://127.0.0.1:2567
 ```
 
 ## API
@@ -84,3 +84,11 @@ net.sendInput(["move_right"], 1);
 
 - `packages/net-colyseus/deploy/nginx-wss.conf` — WSS terminator
 - `packages/net-colyseus/deploy/docker-compose.yml` — Redis
+
+## Scope boundary
+
+“Supported production path” means this is the maintained authoritative room
+adapter with security/ops checks. It is not a turnkey account, matchmaking,
+durable inventory/economy, anti-cheat, or MMO platform. A deployment still
+owns authentication policy, TLS/domain configuration, secrets, abuse controls,
+backups, monitoring, and capacity testing.

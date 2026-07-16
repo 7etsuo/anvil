@@ -1,317 +1,214 @@
-# Spec: `@anvil/core` — Complete Kernel Contract
+# Spec: `@anvil/core` current public contract
 
-**RFC 2119:** MUST / SHOULD / MAY  
-**Milestone:** M1+ (save API M2)
+**Milestones:** M1–M9 plus RPG/engine extensions
 
-## 1. Purpose
+Core owns deterministic simulation time, world/scenes/events/input, asset and
+render abstractions, save/observe/test entry points, and reusable game systems.
+It must never import Phaser.
 
-Own simulation time, world, scenes, events, input, assets (resolution types), observe/test entrypoints.  
-MUST NOT `import 'phaser'`.
-
-## 2. Public package API
+## Primary entry points
 
 ```ts
-export function createGame(opts: CreateGameOptions): Promise<GameHandle>
-export function validateProject(root: string): Promise<ValidationResult>
-export function runTests(root: string, opts?: TestOpts): Promise<TestReport>
-export function observe(handle: GameHandle, opts?: ObserveOpts): Promise<ObserveSnapshot>
-export function saveGame(handle: GameHandle, slot?: string): Promise<void>      // M2
-export function loadGame(root: string, slot?: string): Promise<GameHandle>    // M2
+createGame(opts: CreateGameOptions): Promise<GameHandle>
+validateProject(root: string): Promise<ValidationResult>
+runTests(root: string, opts?: TestOpts): Promise<TestReport>
+observe(handle: GameHandle, opts?: ObserveOpts): Promise<ObserveSnapshot>
+saveGame(handle: GameHandle, slot?: string): Promise<void>
+loadGame(root: string, slot?: string, opts?: Partial<CreateGameOptions>): Promise<GameHandle>
 ```
 
-### CreateGameOptions
+The public barrel also exports agent ACI/replay, RPG/itemization, combat,
+abilities/resources, AI/path/procgen, UI/FX/audio, content validation, plugins,
+tile maps/spatial hashes, and run-state helpers. Inspect
+`packages/core/src/index.ts` for the exhaustive symbol list; this spec defines
+ownership and the stable primary shapes.
+
+## Game creation
+
 ```ts
 interface CreateGameOptions {
-  root: string                 // absolute path to game package; MUST be real directory
-  headless?: boolean           // default false in browser, true in runTests
-  seed?: number                // default from game.yaml or 1
-  renderer?: RenderFacade      // default: Phaser in browser; NullRenderFacade if headless
-  maxDtSteps?: number          // default 5
-  fixedDt?: number             // default 1/60
+  root: string;
+  headless?: boolean;
+  seed?: number;
+  renderer?: RenderFacade;
+  maxDtSteps?: number;
+  fixedDt?: number;
+  modules?: GenreModule[];
+  browser?: boolean;
+  gameYaml?: GameYaml;
 }
 ```
 
-### GameHandle
+- Non-browser creation resolves and verifies a real root, then reads
+  `game.yaml` unless `gameYaml` is supplied.
+- Browser creation uses `browser: true` and should supply a parsed/embedded
+  manifest plus renderer.
+- The default renderer is `NullRenderFacade`, including in a browser. A host
+  that wants canvas/Phaser rendering must pass it explicitly.
+- Seed resolution is explicit option, manifest seed, then 1.
+- Core does not discover/import runtime modules by manifest id. The CLI or host
+  loads `GenreModule` values and passes `modules`.
+- A no-op `main` scene is registered before modules; the selected entry scene
+  is entered before `createGame` resolves.
+- Browser presentation owns drawing, so core sets skip-default-draw.
+- `createGame` accepts project schema v1 or v2 through `GameYamlSchema`; it does
+  not run the schema-v2 authoring compiler.
+
+## GameHandle
+
+The returned handle exposes:
+
 ```ts
 interface GameHandle {
-  readonly world: World
-  readonly scenes: SceneManager
-  readonly events: EventBus
-  readonly input: InputMap
-  readonly assets: AssetServer
-  readonly modules: ModuleRegistry
-  tick(dtWallSeconds: number): void
-  pause(): void
-  resume(): void
-  isPaused(): boolean
-  getSeed(): number
-  getTime(): number            // simulated seconds
-  getTick(): number            // integer sim steps
-  dispose(): void
+  readonly world: World;
+  readonly scenes: SceneManager;
+  readonly events: EventBus;
+  readonly input: InputMap;
+  readonly assets: AssetServer;
+  readonly modules: ModuleRegistry;
+  readonly audio: AudioSystem;
+  readonly cinema: CinematicSystem;
+  readonly particles: ParticleSystem;
+  readonly quests: QuestSystem;
+  readonly plugins: PluginRegistry;
+  readonly ui: UiKit;
+  readonly camera: ViewCamera;
+  readonly abilities: AbilitySystem;
+  readonly statuses: StatusSystem;
+  readonly projectiles: ProjectileSystem;
+  readonly resources: ResourcePool;
+  readonly interactables: InteractableSystem;
+  readonly triggers: TriggerSystem;
+  readonly floatText: FloatTextSystem;
+  readonly transitions: ScreenTransition;
+  readonly threat: ThreatTable;
+  readonly death: DeathSystem;
+  readonly kernel: Kernel;
+  readonly game: GameYaml;
+  readonly root: string;
+  readonly version: string;
+  tick(dtWallSeconds: number): void;
+  pause(): void;
+  resume(): void;
+  isPaused(): boolean;
+  getSeed(): number;
+  getTime(): number;
+  getTick(): number;
+  dispose(): void;
 }
 ```
 
-## 3. World
+`kernel` is exposed by the current handle for advanced engine consumers. Games
+should prefer the named services; ARPG title definitions intentionally never
+receive it.
 
-```ts
-interface World {
-  spawn(init?: Partial<EntityInit>): string
-  destroy(id: string): void
-  get(id: string): Entity | undefined
-  has(id: string): boolean
-  query(...componentKeys: string[]): Entity[]
-  all(): Entity[]
-  clear(): void
-}
+## World
 
-interface Entity {
-  id: string
-  tags: string[]
-  transform?: { x: number; y: number; z?: number; rot?: number }
-  sprite?: { frames: string[]; fps: number; loop: boolean; frame: number }
-  health?: { hp: number; max: number }
-  collider?: { kind: 'circle'; r: number } | { kind: 'aabb'; w: number; h: number }
-  lifetime?: { remainingMs: number }
-  data: Record<string, unknown>
-}
+`World.spawn(init)` returns the entity id. Ids are unique; generated ids are
+`e_<n>`. `destroy` is idempotent. `query(...keys)` returns entities where every
+named top-level component is present. `all`, `get`, `has`, and `clear` provide
+the remaining storage operations.
 
-interface EntityInit {
-  id?: string                  // auto-generated if omitted: e_<n>
-  tags?: string[]
-  transform?: Entity['transform']
-  sprite?: Omit<NonNullable<Entity['sprite']>, 'frame'> & { frame?: number }
-  health?: Entity['health']
-  collider?: Entity['collider']
-  lifetime?: Entity['lifetime']
-  data?: Record<string, unknown>
-}
-```
+Core entity fields are `id`, `tags`, optional `transform`, `sprite`, `health`,
+`collider`, and `lifetime`, plus an always-present `data` extension record.
+Genre-specific state should use typed services or documented `data` fields.
 
-**Invariants:** ids unique; destroy is idempotent; query = entities that have all named top-level component keys present.
+## Scenes
 
-## 4. SceneManager
+`SceneManager` supports `register`, `push`, `pop`, `replace`, `current`, and
+`update`. A factory receives `SceneContext` containing world/events/input/assets,
+data, seed/random, and optional public services for particles, quests, audio,
+statuses, abilities, projectiles, resources, interactables, triggers, float
+text, transitions, threat, and death.
 
-```ts
-interface SceneManager {
-  register(name: string, factory: SceneFactory): void
-  push(name: string, data?: unknown): void
-  pop(): void
-  replace(name: string, data?: unknown): void
-  current(): string | null
-}
+Transitions emit `scene:exit` and `scene:enter`. Popping an empty stack throws.
+An unknown entry scene becomes `LAUNCH_FAIL` during creation.
 
-type SceneFactory = (ctx: SceneContext) => Scene
-interface SceneContext {
-  world: World
-  events: EventBus
-  input: InputMap
-  assets: AssetServer
-  data?: unknown
-}
-interface Scene {
-  enter?(): void
-  exit?(): void
-  update(dt: number): void
-  /** optional draw using render facade via kernel */
-}
-```
+## InputMap
 
-Emits `scene:exit` then `scene:enter` on transitions. pop on empty stack MUST throw → `INTERNAL` if uncaught at API; createGame MUST register `entryScene` before start.
+Input is expressed as logical actions. The map supports action definition,
+keyboard and gamepad button/axis binding, rebinding/export/import, raw host key
+delivery, held/pressed/released queries, scripted `setDown`, and snapshots.
+Short key taps are latched between simulation steps.
 
-## 5. EventBus
+Default keyboard actions include:
 
-```ts
-type EventHandler = (payload: unknown) => void
-interface EventBus {
-  on(event: string, handler: EventHandler): () => void  // returns unsubscribe
-  once(event: string, handler: EventHandler): void
-  emit(event: string, payload?: unknown): void
-  off(event: string, handler: EventHandler): void
-}
-```
+| Actions | Bindings |
+|---------|----------|
+| Move | W/A/S/D; forward/back also W/S |
+| Confirm/shoot | Space; confirm also Enter |
+| Cancel/skip cinematic | Escape |
+| End turn | E |
+| Inventory/interact/map | I/F/M |
+| Card slots/choices | Digit0–Digit9 |
+| Enemy selection | Tab |
+| Turn | ArrowLeft/ArrowRight |
 
-### Core events (MUST emit)
+Default gamepad mappings include confirm/cancel/shoot/interact/inventory and
+two movement axes. Gamepad support is implemented; older “OOS v1” statements
+are obsolete.
 
-| Event | Payload |
-|-------|---------|
-| `scene:enter` | `{ name: string }` |
-| `scene:exit` | `{ name: string }` |
-| `entity:spawn` | `{ id: string }` |
-| `entity:destroy` | `{ id: string }` |
-| `game:pause` | `{}` |
-| `game:resume` | `{}` |
-
-Genre events SHOULD use `domain:action` form.
-
-## 6. InputMap (complete)
-
-```ts
-interface InputMap {
-  /** register logical action; idempotent */
-  defineAction(name: string): void
-  /** bind key code (KeyboardEvent.code) to action */
-  bindKey(action: string, code: string): void
-  /** true if held this sim frame */
-  isDown(action: string): boolean
-  /** true if transitioned up→down since last sim step */
-  isPressed(action: string): boolean
-  /** true if transitioned down→up since last sim step */
-  isReleased(action: string): boolean
-  /** headless/tests: force state before tick */
-  setDown(action: string, down: boolean): void
-  /** clear all pressed/released edges after systems read them — kernel calls end of step */
-  endFrame(): void
-  /** snapshot for observe */
-  snapshot(): Record<string, boolean>
-}
-```
-
-### Default key bindings (browser)
-
-| Action | Key `code` |
-|--------|------------|
-| `move_up` | KeyW |
-| `move_down` | KeyS |
-| `move_left` | KeyA |
-| `move_right` | KeyD |
-| `confirm` | Space / Enter |
-| `cancel` | Escape |
-| `shoot` | Space |
-| `end_turn` | KeyE |
-| `play_card_0` … `play_card_9` | Digit0…Digit9 |
-| `select_enemy_next` | Tab |
-| `turn_left` | ArrowLeft |
-| `turn_right` | ArrowRight |
-| `move_forward` | KeyW |
-| `move_back` | KeyS |
-| `choice_0` … `choice_9` | Digit0…Digit9 |
-| `skip_cinematic` | Escape / Space |
-
-Genres MUST use these names (or defineAction additional). Gamepad OOS v1.
-
-### Headless input for tests
-
-Scenario steps set actions via `setDown` before ticks (see S-TEST).
-
-## 7. ModuleRegistry
+## Modules and scheduling
 
 ```ts
 interface GenreModule {
-  id: string
-  register(kernel: KernelInternals): void
-  schemas?(): Record<string, unknown>  // Zod schemas keyed by content path pattern
-  defaultScenes?(): Array<{ name: string; factory: SceneFactory }>
-}
-
-interface ModuleRegistry {
-  register(mod: GenreModule): void
-  get(id: string): GenreModule | undefined
-  list(): string[]
+  id: string;
+  register(kernel: KernelInternals): void;
+  schemas?(): Record<string, unknown>;
+  defaultScenes?(): Array<{ name: string; factory: SceneFactory }>;
 }
 ```
 
-Unknown module id in game.yaml → `MODULE_UNKNOWN`.
+The registry supports `register`, `get`, and `list`. Kernel module registration
+calls `register`, then installs declared default scenes. Systems use numeric
+priority; lower priorities update first. Unknown manifest ids are handled by
+validation/host loaders, not by `ModuleRegistry` itself.
 
-### System registration (inside register)
+## Time and deterministic random
 
-```ts
-kernel.addSystem(name: string, priority: number, fn: (dt: number, world: World) => void): void
-```
+The kernel uses a fixed timestep (default 1/60), caps wall delta at 0.25
+seconds, and limits catch-up steps (default 5). Pause freezes simulation time
+and systems. `random()` and `randomInt()` derive from the configured seed.
 
-Default priorities (lower runs first): Input 0, Genre 100–199, Collision 200, Anim 300, Audio 400, Lifetime 500.
+Agents/tests should use `agentStep` or controlled `tick` calls and never use
+wall time as simulation authority.
 
-## 8. AssetServer
+## Assets and rendering
 
-```ts
-interface AssetServer {
-  /** resolve path relative to assetsRoot; no '..' segments */
-  resolve(path: string): string
-  has(path: string): boolean
-  /** texture handle or greybox marker */
-  getTexture(path: string): TextureHandle
-  getAudio(path: string): AudioHandle | null
-  missing(): string[]          // paths requested but missing
-  preload(paths: string[]): Promise<void>
-}
-```
+`AssetServer` resolves project-relative paths inside the game root, exposes
+browser/node texture and audio handles, tracks missing paths, resolves video,
+supports preload, and returns deterministic labelled/color greyboxes for
+missing images.
 
-Greybox: see S-ASSETS.
+Core supplies null and canvas facades; `@anvil/render-phaser` supplies Phaser.
+Only facade methods may cross the core/renderer boundary.
 
-## 9. Kernel time / RNG
+## Observation and agent ACI
 
-```ts
-// accessible via handle
-random(): number           // [0,1)
-randomInt(min: number, maxExclusive: number): number
-```
+`ObserveSnapshot` version 1 contains version/scene/time/tick/seed/pause,
+simplified entities, input, UI, genre and engine state, a summary,
+`allowedActions`, and optional screenshot. It is unrelated to project schema
+v1/v2.
 
-MUST be deterministic given seed. pause freezes sim time; wall clock still may call tick but accumulator does not advance systems when paused.
+`agentStep`, `observeDiff`, `ReplayRecorder`, and `playReplay` are implemented.
+See [`../05_AGENT_COMPUTER_INTERFACE.md`](../05_AGENT_COMPUTER_INTERFACE.md).
 
-### Fixed timestep algorithm (normative)
+## Save models
 
-```
-accumulator += min(dtWall, 0.25)
-steps = 0
-while accumulator >= fixedDt and steps < maxDtSteps:
-  if not paused: runSystems(fixedDt); tick++
-  accumulator -= fixedDt
-  steps++
-alpha = accumulator / fixedDt   // for render interpolation if used
-render(alpha)
-input.endFrame()
-```
+`saveGame` writes `saves/<slot>.json` atomically in Node or
+`anvil_save_<gameId>_<slot>` in browser storage. `SaveGame` v1 stores runtime
+entities and genre state; v2 optionally adds character and zone state through
+registered hooks. `loadGame` accepts v1/v2 and recreates the game with caller
+supplied modules/renderer/browser manifest as needed.
 
-## 10. ObserveSnapshot (versioned)
+For ARPG continuation, the separate `RunStateV1` helpers store a character,
+area/position, seed, and free-form flags under
+`anvil_run_<gameId>_<slot>`.
 
-```ts
-interface ObserveSnapshot {
-  anvilVersion: string
-  schemaVersion: 1
-  scene: string | null
-  time: number
-  tick: number
-  seed: number
-  paused: boolean
-  entities: Array<{
-    id: string
-    tags: string[]
-    x?: number
-    y?: number
-    hp?: number
-    maxHp?: number
-  }>
-  input: Record<string, boolean>
-  ui: Record<string, unknown>
-  genre: Record<string, unknown>
-  screenshot?: string          // relative path if shot requested
-}
-```
+## Verification obligations
 
-## 11. Save / load (M2 — REQ-K11)
-
-```ts
-interface SaveGame {
-  v: 1
-  gameId: string
-  scene: string
-  seed: number
-  tick: number
-  entities: Entity[]
-  genreState: Record<string, unknown>
-  savedAt: string              // ISO timestamp informational only
-}
-```
-
-- Default slot file: `{root}/saves/slot0.json`  
-- `saveGame` writes atomic temp+rename  
-- `loadGame` validates schema then createGame + restore  
-- Genres MUST document `genreState` keys in their S-*  
-- Failures: `IO_ERROR`, `SCHEMA_INVALID`  
-
-## 12. Required unit tests
-
-- seed reproducibility (10 random() values)  
-- pause stops entity motion under constant input inject  
-- spawn/destroy/query  
-- scene replace emits exit/enter  
-- input setDown visible in isDown for one step  
+Changes to core must retain seed reproducibility, fixed-step/pause behavior,
+world and scene lifecycle, input edge latching/rebinding/gamepad tests,
+asset-root safety/greyboxing, save compatibility, observe/replay behavior, and
+the affected first-class service tests. Public changes require synchronized
+barrel, spec, example/title, and changelog updates.

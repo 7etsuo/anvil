@@ -1,5 +1,39 @@
 # Changelog
 
+## Unreleased — Schema-v2 authoring and declarative ARPG
+
+### Added
+
+- `@anvil/schema`: schema-v2 manifests, `game.spec.yaml` intent, traits,
+  prefabs, finite conditions/effects, triggers, and state machines.
+- `@anvil/authoring`: deterministic `compileProject`, canonical SHA-256 source
+  hash, deeply frozen `AnvilGameIR`, transactional/idempotent `migrateProject`,
+  and capability descriptors.
+- `@anvil/authoring/vite`: host-side compiler bridge exposing
+  `virtual:anvil-game-ir` without bundling Node/compiler code into the browser.
+- `@anvil/genre-arpg`: IR materialization, deterministic rule runtime,
+  authoring provenance, and the restricted `defineArpgGame` title hook.
+- Gravewake now consumes the same compiled authoring model in Node and browser,
+  with actor archetypes, campaign rules, five areas, three bosses, level-100
+  progression, item-level loot, skill/craft/vendor/socket systems, and
+  structured authoring/rule observations.
+
+### Documentation
+
+- Reconciled engine and Gravewake usage docs with the implemented APIs,
+  commands, content, controls, test boundaries, and current limitations.
+- Marked the original Gravewake vertical-slice design bible as a historical
+  archive instead of a live runtime contract.
+
+### Remaining before release
+
+- Implement CLI `migrate`, `describe`, and `capabilities`.
+- Make `anvil new` emit schema v2, migrate examples/templates, and connect
+  generic validate/test/dev to authoring compilation.
+- Add generic `genre-arpg` loading and `new --genre arpg`.
+- Include authoring/ARPG tests in routine scripts/CI and restore the full green
+  repository gate. Three CLI integration tests currently fail for this work.
+
 ## 0.7.0 — Engine systems pack
 
 Reusable systems for ARPGs and multi-genre games:
@@ -94,5 +128,4 @@ Reusable systems for ARPGs and multi-genre games:
 
 ### Docs
 - Gravewake UNPARKED; AGENTS/task breakdown M1–M9 complete
-
 

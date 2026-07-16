@@ -1,5 +1,10 @@
 # Research: Game frameworks agents can actually drive
 
+> **Research/design record, not a live API reference.** Conceptual examples in
+> this file explain the direction that led to Anvil. Use
+> [`../../ENGINE.md`](../../ENGINE.md), the design specs, live CLI help, and
+> executable examples for current usage.
+
 Goal: an SDK **Grok Build** can use across genres without reinventing engines.
 
 ---
@@ -51,7 +56,7 @@ Agent success rate rises when:
 - Folder layout is fixed  
 - Schemas reject invalid content  
 - “Missing asset” is a typed error with fix hint  
-- Commands are few: `new`, `validate`, `dev`, `assets check`
+- Commands are few: `new`, `validate`, `dev`, `assets missing`
 
 ---
 
@@ -64,14 +69,16 @@ Agent success rate rises when:
 | Canvas only | Tiny | Painful long-term |
 | Godot headless | Real engine | Worse agent/file workflow |
 
-**Decision for Anvil v1:** **Phaser 3 + TypeScript + Vite**, wrap Phaser behind Anvil APIs so Grok mostly touches:
+**Decision for Anvil v1:** **Phaser 3 + TypeScript + Vite**, wrap Phaser behind Anvil APIs. The following is historical pseudocode, not exported API:
 
 ```ts
 anvil.defineGame({ genres: ['arpg'], contentRoot: './content' })
 anvil.spawn('scuttler', { x, y })
 ```
 
-…not raw Phaser soup (allowed as escape hatch).
+Current game code uses `createGame`, `GameHandle`/`SceneContext`, genre modules,
+and schema-v2 IR APIs—not raw Phaser. There is no general game-code Phaser
+escape hatch; only `@anvil/render-phaser` may import it.
 
 ---
 
@@ -81,13 +88,13 @@ What Grok should call or edit:
 
 | Surface | Form |
 |---------|------|
-| Project scaffold | `npx @anvil/cli new my-game --genre arpg` |
+| Project scaffold | `pnpm anvil new my-game --genre topdown2d` (current built-ins; ARPG scaffold pending) |
 | Content | JSON files matching schemas |
 | Design docs | Markdown (human + agent) |
 | Assets | Optional path manifest; files on disk |
-| Validate | `anvil validate` → errors with paths |
-| Run | `anvil dev` |
-| Asset audit | `anvil assets missing` |
+| Validate | `pnpm anvil validate` → errors with paths |
+| Run | `pnpm anvil dev` |
+| Asset audit | `pnpm anvil assets missing` |
 
 Optional later: MCP tools wrapping the same CLI for tool-calling agents.
 
@@ -102,10 +109,11 @@ repo/
       core/              # runtime
       cli/
       schema/
+      authoring/
       genre-arpg/
-      genre-shmup/       # later
+      genre-shmup/
   games/
-    gravewake/           # first dogfood game (parked; outside anvil/)
+    gravewake/           # active schema-v2/ARPG reference title
     <next>/
 ```
 
@@ -135,8 +143,11 @@ repo/
 
 ## 8. Success criteria for Anvil
 
-1. New ARPG prototype scaffoldable in &lt; 30 minutes of agent time  
+1. New ARPG prototype scaffoldable in &lt; 30 minutes of agent time (**not yet met by the generic CLI**)
 2. Gravewake runs only on public Anvil APIs + content  
 3. Second genre template exists (even thin)  
 4. `anvil assets missing` matches content path refs
 5. Agent never needs Unity/Godot for v1 games  
+
+Criteria 2–5 are represented in the current repository. Criterion 1 remains
+tracked by the pending M11 generic loader/starter work.

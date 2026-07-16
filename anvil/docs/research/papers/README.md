@@ -1,5 +1,9 @@
 # Research papers (local PDF copies)
 
+These files are an offline evidence archive. They do not define Anvil APIs,
+commands, milestone status, or current behavior; follow the design master map
+and executable implementation for those.
+
 Downloaded 2026-07-15 from arXiv for offline reference while designing **Anvil**.
 
 | File | Title (short) | Role for Anvil |

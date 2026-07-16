@@ -55,4 +55,4 @@ for (const p of room.players.values()) {
 - `@anvil/genre-topdown2d` — `TopdownSim`, `NavGrid`, path cache, AI radius culling
 - `@anvil/core` — `AbilitySystem`, combat events, `ViewCamera`, loot policy, run save
 
-See also `docs/design/specs/S-NET-COLYSEUS.md` if present.
+See also [`docs/design/specs/S-NET-COLYSEUS.md`](./design/specs/S-NET-COLYSEUS.md).

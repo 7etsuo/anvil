@@ -1,4 +1,11 @@
-# Bellcrypt — Dungeon Design (Locked)
+# Bellcrypt — original fixed-dungeon design (historical)
+
+> **Historical design archive — not a current runtime contract.** This file
+> preserves the original vertical-slice intent. Do not use its controls,
+> filenames, IDs, scope, balance numbers, scene plan, or asset status to change
+> the active game. Start with [`../README.md`](../README.md),
+> [`INDEX.md`](./INDEX.md), [`SYSTEMS.md`](./SYSTEMS.md), current `content/`, and
+> current source.
 
 **Dungeon ID:** `bellcrypt_01`  
 **Display name:** Bellcrypt  

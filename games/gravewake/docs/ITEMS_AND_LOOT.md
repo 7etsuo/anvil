@@ -1,4 +1,11 @@
-# Gravewake — Items, Loot Tables & Vendor
+# Gravewake — original items and loot plan (historical)
+
+> **Historical design archive — not a current runtime contract.** This file
+> preserves the original vertical-slice intent. Do not use its controls,
+> filenames, IDs, scope, balance numbers, scene plan, or asset status to change
+> the active game. Start with [`../README.md`](../README.md),
+> [`INDEX.md`](./INDEX.md), [`SYSTEMS.md`](./SYSTEMS.md), current `content/`, and
+> current source.
 
 All item IDs, stats, icons, and drop sources for v1.
 

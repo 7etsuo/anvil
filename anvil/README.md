@@ -1,41 +1,56 @@
-# Anvil
+# Anvil engine
 
-**Agent-native multi-genre TypeScript game engine.**  
-**Priority: engine quality.** Games sit under `../games/`.
+<p align="center">
+  <img src="./assets/brand/github-banner.png" alt="Anvil — agent-native multi-genre game engine" width="100%" />
+</p>
 
-**Start here for the engine surface:** **[ENGINE.md](./ENGINE.md)**
+Anvil is an **agent-native, multi-genre TypeScript game engine**. The engine
+lives here; playable titles live under [`../games/`](../games/).
 
-## Documentation
+## Documentation routes
 
-| Need | Doc |
-|------|-----|
-| **Engine API map** | [ENGINE.md](./ENGINE.md) |
-| Full design set | [docs/design/README.md](./docs/design/README.md) |
-| AI session boot | [docs/design/AGENTS.md](./docs/design/AGENTS.md) |
-| RPG systems | [docs/design/specs/S-RPG.md](./docs/design/specs/S-RPG.md) |
-| Engine extras | [docs/design/specs/S-ENGINE_EXTRAS.md](./docs/design/specs/S-ENGINE_EXTRAS.md) |
+| Goal | Read |
+|------|------|
+| Build or maintain a game | [`ENGINE.md`](./ENGINE.md) |
+| Change engine code | [`docs/design/README.md`](./docs/design/README.md) |
+| Follow repository agent rules | [`docs/design/AGENTS.md`](./docs/design/AGENTS.md) |
+| Use schema-v2 authoring | [`docs/design/specs/S-AUTHORING.md`](./docs/design/specs/S-AUTHORING.md) |
+| Build a declarative ARPG | [`docs/design/specs/S-ARPG.md`](./docs/design/specs/S-ARPG.md) |
+| Use RPG systems | [`docs/design/specs/S-RPG.md`](./docs/design/specs/S-RPG.md) |
+| Inspect engine extensions | [`docs/design/specs/S-ENGINE_EXTRAS.md`](./docs/design/specs/S-ENGINE_EXTRAS.md) |
 
-## Status
+## Current status
 
-Engine milestones M1–M9 **code complete**, plus RPG systems + engine extras (UI, AI, path, quests, audio bus, Phaser, WS server, Electron shell). Ongoing work: harden core, not feature theater.
+- M1–M9 runtime, genres, tooling, networking, and the first title are complete.
+- M10 authoring libraries exist: schema v2, intent, compiler, migration API,
+  capability descriptors, and the Vite IR bridge.
+- M11 ARPG libraries and Gravewake integration exist.
+- M10/M11 CLI wiring is incomplete. `anvil migrate`, `anvil describe`,
+  `anvil capabilities`, and `anvil new --genre arpg` are **not available**.
+- Existing CLI scaffolds and examples still use schema v1. Core runtime
+  validation accepts v1 and v2; `compileProject` accepts v2 only.
+- The full `pnpm check` gate currently fails three CLI integration tests that
+  cover those unfinished commands/scaffolds. The standalone authoring and ARPG
+  tests pass.
 
-## Quick start (dev)
+See [`docs/design/16_PLANNING_STATUS_AND_GAPS.md`](./docs/design/16_PLANNING_STATUS_AND_GAPS.md)
+for the exact remaining work.
+
+## Development commands
+
+Requires Node.js 22+ and pnpm 9.15.9.
 
 ```bash
-cd anvil
 pnpm install
 pnpm -r run build
 pnpm test
+pnpm --filter @anvil/authoring --filter @anvil/genre-arpg test
 pnpm lint
 pnpm validate:examples
 pnpm test:examples
-pnpm dev:hello          # Vite browser — open localhost:5173
+pnpm dev:hello
 ```
 
-## Games (not in this tree)
-
-Playable titles live under **`../games/`** (e.g. `games/gravewake/`), not inside `anvil/`.
-
-## Deprecated paths
-
-`docs/PLAN.md`, `docs/ARCHITECTURE.md`, `docs/AGENT_UX.md` → redirect stubs only.
+Use `pnpm anvil --help` as the authoritative list of commands in the current
+build. Deprecated docs under `docs/PLAN.md`, `docs/ARCHITECTURE.md`, and
+`docs/AGENT_UX.md` are redirect stubs only.

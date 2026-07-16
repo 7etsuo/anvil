@@ -1,15 +1,24 @@
-# Asset Pipeline — Grok Imagine → Game
+# Original asset pipeline — Grok Imagine to game (historical)
+
+> **Historical design archive — not a current runtime contract.** This file
+> preserves the original vertical-slice intent. Do not use its controls,
+> filenames, IDs, scope, balance numbers, scene plan, or asset status to change
+> the active game. Start with [`../README.md`](../README.md),
+> [`INDEX.md`](./INDEX.md), [`SYSTEMS.md`](./SYSTEMS.md), current `content/`, and
+> current source.
 
 How we produce **every** visual for the vertical-slice ARPG.  
 If it appears on screen and is not pure code UI, it is listed here or in `ASSET_CHECKLIST.md`.
 
-**Companion file:** [`ASSET_CHECKLIST.md`](./ASSET_CHECKLIST.md) — tick every file. **Do not ship the slice with unchecked required rows.**
+**Historical companion:** [`ASSET_CHECKLIST.md`](./ASSET_CHECKLIST.md). Its
+unchecked rows describe the original proposal and do not measure current asset
+coverage.
 
 ---
 
 ## 0. Hard rules
 
-1. **No single-still combatants.** Player, enemies, and boss are **animation sets**.
+1. **Historical rule:** no single-still combatants; the original proposal used animation sets.
 2. **Base → edit.** `image_gen` once per identity; every other frame via `image_edit` from that base.
 3. **Imagine paints frames; code plays them** (timing, loops, flips, hitboxes).
 4. **Video is only cinematics**, never walk/attack gameplay frames.
@@ -46,7 +55,7 @@ If it appears on screen and is not pure code UI, it is listed here or in `ASSET_
 | `image_edit` | **All** animation frames, damage variants, open/closed prop states, recolors |
 | `image_to_video` | Cinematics from approved stills (6s preferred) |
 | Post-process | BG remove, resize, crop, PNG crush |
-| Phaser | Load paths from JSON; play animations by name |
+| Renderer | The original proposal assumed Phaser; current games use Anvil facades and public services |
 
 ---
 

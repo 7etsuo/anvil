@@ -1,5 +1,9 @@
 # How to document software for AI coding agents (research)
 
+> **Research/process reference.** The current repository hierarchy is
+> documented in [`../design/README.md`](../design/README.md); this file explains
+> why that hierarchy was chosen.
+
 Sources (2025–2026 practice + papers):
 
 | Source | Key idea |
@@ -18,9 +22,9 @@ Sources (2025–2026 practice + papers):
 ```text
 Level 0  AGENTS.md (repo root)     — always loaded; pointers only
 Level 1  docs/design/README.md     — map + status
-Level 2  docs/design/specs/*       — full contracts (this completion)
+Level 2  docs/design/20 + specs/*  — task status + full contracts
 Level 3  docs/design/0x_*.md       — architecture/requirements spine
-Level 4  Source + tests             — ground truth when code exists
+Level 4  Source + tests            — executable implementation evidence
 ```
 
 ## What a complete plan must contain (checklist)
@@ -28,7 +32,8 @@ Level 4  Source + tests             — ground truth when code exists
 From SDD + AGENTS.md research, a complete pre-code plan includes:
 
 1. Overview + non-goals  
-2. Exact build/test commands (even if aspirational until code lands)  
+2. Exact build/test commands; planned commands must be visibly marked and must
+   not appear in current quick starts
 3. Architecture + diagrams  
 4. Requirements with IDs  
 5. **Task breakdown** (atomic, ordered, dependency-aware) — Spec Kit `tasks`  
@@ -39,4 +44,6 @@ From SDD + AGENTS.md research, a complete pre-code plan includes:
 10. Security / boundaries  
 11. Gap-free genre behavior specs for **all in-scope genres**  
 
-Anvil now implements this checklist under `docs/design/` + `docs/design/specs/` + root `AGENTS.md`.
+Anvil implements this hierarchy under `docs/design/`, component specs, task
+status, root `AGENTS.md`, and executable examples. The M10/M11 gap register is
+an example of keeping a shipped library distinct from pending CLI integration.

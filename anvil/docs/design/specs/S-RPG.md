@@ -13,6 +13,11 @@
 | `computeFinalStats` / `applyArmor` | stat aggregation + mitigation |
 | `spawnGroundLoot` / `tryPickupNearest` | world loot entities (`tags: loot, pickup`) |
 | `ZoneGraph` | multi-room graph, `travel`, `requireClear`, save state |
+| Itemization helpers | item level, rolled stats, equip requirement, power score, drop level |
+| `dropFromTable` | weighted ground drops using the shared itemization policy |
+| `SkillTree`, `Wallet`, `ResourcePool` | progression choices, currencies, mana/stamina-like pools |
+| `Vendor`, `CraftingSystem`, `socketGem` | reusable economy/crafting operations |
+| Run-state helpers | lightweight character + area/position + flags browser continuation |
 
 ## Save (v2)
 
@@ -66,3 +71,15 @@ new ZoneGraph({
   ],
 })
 ```
+
+## Item levels and run-state saves
+
+Use the shared helpers in [`../../ITEMIZATION.md`](../../ITEMIZATION.md)
+instead of scaling gear in a title. `CharacterSheet.pickupLeveled`,
+`rollItemInstance`, `canEquipAtLevel`, and `dropFromTable` keep item power and
+requirements consistent.
+
+For ARPG continuation where a full entity snapshot is undesirable, use
+`buildRunState` plus serialization/local-storage helpers. `RunStateV1` stores
+the character blob, area and position, seed, and title flags. It is separate
+from full `SaveGame` v1/v2.

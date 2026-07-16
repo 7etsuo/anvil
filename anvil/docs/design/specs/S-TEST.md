@@ -1,95 +1,92 @@
-# Spec: Test Scenario DSL + TestReport
+# Spec: JSON scenario DSL and `TestReport`
 
-**Milestone:** M1
+**Milestone:** M1+
 
-## 1. Discovery
+## Discovery and launch
 
-`runTests(root)` loads:
+`runTests(root, opts)` recursively loads `tests/**/*.json`, sorted by path.
+TypeScript scenario discovery is **not implemented**. If no JSON scenarios
+exist, the runner performs a one-tick launch smoke.
 
-1. All `tests/**/*.json` under game root  
-2. Optional `tests/**/*.ts` exporting `scenarios` (M3+; JSON required M1)
+Each scenario creates a fresh headless game with caller-supplied modules and
+seed override. Core reads `game.yaml`, enters the entry scene, and returns
+`LAUNCH_FAIL` if creation fails. It does not run the schema-v2 authoring
+compiler; an authoring-aware title must compile in its own module/test boundary.
 
-## 2. Scenario JSON schema (normative)
+## Scenario shape
 
 ```ts
 interface TestScenario {
-  id: string
-  seed?: number                 // default game seed
-  maxTicks?: number             // default 10000; exceed → TEST_TIMEOUT
-  strictAssets?: boolean
-  steps: TestStep[]
+  id: string;
+  seed?: number;
+  maxTicks?: number;       // default 10000
+  strictAssets?: boolean;
+  steps: TestStep[];
 }
 
-type TestStep =
-  | { tick: number; setDown?: Record<string, boolean>; setUp?: string[] }
-  | { tick: number; action: string; args?: Record<string, unknown> }
-  | { tick: number; assert: Assertion }
-  | { tick: number; wait?: number }   // wait N additional sim ticks (hold prior input)
+type TestStep = {
+  tick: number;
+  setDown?: Record<string, boolean>;
+  setUp?: string[];
+  action?: string;
+  args?: Record<string, unknown>;
+  assert?: Assertion;
+  wait?: number;
+};
 ```
 
-**`tick`:** absolute simulated step index (integer). Steps MUST be processed in ascending tick order. Kernel advances from 0 to max needed.
+Steps are sorted by absolute tick. `setDown`/`setUp` modify semantic InputMap
+actions. A generic `action` is pulsed as a release/end-frame/press edge.
+Convenience actions are:
 
-### Named actions (unified)
+| Step | Pulse |
+|------|-------|
+| `action: "play_card", args: { slot: N }` | `play_card_N` |
+| `action: "end_turn"` | `end_turn` |
+| any other action string | that semantic action |
 
-Actions are **InputMap action names** (S-CORE).  
-Optional convenience (card genre runner MAY expand):
+`wait: N` immediately advances N fixed ticks while retaining the current input
+state. Prefer explicit future tick numbers when assertion timing must be easy
+to read.
 
-| Convenience action | Expansion |
-|--------------------|-----------|
-| `play_card` + `args: { slot: 0 }` | `setDown play_card_0` for one step |
-| `end_turn` | `setDown end_turn` edge |
-
-**Do not use** free-form `play_card` with card id string — use hand **slot index**.
-
-### Assertion
+## Assertions
 
 ```ts
 type Assertion =
   | { path: string; eq: unknown }
   | { path: string; neq: unknown }
   | { path: string; exists: boolean }
-  | { path: string; gt?: number; lt?: number; gte?: number; lte?: number }
+  | { path: string; gt?: number; lt?: number; gte?: number; lte?: number };
 ```
 
-`path` is JSON path on ObserveSnapshot, e.g. `genre.battle.phase`, `entities.0.hp`.  
-Dot segments; array index numeric.
+Paths use dot-separated object/array keys on `ObserveSnapshot`, for example
+`genre.battle.enemies.0.hp`. Equality is JSON structural equality. Numeric
+comparisons apply only when the observed value is a number.
 
-## 3. TestReport
+## Report and diagnosis
 
 ```ts
 interface TestReport {
-  ok: boolean
+  ok: boolean;
   results: Array<{
-    id: string
-    pass: boolean
-    ticks?: number
-    error?: { code: string; message: string; path?: string }
-  }>
+    id: string;
+    pass: boolean;
+    ticks?: number;
+    error?: { code: string; message: string; path?: string };
+    diagnosis?: {
+      summary: string;
+      path?: string;
+      actual?: unknown;
+      hint: string;
+      entities?: Array<{ id: string; tags: string[]; hp?: number }>;
+    };
+  }>;
 }
 ```
 
-CLI: print JSON or human summary; exit `1` if any fail; `0` if all pass.
+Failed assertions return `TEST_FAIL` plus a compact diagnosis. Unprocessed
+steps after `maxTicks` return `TEST_TIMEOUT`. Unexpected runner exceptions
+return `INTERNAL`. Strict asset mode fails with `ASSET_MISSING` for paths the
+running game requested and recorded as missing.
 
-## 4. Launch gate
-
-Before steps: load project, createGame headless, enter entryScene.  
-Throw/fail → result `LAUNCH_FAIL`, scenario fail.
-
-## 5. Example (card)
-
-```json
-{
-  "id": "card_damage",
-  "seed": 1,
-  "maxTicks": 100,
-  "steps": [
-    { "tick": 0, "action": "play_card", "args": { "slot": 0 } },
-    { "tick": 2, "assert": { "path": "genre.battle.enemies.0.hp", "lt": 100 } }
-  ]
-}
-```
-
-## 6. Required meta-tests (hello-empty)
-
-- empty scenario with assert scene exists passes  
-- assert false fails with TEST_FAIL  
+The CLI prints JSON or a human summary and exits 1 when any result fails.

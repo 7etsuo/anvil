@@ -1,81 +1,85 @@
-# AGENTS.md — Anvil implementer (six areas)
+# AGENTS.md — Anvil engine contributor
 
-## 1. Overview
+## Scope and status
 
-Anvil is a multi-genre agent-native game engine. Specs in `docs/design/` are source of truth. Code implements `20_FULL_TASK_BREAKDOWN.md`.
+Anvil is a multi-genre, agent-native game engine. Design specs in this
+directory are normative; implementation status lives in
+[`20_FULL_TASK_BREAKDOWN.md`](./20_FULL_TASK_BREAKDOWN.md).
 
-**Status:** M1–M9 done (engine + Gravewake greybox).
+M1–M9 are complete. M10/M11 libraries and Gravewake integration are present,
+but generic CLI/scaffold integration remains unfinished. Never document a
+planned command as usable until it appears in `pnpm anvil --help`.
 
-## 2. Commands (live)
+## Boot order
 
-From monorepo package root `anvil/`:
+1. [`../../../AGENTS.md`](../../../AGENTS.md)
+2. [`README.md`](./README.md)
+3. [`20_FULL_TASK_BREAKDOWN.md`](./20_FULL_TASK_BREAKDOWN.md)
+4. The task's [`specs/S-*.md`](./specs/README.md)
+5. [`../../ENGINE.md`](../../ENGINE.md) for the consumer-facing contract
+
+## Commands that exist
+
+Run from `anvil/`:
 
 ```bash
-cd anvil
 pnpm install
 pnpm -r run build
-pnpm test                 # unit/integration (all packages)
+pnpm test
+pnpm --filter @anvil/authoring --filter @anvil/genre-arpg test
 pnpm lint
-pnpm validate:examples    # all hello-* examples
+pnpm validate:examples
 pnpm test:examples
-pnpm check                # full active engine + Gravewake gate
 
-# CLI (built bin)
 pnpm anvil version
-pnpm anvil new my-game --genre card|topdown2d|vn|shmup|fps2|none
+pnpm anvil new my-game --genre none
+pnpm anvil new my-card-game --genre card
 pnpm anvil validate examples/hello-empty
 pnpm anvil test examples/hello-card
 pnpm anvil observe --root examples/hello-empty --json
 pnpm anvil observe --root examples/hello-empty --shot
 pnpm anvil assets missing examples/hello-empty
+pnpm anvil audio list --kind sfx --limit 20
+pnpm anvil sprites list --limit 20
+pnpm anvil content list examples/hello-empty
 pnpm anvil recipe list
 pnpm anvil recipe show card.basic-attack
-pnpm anvil build examples/hello-empty --out examples/hello-empty/dist
-pnpm anvil dev examples/hello-empty
+pnpm anvil build examples/hello-empty
+pnpm anvil tools --json
+pnpm anvil doctor examples/hello-empty --json
+pnpm anvil net health --url http://127.0.0.1:2567
 ```
 
-Equivalent: `node packages/cli/dist/index.js <cmd> …`
+`anvil new` currently accepts `none`, `card`, `topdown2d`, `vn`, `shmup`, and
+`fps2`. It emits schema v1. The following designed M10/M11 commands are not yet
+implemented: `migrate`, `describe`, `capabilities`, and `new --genre arpg`.
 
-### Examples (CI matrix)
+`pnpm check` is the intended full gate, but the current checkout fails three
+CLI integration tests for that unfinished work. Do not conceal or normalize
+the failure. See [`18_TESTING_AND_CI.md`](./18_TESTING_AND_CI.md).
 
-| Example | Genre |
-|---------|--------|
-| `examples/hello-empty` | none |
+## Examples
+
+| Example | Runtime |
+|---------|---------|
+| `examples/hello-empty` | core / none |
 | `examples/hello-card` | card |
 | `examples/hello-topdown` | topdown2d |
-| `examples/hello-vn` | vn |
-| `examples/hello-shmup` | shmup |
-| `examples/hello-fps2` | fps2 |
-| `examples/hello-net` | none + genre-net (spike) |
+| `examples/hello-vn` | visual novel |
+| `examples/hello-shmup` | scrolling shooter |
+| `examples/hello-fps2` | raycast FPS |
+| `examples/hello-net` | legacy transport spike |
+| `../games/gravewake` | schema-v2 authoring + declarative ARPG |
 
-### Allowed genres for `anvil new`
+## Boundaries
 
-`none`, `card`, `topdown2d`, `vn`, `shmup`, `fps2`.
+- No Phaser imports outside `packages/render-phaser`.
+- No image-generation APIs in Anvil.
+- No title lore, named skills, balance tables, maps, or art in engine packages.
+- Promote reusable mechanics required by a game into an existing Anvil
+  package when possible.
+- Use public Anvil APIs from games. Gravewake may compile authoring data in its
+  Node/Vite boundary; it may not own engine scheduling or renderer access.
 
-Full CLI: `specs/S-CLI.md`. Errors: `specs/S-ERRORS.md`.
-
-## 3. Code style
-
-See `STYLE.md`. No Phaser outside `packages/render-phaser`.
-
-## 4. Testing
-
-See `18_TESTING_AND_CI.md` + `specs/S-TEST.md`. Always `validate` then `test`. Use `observe` on failure.
-
-## 5. Security
-
-See `SECURITY.md`. No path escape, no eval of content, no image-gen APIs.
-
-## 6. PR / commits
-
-See `CONTRIBUTING.md`.
-
-## Boot order
-
-1. `README.md`  
-2. `20_FULL_TASK_BREAKDOWN.md`  
-3. Linked `specs/S-*.md`  
-4. Implement one task; mark `[x]`  
-
-Repo root AGENTS: `../../../AGENTS.md` (from `anvil/docs/design/`).  
-No Gravewake until M9 unpark.
+See [`STYLE.md`](./STYLE.md), [`SECURITY.md`](./SECURITY.md), and
+[`CONTRIBUTING.md`](./CONTRIBUTING.md).

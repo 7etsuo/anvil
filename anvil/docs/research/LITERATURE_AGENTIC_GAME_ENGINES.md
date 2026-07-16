@@ -1,5 +1,10 @@
 # Literature review: agentic coding of games & agent-friendly engines
 
+> **Research reference, not an API/status document.** Publication summaries
+> motivate Anvil's design but do not describe current commands or package
+> availability. Use [`../../ENGINE.md`](../../ENGINE.md) and
+> [`../design/README.md`](../design/README.md) for implementation guidance.
+
 **Question:** What research exists on *AI agents building video games*, especially with/around real game engines?  
 **Date:** 2026-07-15  
 **Use for Anvil:** design constraints, evaluation criteria, known failure modes.

@@ -12,7 +12,7 @@
 
 Agents (including Grok Build with Imagine) **supply** files. Humans may supply files. Same paths.
 
-## 2. Supported types (v1)
+## 2. Supported types
 
 | Kind | Extensions |
 |------|------------|
@@ -51,7 +51,8 @@ Content lists ordered paths:
 "walk": ["actors/a_walk_01.png", "actors/a_walk_02.png"]
 ```
 
-Runtime advances frames; no spritesheet packing required in v1 (optional later).
+Runtime advances frame lists. Sprite-atlas helpers also exist in core; packing
+is optional rather than a required content format.
 
 ## 6. Cinematics
 
@@ -98,14 +99,22 @@ Engine ships a ready-to-pick library at **`anvil/assets/audio/`** (music + SFX, 
 - `getSuggestedAudioCues()` / `getGameReadyAudioCues("audio")`
 - `loadBundledAudioCatalog()` / `writeBundledAudioCatalog()`
 
-**Install into a game:**
+**Install into a game:** copy selected files under the game's `assetsRoot`, or
+create a link whose target is correct relative to that particular game. For
+Gravewake from the repository root:
 
 ```bash
-ln -sfn ../../../anvil/assets/audio assets/audio
+ln -sfn ../../../../anvil/assets/audio games/gravewake/public/assets/audio
 ```
 
-Then cue paths look like `audio/sfx/ui/click_001.ogg`. Play via `AudioSystem` or events
+That target is relative to `games/gravewake/public/assets/`, not the shell's
+current directory. A portable alternative is to copy only used files. Then cue
+paths look like `audio/sfx/ui/click_001.ogg`. Play via `AudioSystem` or events
 `audio:play` / `audio:music`. See `anvil/assets/audio/README.md`.
+
+The audio catalog currently contains 421 files (25 music and 396 SFX). The
+sprite catalog directory currently contains documentation/licenses only; do
+not assume bundled sprite files exist.
 
 ## 9. Research note
 

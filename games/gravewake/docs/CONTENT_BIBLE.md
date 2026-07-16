@@ -1,7 +1,15 @@
-# Gravewake — Content Bible
+# Gravewake — original content bible (historical)
 
-Every gameplay identity, ability, animation state, and linked asset ID for v1.  
-**Locked.** New content → new rows here + checklist + balance.
+> **Historical design archive — not a current runtime contract.** This file
+> preserves the original vertical-slice intent. Do not use its controls,
+> filenames, IDs, scope, balance numbers, scene plan, or asset status to change
+> the active game. Start with [`../README.md`](../README.md),
+> [`INDEX.md`](./INDEX.md), [`SYSTEMS.md`](./SYSTEMS.md), current `content/`, and
+> current source.
+
+The text below catalogues the original v1 proposal. Its “locked” labels apply
+only to that archived proposal. Current actors, abilities, animation fields,
+and asset ids live in `content/`, `src/`, and `browser/`.
 
 ---
 

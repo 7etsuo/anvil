@@ -1,138 +1,98 @@
-# 06 — Data Model
+# 06 — Data model
 
-## 1. Game package model
+Anvil currently supports legacy schema-v1 game packages and schema-v2 compiled
+authoring packages. Runtime entities, save snapshots, observation snapshots,
+and authoring IR each have their own version protocol.
+
+## Project model
 
 ```mermaid
 erDiagram
   GAME ||--o{ MODULE_REF : enables
   GAME ||--o{ CONTENT_FILE : contains
   GAME ||--o{ ASSET_FILE : contains
-  GAME ||--o{ TEST_FILE : contains
+  GAME ||--o{ TEST_FILE : verifies
+  GAME ||--o| INTENT_FILE : declares_v2_intent
   CONTENT_FILE ||--o{ ASSET_REF : references
-  ENTITY_DEF ||--o{ COMPONENT_DEF : has
-  ENTITY_DEF ||--o{ ASSET_REF : uses
+  CONTENT_FILE ||--o{ TRAIT : may_define
+  CONTENT_FILE ||--o{ PREFAB : may_define
+  CONTENT_FILE ||--o{ TRIGGER : may_define
+  CONTENT_FILE ||--o{ STATE_MACHINE : may_define
+  PREFAB }o--o{ TRAIT : composes
+  GAME ||--o| COMPILED_IR : compiles_to
 ```
 
-### 1.1 `game.yaml`
+## Manifest versions
 
-```yaml
-id: string                 # slug
-title: string
-version: string            # semver of game content
-anvil: ">=0.1.0"           # engine range
-genre: card | topdown2d | vn | shmup | fps2
-modules:
-  - core                   # implicit
-  - genre-card             # example
-entryScene: string
-seed: number | null        # default test seed
-contentRoot: content
-assetsRoot: assets
-```
+Common fields are `id`, `title`, `version`, optional engine range, `genre`,
+`modules`, `entryScene`, optional seed, `contentRoot`, and `assetsRoot`.
 
-### 1.2 Content files
+- Schema v1 uses only the manifest/content runtime path.
+- Schema v2 sets `intent` (default `game.spec.yaml`) and compiles source through
+  `@anvil/authoring` when using authoring-aware tooling/runtime.
+- Genres are `none`, `card`, `topdown2d`, `vn`, `shmup`, `fps2`, and `arpg`.
+- The generic CLI still scaffolds v1 and does not yet invoke the v2 compiler.
 
-All under `content/`, JSON, schema-validated.
+The normative field contract is [`specs/S-SCHEMA.md`](./specs/S-SCHEMA.md).
 
-| Path pattern | Purpose | Genre |
-|--------------|---------|-------|
-| `content/meta.json` | Display strings | all |
-| `content/cards/*.json` | Card defs | card |
-| `content/actors/*.json` | Actors | topdown/fps/shmup |
-| `content/maps/*.json` | Maps/rooms | topdown/fps/shmup |
-| `content/scripts/*.json` | Dialog graphs | vn |
-| `content/waves/*.json` | Spawn waves | shmup |
-| `content/weapons/*.json` | Weapons | fps2 |
-| `content/audio.json` | Cue → path | all |
-| `content/cinematics.json` | Video cues | all |
+## Intent and declarative source
 
-## 2. Runtime entity model (ECS-lite)
+`game.spec.yaml` contains schema version 2, summary, quality profile, player
+range, platforms, and weighted verifiable requirements.
+
+Special content directories under `contentRoot` are:
+
+| Directory | Model |
+|-----------|-------|
+| `traits/` | Reusable component records plus requirements/conflicts |
+| `prefabs/` | Single-parent composition and ordered traits |
+| `triggers/` | Finite conditions and effect lists |
+| `machines/` | Named finite states and local transitions |
+
+Other JSON remains canonical content keyed by content-relative path.
+
+## Authoring IR
+
+`compileProject` returns either sorted diagnostics or a deeply frozen
+`AnvilGameIR` containing manifest, intent, capability descriptors, resolved
+traits/prefabs, triggers, machines, raw content, and a SHA-256 `sourceHash`.
+`irVersion` is currently 1 while project `schemaVersion` is 2.
+
+## Runtime entity model
+
+Core uses an ECS-light entity record:
 
 ```ts
-type EntityId = string
-
 interface Entity {
-  id: EntityId
-  tags: string[]
-  // core components (optional)
-  transform?: { x: number; y: number; z?: number; rot?: number }
-  sprite?: {
-    frames: string[]      // asset paths
-    fps: number
-    loop: boolean
-    frame?: number
-  }
-  health?: { hp: number; max: number }
-  // extension bag for genres
-  data: Record<string, unknown>
+  id: string;
+  tags: string[];
+  transform?: { x: number; y: number; z?: number; rot?: number };
+  sprite?: { frames: string[]; fps: number; loop: boolean; frame?: number };
+  health?: { hp: number; max: number };
+  collider?: Collider;
+  data: Record<string, unknown>;
 }
 ```
 
-### 2.1 Component catalog (core)
+Genre and engine services may retain indexed runtime state beside entities.
+Public snapshots expose simplified values rather than internal objects.
 
-| Component | Fields | Used by |
-|-----------|--------|---------|
-| `transform` | x,y,z?,rot? | spatial genres |
-| `sprite` | frames,fps,loop | all visual |
-| `health` | hp,max | combat |
-| `collider` | kind, radius/w/h | topdown/fps/shmup |
-| `input` | controlledBy | player |
-| `lifetime` | ms | projectiles/FX |
+## Assets
 
-Genre components documented in `08_GENRE_MODULES.md`.
+Asset references are project-relative under `assetsRoot` and may not contain
+`..` or start with `/`. Missing graphics can resolve to deterministic greybox
+handles in development; strict validation can require real files.
 
-## 3. Card domain (genre-card)
+## Save protocols
 
-```ts
-interface CardDef {
-  id: string
-  name: string
-  cost: number
-  art?: string              // asset path
-  effects: Effect[]
-  tags?: string[]
-}
+Full engine saves use `SaveGame` version 1 with game id, scene, seed, entities,
+and genre/character/zone hooks. ARPG titles may use `RunStateV1` for a lighter
+character + area + flags continuation snapshot. Browser local-storage helpers
+namespace slots as `anvil_run_<gameId>_<slot>`.
 
-type Effect =
-  | { op: 'damage'; amount: number; target: 'enemy' | 'all_enemies' | 'self' }
-  | { op: 'block'; amount: number }
-  | { op: 'draw'; amount: number }
-  | { op: 'apply_status'; status: string; amount: number; target: string }
-```
+## Observation protocol
 
-## 4. Top-down actor (genre-topdown2d)
-
-```ts
-interface ActorDef {
-  id: string
-  hp: number
-  speed: number
-  ai?: 'none' | 'chase_melee' | 'keep_distance_ranged'
-  animations: Record<string, string[]>  // state → paths
-  skills?: string[]
-}
-```
-
-## 5. Asset references
-
-- Always **project-relative** paths under `assetsRoot`  
-- Validation: every referenced path must exist **or** greybox allowed in dev; tests may require existence via flag  
-
-## 6. Schema packaging
-
-- `@anvil/schema` exports Zod schemas  
-- CLI validate loads schemas by genre  
-- Version schemas with `schemaVersion` field in content packs  
-
-## 7. Save model
-
-```ts
-interface SaveGame {
-  v: 1
-  gameId: string
-  scene: string
-  seed: number
-  entities: Entity[]
-  genreState: Record<string, unknown>
-}
-```
+`ObserveSnapshot.schemaVersion` is currently 1 and includes engine/genre state,
+summary, allowed actions, and optional screenshot. A title may put a richer
+versioned contract under the genre observation; Gravewake includes authoring
+hash/provenance and declarative rule state.

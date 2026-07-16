@@ -1,27 +1,30 @@
-# 11 — Recipes and Templates
+# 11 — Recipes and templates
 
-**Research:** Voyager skill library (arXiv:2305.16291); DreamGarden leaf submodules (arXiv:2410.01791).
+Templates are complete schema-v1 starter packages used by `anvil new`.
+Recipes are small declarative file patches an agent can inspect and apply
+manually.
 
-## 1. Definitions
+## Current templates
 
-| Term | Meaning |
-|------|---------|
-| **Template** | Full starter game package from `anvil new` |
-| **Recipe** | Small verified content/code patch that adds one capability |
+| Template | Genre | Current project schema |
+|----------|-------|------------------------|
+| `card-starter` | card | v1 |
+| `topdown-starter` | topdown2d | v1 |
+| `vn-starter` | vn | v1 |
+| `shmup-starter` | shmup | v1 |
+| `fps2-starter` | fps2 | v1 |
 
-## 2. Templates (REQ-A04)
+The `none` scaffold is derived from the empty example. There is no ARPG starter
+yet. Every example/template now contains a `game.spec.yaml` file, but its
+manifest remains schema v1 and the generic CLI does not compile that intent.
 
-| Template | Genre | Includes |
-|----------|-------|----------|
-| card-starter | card | battle scene, 8 cards, 1 enemy, tests |
-| topdown-starter | topdown2d | player, slime, 1 map, tests |
-| vn-starter | vn | short script, 1 choice |
-| shmup-starter | shmup | ship + 3 waves |
-| fps2-starter | fps2 | corridor (M7) |
+## Current recipe storage and shape
 
-## 3. Recipe format
-
-`packages/recipes/<id>/recipe.yaml`:
+Recipes are individual YAML files under
+`packages/recipes/recipes/<id>.yaml`, not nested `<id>/recipe.yaml`
+directories. A recipe contains id/title/genre, one or more target file entries,
+optional tests, and validation intent. `recipe show` prints the descriptor; it
+does not write files.
 
 ```yaml
 id: card.basic-attack
@@ -37,45 +40,35 @@ tests:
 validate: true
 ```
 
-`anvil recipe show card.basic-attack` prints files for the agent to write (or optional apply flag later).
+## Implemented recipe catalog
 
-## 4. Initial recipe backlog (≥15 for agent-ready)
+There are 19 recipes:
 
-### Card
-1. `card.basic-attack`  
-2. `card.defend`  
-3. `card.draw`  
-4. `card.enemy-basic`  
-5. `card.win-lose-ui`  
+- Card: `card.basic-attack`, `card.defend`, `card.draw`,
+  `card.enemy-basic`, `card.win-lose-ui`
+- Top-down: `topdown.wasd-player`, `topdown.chase-enemy`,
+  `topdown.solid-walls`, `topdown.contact-damage`, `topdown.restart`
+- VN: `vn.linear-scene`, `vn.two-choice`
+- Shmup: `shmup.player-ship`, `shmup.wave-1`, `shmup.bullet-player`
+- FPS2: `fps2.corridor`
+- Meta: `meta.observe-smoke`, `meta.cinematic-stub`, `meta.net-loopback`
 
-### Topdown
-6. `topdown.wasd-player`  
-7. `topdown.chase-enemy`  
-8. `topdown.solid-walls`  
-9. `topdown.contact-damage`  
-10. `topdown.restart`  
+Use the live catalog rather than copying this list when automating:
 
-### VN
-11. `vn.linear-scene`  
-12. `vn.two-choice`  
+```bash
+pnpm anvil recipe list
+pnpm anvil recipe show card.basic-attack
+```
 
-### Shmup
-13. `shmup.player-ship`  
-14. `shmup.wave-1`  
-15. `shmup.bullet-player`  
+## Agent quality check
 
-### Meta
-16. `meta.observe-smoke`  
-17. `meta.cinematic-stub`  
+After manually applying a recipe:
 
-## 5. Quality bar for a recipe
+1. confirm every path stays inside the game root;
+2. adapt ids/references without inventing unsupported fields;
+3. run `validate`;
+4. run the recipe's or title's scenario tests; and
+5. inspect state/visual output if behavior is not obvious.
 
-- [ ] Applies cleanly to empty template of its genre  
-- [ ] `anvil validate` passes  
-- [ ] At least one `anvil test` asserts behavior  
-- [ ] Documented one-line purpose  
-- [ ] No raw Phaser imports  
-
-## 6. Relationship to multi-agent papers
-
-ChatDev/MetaGPT/GameGPT use roles. Anvil uses **recipes as skills** instead of mandatory multi-agent orgs (simpler ACI). Roles remain optional in human/agent process docs.
+Schema-v2 template migration, automatic intent compilation, and an ARPG
+starter are pending M10/M11 tasks.

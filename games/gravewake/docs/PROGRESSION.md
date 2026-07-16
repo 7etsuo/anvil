@@ -1,191 +1,154 @@
-# Gravewake — Progression: XP, Levels & Power (Locked)
+# Gravewake current progression and combat values
 
-Diablo-like **character level** + **gear** dual progression.  
-Skills stay the same kit; levels make the body stronger. Gear is still the big spike.
+This document mirrors [`../content/progression.json`](../content/progression.json)
+and the implemented character/skill rules. Content JSON and code are
+authoritative if this document drifts.
 
----
-
-## 1. Goals
-
-| Goal | How |
-|------|-----|
-| “I want to grind” | Cinder Parish packs respawn + XP |
-| “I want to get stronger” | Levels + loot + vendor |
-| “I want to win” | Enter Bellcrypt with level + gear, kill Bellwarden |
-
-**No skill tree / class change in v1.**  
-Level rewards = **stats** + **potion capacity milestones** + feel (level-up FX).
-
----
-
-## 2. Level range
+## Starting character
 
 | Field | Value |
 |-------|-------|
-| Start level | **1** |
-| Max character level | **100** |
-| Soft story target for boss | **Level 8–12** |
-| Open-world grind comfort | Levels 1–15 easily in Parish |
-| Levels 16–100 | Extrapolating endgame curve; dungeon clears, elites, and bosses |
+| Level / total XP | 1 / 0 |
+| Base maximum HP | 130 |
+| Base damage | 11 |
+| Base armor | 2 |
+| Base speed | 205 |
+| Base critical chance | 8% |
+| Base critical multiplier | 1.8× |
+| Gold | 40 |
+| Backpack capacity | 32 stacks |
+| Starting equipment | Level-1 rolled Rusty Sword |
+| Starting consumables | 5 health potions |
+| Skill points | 1 |
 
----
+Final combat stats are base stats plus rolled equipped-item values, skill-tree
+bonuses, and active status modifiers.
 
-## 3. XP curve
+## XP thresholds
 
-XP to go from level `L` to `L+1`:
+XP is cumulative. The explicit table supplies the next-level threshold through
+level 15:
 
-```
-xpToNext(L) = floor(40 * L^1.65 + 20)
-```
+| Reach level | Total XP required |
+|-------------|-------------------|
+| 2 | 40 |
+| 3 | 100 |
+| 4 | 180 |
+| 5 | 280 |
+| 6 | 400 |
+| 7 | 550 |
+| 8 | 750 |
+| 9 | 1,000 |
+| 10 | 1,300 |
+| 11 | 1,700 |
+| 12 | 2,200 |
+| 13 | 2,800 |
+| 14 | 3,600 |
+| 15 | 4,500 |
 
-| Level | XP to next (approx) | Cumulative to reach (approx) |
-|-------|---------------------|------------------------------|
-| 1→2 | 60 | 60 |
-| 2→3 | 105 | 165 |
-| 3→4 | 160 | 325 |
-| 4→5 | 220 | 545 |
-| 5→6 | 290 | 835 |
-| 6→7 | 365 | 1200 |
-| 7→8 | 450 | 1650 |
-| 8→9 | 540 | 2190 |
-| 9→10 | 640 | 2830 |
-| 10→11 | 740 | 3570 |
-| 12→13 | ~980 | — |
-| 15→16 | ~1450 | — |
-| 19→20 | ~2200 | — |
+After the table, the previous per-level XP step grows by 12%, rounded to a
+whole number, and is added to the prior cumulative threshold. Maximum level is
+100.
 
-The authored cumulative table controls levels 1–15. Beyond that, Anvil's
-`LevelCurve` grows the previous per-level XP step by **12%** until the explicit
-level-100 cap. The cap is content data, not inferred from table length.
+On every level gained:
 
-### XP rewards (base)
+- base maximum HP increases by 8;
+- base damage increases by 1;
+- current HP is restored to the new maximum;
+- one health potion is granted;
+- mana/stamina resource pools are filled; and
+- one skill point is granted while the sample combat tree is incomplete.
 
-| Kill | Base XP | Notes |
-|------|---------|-------|
-| `scuttler` | 12 | |
-| `wretch` | 15 | |
-| `crypt_guard` | 80 | |
-| `bellwarden` | 500 | Once per kill (repeatable if farmed later) |
-| Pack clear bonus | +10% of pack sum | When last member dies |
+Armor does not increase automatically with level.
 
-### Level difference modifier
+## XP per kill
 
-```
-mult = clamp(1 + 0.05 * (enemyLevel - playerLevel), 0.25, 1.25)
-xpGain = floor(baseXP * mult)
-```
+| Enemy | XP | Enemy | XP |
+|-------|---:|-------|---:|
+| Fallen | 6 | Raider | 20 |
+| Thrall | 8 | Crypt Archer | 22 |
+| Scuttler | 10 | Hell Raider | 28 |
+| Bone Hound | 11 | Crypt Guard | 30 |
+| Shade | 12 | Bone Brute | 40 |
+| Wretch | 13 | Bellwarden | 180 |
+| Plague Scuttler | 14 | Death Knight | 220 |
+| Void Shade | 16 | Bone Tyrant | 350 |
+| Ash Ghoul | 18 | | |
 
-Overworld packs use `enemyLevel` = midpoint of pack band (see overworld doc).  
-Dungeon enemies:
+Elite enemies award 2.5× the base XP, rounded down. There is no level-difference
+modifier or pack-clear XP bonus in the current implementation.
 
-| Zone | Enemy level |
-|------|-------------|
-| Bellcrypt R0–R4 | 5 |
-| R5–R8 | 7 |
-| R9–R10 | 9 |
-| R11 boss | 12 |
+## Abilities
 
----
+| Input | Ability | Damage/range | Cost | Cooldown |
+|-------|---------|--------------|------|----------|
+| Space/RMB | Slash | 1.0× effective damage, physical, range 80 | — | 260 ms |
+| 2 | Whirl | 0.78× effective damage, physical AoE, range 104 | 18 stamina | 800 ms |
+| 3 | Smite | 1.4× effective damage, holy projectile, range 170 | 12 mana | 620 ms |
+| 1 | Potion | Heal 50, capped by current max HP | 1 potion | 400 ms |
 
-## 4. What you gain per level
+Critical hits use the effective critical chance/multiplier. Enemy mitigation
+uses armor and typed resistances through Anvil combat systems.
 
-On level-up:
+## Skill choices
 
-| Stat | Gain per level |
-|------|----------------|
-| Max HP | **+8** |
-| Damage stat | **+1** |
-| Armor | **+0.5** (floor per level: +0 L1, +1 L2, +1 L3, +2 L4…) → implement as `floor(level/2)` total armor from levels, recalculated |
-| Move speed | **+0** (gear only) |
+The engine sample combat tree is currently used:
 
-**Recalculate derived:**
+| Node | Ranks/requirement | Effect data |
+|------|-------------------|-------------|
+| Power | 3 ranks | +2 damage per rank |
+| Iron Skin | 3 ranks | +2 armor per rank |
+| Whirlwind | Requires Power, level 3 | Ability-unlock metadata |
+| Smite | Requires Power + Iron Skin, level 5 | Ability-unlock metadata |
 
-```
-levelHpBonus = (level - 1) * 8
-levelDmgBonus = (level - 1) * 1
-levelArmorBonus = floor(level / 2)
-```
+The title currently accepts the Whirl and Smite combat inputs regardless of
+tree metadata; the chosen Power/Iron Skin bonuses do affect effective stats.
+Treat stricter ability gating as future work unless code and tests change.
 
-Full heal **optional on level-up: Yes — restore HP to max** (satisfying Diablo feel).
+## Threat scaling
 
-### Potion capacity milestones
+Current threat tier:
 
-| Level | Max potions |
-|-------|-------------|
-| 1–4 | 5 |
-| 5–9 | 6 |
-| 10–14 | 7 |
-| 15–100 | 8 |
-
-### Skill ranks (no new buttons — passive power)
-
-| Level | Unlock |
-|-------|--------|
-| 1 | All skills available |
-| 5 | Cinder Nova radius **+16** (96→112) |
-| 10 | Grave Veil shield **+15** |
-| 15 | Ash Step cooldown **−0.2s** |
-| 20 | Rite Slash base damage **+4** |
-
-Document in COMBAT as level-scaled modifiers.
-
----
-
-## 5. HUD
-
-| Element | Source |
-|---------|--------|
-| XP bar under HP | Code |
-| Level number | Code |
-| Level-up flash | `fx_levelup` Imagine + `sfx_levelup` |
-| Floating “LEVEL UP” | Code text |
-
----
-
-## 6. Save fields
-
-```json
-{
-  "level": 1,
-  "xp": 0,
-  "xpToNext": 60
-}
+```text
+area threat
++ (level - 1) × 0.12
++ kills × 0.02
++ bosses killed × 0.25
 ```
 
-Persist always.
+Authored area threat is 0 in Lychgate, 1 in Ashen Wastes, 2 in Bellcrypt, 3 in
+Howling Catacombs, and 4 in Bonekeep.
 
----
+Enemy scaling from the resulting threat `t`:
 
-## 7. Death & XP
+```text
+HP multiplier     = 1 + t × 0.35
+damage multiplier = 1 + t × 0.18
+speed multiplier  = 1 + min(0.35, t × 0.04)
+```
 
-- **No XP loss on death**  
-- Gold loss only (30%)  
+## Economy and items
 
----
+- Ash Shrine vendor starts with potions (25 gold), rubies (40), and sapphires
+  (40); its sell ratio is 0.4.
+- Crafting recipes brew potions, cut a ruby bundle, and temper Ash Mail into a
+  Warden Cloak using the authored inputs/costs shown in the craft panel.
+- Gems can be socketed into eligible equipped weapon/chest/head gear, up to the
+  engine-enforced socket limit.
+- Loot rolls item level and requirement level through Anvil itemization; title
+  tests enforce usable level ranges.
 
-## 8. Gear vs level (design intent)
+The live item definitions under [`../content/items/`](../content/items/) and
+loot tables under [`../content/loot/`](../content/loot/) replace the historical
+fixed item/affix tables.
 
-| Power source | Share of “feel strong” |
-|--------------|------------------------|
-| Levels 1→10 | ~40% |
-| Gear upgrades | ~50% |
-| Skill rank thresholds | ~10% |
+## Save and death
 
-Boss at level 3 should be **brutal**; at 10 + rare gear **fair**; at 15+ **dominant**.
+Level, XP, character sheet, inventory, equipment, wallet, skill tree, area,
+position, and run counters are persisted. The browser saves every 15 seconds
+and at important events.
 
----
-
-## 9. Anti-frustration
-
-- Overworld always available from town  
-- No level gate hard-lock on Bellcrypt mouth (can enter at 1 — suicide allowed)  
-- Soft warning first enter if level &lt; 5: “The crypt runs deep. The Parish can harden you first.” (dismissible)  
-
----
-
-## 10. Out of scope
-
-- Post-100 paragon levels
-- Respec  
-- Multiple classes  
-- XP boosters / battle pass  
+Death currently has no implemented XP or gold penalty. It requires a page
+reload, which restores the latest saved state. Older 30%-gold-loss/town-respawn
+documentation is historical and must not be implemented without updating the
+current intent, code, and tests.

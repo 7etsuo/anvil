@@ -27,12 +27,15 @@ audio/
 2. **Or** use engine helpers:
    - `listBundledAudio({ kind: "sfx", tag: "ui" })`
    - `getSuggestedAudioCues()` → semantic map (`hit`, `ui_click`, `music_battle`, …)
-3. **Install into a game** so `AssetServer` can resolve paths:
+3. **Install into a game** so `AssetServer` can resolve paths. For Gravewake,
+   run this from the repository root:
    ```bash
-   # from game root
-   ln -sfn ../../../anvil/assets/audio assets/audio
+   ln -sfn ../../../../anvil/assets/audio games/gravewake/public/assets/audio
    # or copy only the files you need under assets/audio/
    ```
+   Relative symlink targets are resolved from the link's parent directory. For
+   another game or `assetsRoot`, calculate that relationship rather than
+   copying this command unchanged.
 4. **Wire cues** in `content/audio.json` or code:
 
 ```json
@@ -56,16 +59,16 @@ import {
   cuesForAssetRoot,
 } from "@anvil/core";
 
-// Semantic defaults, paths ready for assets/audio symlink
+// Semantic defaults, paths ready for an assets/audio link or copy
 const cues = cuesForAssetRoot(getSuggestedAudioCues(), "audio");
-kernel.audio.setCues(cues);
+handle.audio.setCues(cues);
 
 // Play
-kernel.audio.play("hit", "sfx");
-kernel.audio.playMusic("music_battle");
+handle.audio.play("hit", "sfx");
+handle.audio.playMusic("music_battle");
 // or events:
-kernel.events.emit("audio:play", { cue: "ui_click", channel: "ui" });
-kernel.events.emit("audio:music", { cue: "music_town" });
+handle.events.emit("audio:play", { cue: "ui_click", channel: "ui" });
+handle.events.emit("audio:music", { cue: "music_town" });
 ```
 
 ## Suggested cues (subset)
@@ -86,7 +89,7 @@ See `catalog.json` → `suggestedCues` for the full map. Common ones:
 
 ## Regenerating the catalog
 
-From repo root (Node 22+):
+From `anvil/` (Node 22+ after `pnpm install` and package build):
 
 ```bash
 node --input-type=module <<'NODE'

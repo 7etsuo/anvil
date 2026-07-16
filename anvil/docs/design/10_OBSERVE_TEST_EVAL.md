@@ -1,33 +1,30 @@
-# 10 — Observe, Test, and Evaluation
+# 10 — Observe, test, replay, and evaluation
 
-**Research:** GameCraft-Bench three desiderata (arXiv:2606.17861); GameDevBench visual feedback (arXiv:2602.11103); GameGen-Verifier (arXiv:2605.07442).
+Anvil combines deterministic headless scenarios with structured state and
+optional visual capture. Agents should verify behavior, not infer success from
+compilation alone.
 
-## 1. Desiderata → Anvil features
+## Observe
 
-| Desideratum | Anvil |
-|-------------|-------|
-| **I Engine grounding** | Real kernel + genre systems + browser/headless host |
-| **II Artifact completeness** | `anvil new` full package; test launch gate |
-| **III Interactive verification** | `anvil test` scenarios + `anvil observe` |
+```bash
+pnpm anvil observe --root ./game --json
+pnpm anvil observe --root ./game --shot
+```
 
-## 2. Observe (agent eyes)
+The snapshot contains runtime version, observation schema version, scene,
+time/tick/seed, pause state, simplified entities, input, genre and engine
+state, a concise summary, allowed actions, and optional screenshot path.
 
-### 2.1 API
-- `anvil observe --json`  
-- `anvil observe --shot`  
+Observe after a failed scenario, after a visual change, and before claiming an
+interaction is fixed. Prefer summary and `observeDiff` over repeatedly placing
+the entire state in model context.
 
-### 2.2 When agents must observe
-After any failed test; after visual changes; before claiming “done.”
+## Scenario tests
 
-### 2.3 Implementation notes
-- Headless: canvas or offscreen render for shot  
-- JSON must include scene, entities, genre state  
-
-## 3. Test model
-
-### 3.1–3.2 Test DSL
-
-**Authoritative:** [`specs/S-TEST.md`](./specs/S-TEST.md)
+The normative JSON DSL is [`specs/S-TEST.md`](./specs/S-TEST.md). Scenarios
+declare a seed and ordered tick/action/assertion steps. The runner launches the
+entry scene headlessly, applies semantic actions, and returns structured
+results/nonzero process status on failure.
 
 Example:
 
@@ -43,27 +40,37 @@ Example:
 }
 ```
 
-### 3.3 Launch gate
-If game fails to enter entry scene → score 0 for package (GC BUILD=0 analogue).
+A package that cannot enter its entry scene fails the launch gate.
 
-## 4. Evaluation rubric for Anvil demos (internal)
+## Semantic stepping and diffs
 
-Borrowed categories from GameCraft (weights adjustable):
+`agentStep` accepts move/press/release/tap/wait/set-down actions. It advances
+the fixed-step simulation and returns frames/tick/time. `observeDiff` reports
+entity additions/removals, health/position changes, scene changes, genre
+changes, and a concise summary.
 
-| Category | Weight | Meaning |
-|----------|--------|---------|
-| Mechanics | 0.35 | Core loop works |
-| Depth | 0.25 | Enough content for demo |
-| Functional visuals | 0.20 | Feedback readable (even greybox labels) |
-| Presentation | 0.20 | Optional art polish |
+## Replay is implemented
 
-Anvil CI uses **pass/fail tests**, not LLM judges, for reliability.
+`ReplayRecorder(seed)` records semantic action frames and emits `ReplayTape`
+version 1. `playReplay(handle, tape)` requires the handle seed to match before
+replaying at the fixed timestep. Replay is programmatic; there is no dedicated
+CLI replay command.
 
-## 5. Replay (phase 2+)
+```ts
+const tape = new ReplayRecorder(game.getSeed());
+tape.record({ type: "move", dir: "right" }, 30);
+tape.record({ type: "tap", action: "shoot" });
+playReplay(freshGame, tape.toJSON());
+```
 
-Future: record input traces → replay (GameCraft Π).  
-v1: scripted test steps sufficient.
+## Evaluation policy
 
-## 6. Sequence: failed test recovery
+CI uses deterministic pass/fail evidence rather than an LLM judge. Internal
+playtest rubrics may assess mechanics, depth, functional feedback, and
+presentation, but they do not replace launch, scenario, connectivity,
+authoring, or build gates.
 
-See swimlane in `12_SEQUENCES_AND_SWIMLANES.md` § Debug.
+Schema-v2 intent requirements can name verifier ids. The current compiler
+retains those ids, while generic CLI execution/coverage mapping remains a
+pending M10 integration task. Gravewake maps them through its title tests and
+scenario files.

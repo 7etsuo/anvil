@@ -1,101 +1,77 @@
-# Gravewake — Master Plan
+# Gravewake implementation status and plan
 
-**Title:** Gravewake  
-**Genre:** Diablo-like top-down 2D ARPG  
-**Art:** Grok Imagine (multi-frame + plates + video)  
-**Engine/SDK:** **Anvil** (`../../../anvil/`) — separate framework tree  
-**Framework plan:** [`../../../anvil/docs/design/README.md`](../../../anvil/docs/design/README.md)
+**Title:** Gravewake
 
-**Runtime status:** M9 playable slice implemented. This file now tracks the remaining polish pass; older detailed design docs remain useful intent, but [`../README.md`](../README.md), `src/`, and `content/` describe the current build.
+**Genre:** Diablo-like action RPG
 
----
+**Engine:** Anvil only
 
-## Documentation map (complete for v1 slice)
+**Project form:** schema-v2 manifest, intent, compiled immutable IR
 
-| Doc | Contents |
-|-----|----------|
-| [GDD.md](./GDD.md) | Locked product decisions, loop, controls |
-| [CONTENT_BIBLE.md](./CONTENT_BIBLE.md) | Every actor, ability, anim state, FX ID |
-| [OVERWORLD_CINDER_PARISH.md](./OVERWORLD_CINDER_PARISH.md) | Open world grind map + packs |
-| [DUNGEON_BELLCRYPT.md](./DUNGEON_BELLCRYPT.md) | 12 rooms, spawns, key/door, topology |
-| [PROGRESSION.md](./PROGRESSION.md) | XP, levels 1–20, rewards |
-| [TILES_AND_ENV.md](./TILES_AND_ENV.md) | Plates, logical tiles, every prop |
-| [ITEMS_AND_LOOT.md](./ITEMS_AND_LOOT.md) | Every item, affix, drop table, vendor |
-| [COMBAT_BALANCE.md](./COMBAT_BALANCE.md) | HP, damage, cooldowns, formulas |
-| [SYSTEMS.md](./SYSTEMS.md) | Scenes, modules, save, layers |
-| [AUDIO.md](./AUDIO.md) | Every music/SFX cue ID |
-| [ASSET_PIPELINE.md](./ASSET_PIPELINE.md) | Imagine process |
-| [ASSET_CHECKLIST.md](./ASSET_CHECKLIST.md) | Every file to produce |
+## Current state
 
-If it is not in these docs, it is **out of slice** until docs change.
+The original M9 vertical slice has grown into a playable five-area campaign
+and endless post-boss loop. Gravewake is also the reference implementation for
+M10 authoring and M11 declarative ARPG APIs.
 
----
+| Capability | Status |
+|------------|--------|
+| Browser and headless title module | Implemented |
+| Schema-v2 intent/content compilation | Implemented |
+| Shared Node/browser IR materialization | Implemented |
+| Fixed hub plus procedural overworld/three dungeons | Implemented |
+| Connected required landmarks and path feedback | Implemented/tested |
+| Click/WASD combat, two abilities, potion, resources | Implemented |
+| Timed packs, elites, three bosses, endless threat | Implemented |
+| Level-100 progression and skill choices | Implemented |
+| Item-level loot, paper doll, 32-slot bag | Implemented/tested |
+| Vendor, crafting, sockets, gems, shrines, chests | Implemented |
+| Quest/campaign rules and authoring provenance observation | Implemented/tested |
+| Periodic/event run-state save and reload restore | Implemented |
+| Production web build and title-local quality commands | Implemented |
+| In-session death restart | Not implemented; reload latest save |
+| Cinematics and multiplayer | Not implemented |
+| Generic `anvil new --genre arpg` workflow | Engine M11 integration pending |
+| Complete repository gate | Not green due to pending engine CLI tests |
 
-## Build order (do not skip)
+## Authority for changes
 
+| Question | Source |
+|----------|--------|
+| Intended player experience | [`../game.spec.yaml`](../game.spec.yaml) |
+| Areas, actors, items, loot, progression, rules | [`../content/`](../content/) |
+| Current game behavior | [`../src/`](../src/) and [`../browser/`](../browser/) |
+| Engine contract | [`../../../anvil/ENGINE.md`](../../../anvil/ENGINE.md) and design specs |
+| Commands and controls | [`../README.md`](../README.md) |
+| Current numbers | [`PROGRESSION.md`](./PROGRESSION.md) |
+
+Historical bible documents are not locked runtime specifications. If reviving
+an old idea, first update the intent/current operational docs and then
+implement it through public Anvil APIs.
+
+## Next work, in order
+
+1. Keep title tests, typecheck, lint, and production web build green.
+2. Add a real in-session death recovery path and align the executable intent
+   and scenario coverage with it.
+3. Playtest and tune authored progression, loot, pack density, and boss threat
+   without hard-coding title balance into Anvil.
+4. Close engine M10/M11 generic CLI/scaffold gaps so another ARPG can reproduce
+   the architecture without copying Gravewake-local setup.
+5. Add content only after updating the current intent/data contracts; promote
+   any reusable missing mechanic into Anvil first.
+
+## Quality gates
+
+```bash
+cd games/gravewake
+pnpm typecheck
+pnpm lint
+pnpm test
+pnpm validate
+pnpm build:web
 ```
-1. Docs freeze          ✓
-2. Anvil/Vite scaffold  ✓
-3. Playable world loop  ✓
-4. Progression/economy  ✓
-5. Production art       ✓
-6. Audio + combat juice ✓
-7. Automated gates      ✓ typecheck, lint, validate, scenarios, web build
-8. Balance/playtest     ← CURRENT
-```
 
-**Start coding only after** you accept this plan; first code milestone = greybox, not art dump.
-
----
-
-## Vertical slice definition of done
-
-See GDD §15 + ASSET_CHECKLIST Pack I.
-
----
-
-## Phases (detail)
-
-### Phase 0 — Docs
-- [x] Full design suite + asset checklist with real names
-
-### Phase 1 — Scaffold + greybox
-- [x] Anvil game package + Vite browser host
-- [x] Mouse/WASD movement, pathing, attacks, and skills
-- [x] Town → overworld → three dungeon flow
-- [x] Timed packs + respawn in `content/areas/wastes.json`
-- [x] XP, levels, skill points, and HUD
-- [x] Melee/ranged enemy AI and elite affixes
-- [x] Procedural dungeon layouts via Anvil generators
-- [x] Vendor, inventory, equipment, crafting, and sockets
-- [x] Three boss encounters and milestone handling
-- [x] Run-state save/load (level, XP, gear, area, position, flags)
-
-### Phase 2 — Style bible (Imagine)
-- [x] Actor/environment/gear visual identity established
-
-### Phase 3 — Production art
-- [x] Current actor, environment, gear, portal, and loot set wired
-
-### Phase 4 — Audio + juice
-- [x] Bundled audio cues, screen shake, particles, and floating numbers
-
-### Phase 5 — Polish ship
-- [ ] Final balance/playtest pass and browser interaction QA
-
----
-
-## Risks
-
-| Risk | Mitigation |
-|------|------------|
-| Scope creep | Current roster/content are data-driven; new reusable mechanics must enter Anvil first |
-| Anim identity drift | Base→edit only |
-| Art before fun | Greybox first |
-| Doc drift | Change GDD+bible+checklist together |
-
----
-
-## Immediate next action
-
-Run the full quality gates, then playtest the complete economy/combat loop and tune content JSON rather than adding title-only engine workarounds.
+The title test command covers content compilation/provenance, procedural
+connectivity, progression, loot item levels, and scenario play. The complete
+repository gate remains tracked in Anvil's current gap register.

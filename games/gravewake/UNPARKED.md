@@ -1,23 +1,20 @@
-# Gravewake — ACTIVE (M9)
+# Gravewake — active title
 
-**Decision (T-M9-001):** Ship **Gravewake** as the first Anvil title.
+**Original decision:** T-M9-001 selected Gravewake as the first Anvil title.
+M9 is complete; the title has since become the schema-v2 authoring and
+declarative ARPG reference implementation.
 
-**Current playable scope:**
+| Area | Runtime |
+|------|---------|
+| Ashen Lychgate | Fixed safe hub, shrine/vendor, crafting, inventory |
+| Ashen Wastes | Procedural overworld, timed packs, four travel portals |
+| Bellcrypt | Procedural delve and Bellwarden |
+| Howling Catacombs | Procedural delve and Death Knight |
+| Bonekeep | Procedural endgame delve and Bone Tyrant |
 
-| Area | Fiction | Runtime |
-|------|---------|---------|
-| Town | Ashen Lychgate | Safe hub, shrine vendor, crafting, inventory |
-| Overworld | Ashen Wastes | Procedural layout, timed packs, four portals |
-| Dungeon | Bellcrypt | Procedural delve + Bellwarden |
-| Dungeon | Howling Catacombs | Harder delve + Death Knight |
-| Dungeon | Bonekeep | Endgame delve + Bone Tyrant |
+The title uses `@anvil/core`, `@anvil/authoring`,
+`@anvil/genre-topdown2d`, and `@anvil/genre-arpg`. The manifest also declares
+`./dist/module.js` because the generic CLI ARPG loader is not implemented yet.
 
-**Engine:** Anvil only (`@anvil/core`, `@anvil/genre-topdown2d` combat/move via `TopdownSim`).  
-**Game module:** `./dist/module.js` (relative load from CLI).  
-**Art:** Production actor, environment, gear, portal, and loot sprites with greybox fallback.
-
-**Playable:** `pnpm run play` → browser at http://127.0.0.1:5180/ (mouse or WASD; see README).
-
-**Not in the current build:** cinematics, multiplayer, and a fixed hand-authored 12-room dungeon. Dungeons intentionally use Anvil procedural generation instead.
-
-See `docs/` for full design bible.
+Run `pnpm play` here or `pnpm play` from `anvil/`. See [`README.md`](./README.md)
+for controls, architecture, tests, and current limitations.

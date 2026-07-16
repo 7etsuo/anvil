@@ -1,116 +1,61 @@
-# 08 — Genre Modules
+# 08 — Genre modules
 
-**Pattern:** DreamGarden specialized submodules (arXiv:2410.01791) — few tools with clear contracts, not full engine API.  
-**Coverage:** GameCraft-Bench families map onto these modules (arXiv:2606.17861).
+Genre modules register deterministic systems, schemas, scenes, and structured
+observation on the core kernel. They contain reusable genre mechanics, not
+title lore or balance.
 
-## 1. Module interface
+## Runtime interface
 
 ```ts
 interface GenreModule {
-  id: string
-  register(kernel: Kernel): void
-  schemas(): SchemaMap
-  defaultScenes(): SceneFactory[]
+  id: string;
+  register(kernel: KernelInternals): void;
+  schemas?(): Record<string, unknown>;
+  defaultScenes?(): Array<{ name: string; factory: SceneFactory }>;
 }
 ```
 
-## 2. Module map vs GameCraft families
+`KernelInternals` is an engine-module interface. Ordinary game code should use
+`GameHandle` and `SceneContext`; ARPG title code should use the narrower
+`defineArpgGame` services.
 
-| Anvil module | GameCraft-ish families | Tier | Milestone |
-|--------------|------------------------|------|-----------|
-| genre-card | Card game, some strategy | 0 | M3 |
-| genre-topdown2d | Open-world-lite, roguelike topdown, puzzle topdown | 1 | M4 |
-| genre-vn | Visual novel | 1 | M5 |
-| genre-shmup | Shooter (2D) | 1 | M5 |
-| genre-fps2 | Shooter (Doom-like) | 2 | M7 |
-| (compose) | Platformer = topdown physics variant later | 1+ | post-M5 |
-| genre-net | Multiplayer families | 3 | M8 |
+## Implemented module map
 
-## 3. genre-card (REQ-G01)
+| Module | Role | Status |
+|--------|------|--------|
+| `genre-card` | Deck/hand/energy/turn battle and enemy intents | Implemented |
+| `genre-topdown2d` | Movement, collision, actors, AI, projectiles, maps/navigation | Implemented |
+| `genre-vn` | Line/choice/jump/end script graph | Implemented |
+| `genre-shmup` | Scrolling ship, waves, bullet patterns, score/lives | Implemented |
+| `genre-fps2` | Grid DDA raycast, yaw, billboards, hitscan | Implemented |
+| `genre-net` | Experimental transport-neutral replication | Implemented spike |
+| `genre-arpg` | Compiled content materialization, finite campaign rules, restricted title hook | Implemented library; generic CLI loader pending |
 
-### 3.1 Concepts
-Deck, hand, discard, draw pile, energy/cost, enemies, turn phases.
+Production-oriented authoritative multiplayer lives in the modifier package
+`@anvil/net-colyseus`, not in a primary `game.yaml` genre.
 
-### 3.2 State machine (battle)
+## Selection and loading
 
-```mermaid
-stateDiagram-v2
-  [*] --> PlayerTurn
-  PlayerTurn --> ResolveCard: play card
-  ResolveCard --> PlayerTurn: energy left
-  ResolveCard --> EnemyTurn: end turn / no energy rule
-  PlayerTurn --> EnemyTurn: end_turn
-  EnemyTurn --> PlayerTurn: enemies acted
-  PlayerTurn --> Win: enemies dead
-  EnemyTurn --> Lose: player dead
-```
+`game.yaml` declares one primary `genre` and zero or more modules.
+`normalizeModules` auto-adds the matching built-in genre module. The CLI loader
+currently imports card, topdown2d, VN, shmup, FPS2, and genre-net by id, plus
+project-relative modules. Its `genre-arpg` branch is missing; Gravewake includes
+a relative compiled title module as its runtime entry.
 
-### 3.3 Systems
-`CardInputSystem`, `EffectResolveSystem`, `EnemyIntentSystem`, `BattleUISystem`
+Do not assume schema recognition proves loader support. See
+[`specs/S-CLI.md`](./specs/S-CLI.md) and [`specs/S-ARPG.md`](./specs/S-ARPG.md).
 
-### 3.4 Minimum playable artifact
-- 8 cards, 1 enemy, win/lose, greybox art OK  
-- Tests: seed 1 always wins with scripted plays  
+## Composition rules
 
-## 4. genre-topdown2d (REQ-G02)
+- Keep one primary genre in the manifest.
+- Additional modules must have distinct ids and compatible system ownership.
+- Use events/public services for cross-module cooperation.
+- A reusable mechanic requested by a title should extend core or a genre
+  package, not become permanent title-only engine code.
+- A genre may depend on another genre only when its contract says so; ARPG
+  explicitly builds above topdown2d.
 
-### 4.1 Concepts
-Transform, velocity, colliders, animation states, AI brains, map JSON (walls + spawns).
+## Minimum examples
 
-### 4.2 Systems
-`MoveSystem`, `CollisionSystem`, `AnimSystem`, `AISystem`, `CombatSystem` (simple)
-
-### 4.3 Map schema (minimal)
-```json
-{
-  "id": "room1",
-  "width": 960,
-  "height": 640,
-  "walls": [{ "x": 0, "y": 0, "w": 960, "h": 32 }],
-  "spawns": [{ "actor": "slime", "x": 400, "y": 300 }]
-}
-```
-
-### 4.4 Minimum playable
-WASD player, 1 chase enemy, contact damage, restart  
-
-## 5. genre-vn (REQ-G03)
-
-### 5.1 Script graph
-Nodes: `line` | `choice` | `jump` | `end`  
-Speakers, portrait paths, background paths  
-
-### 5.2 Minimum playable
-10 lines, 1 branch, 2 endings  
-
-## 6. genre-shmup (REQ-G04)
-
-### 6.1 Data
-Waves: time → spawn list; bullet patterns as parametric data (not free code)
-
-### 6.2 Minimum playable
-Ship move, shoot, 3 waves, lives  
-
-## 7. genre-fps2 (REQ-G05)
-
-### 7.1 Model
-Grid map or simple sectors; camera yaw; billboard sprites; hitscan  
-
-### 7.2 Minimum playable
-Corridor, 1 enemy sprite, 1 weapon, exit  
-
-## 8. genre-net (REQ-G06) — spike only
-
-- Design doc for replication of transform/health  
-- Local 2-peer prototype OR mock transport  
-- **Not** MMO shards/auth/persistence  
-
-## 9. Composition rules
-
-- One primary `genre` in game.yaml  
-- Additional modules only if listed and non-conflicting  
-- Cross-genre events via bus only (`player_died`, `score_changed`)  
-
-## 10. Module registration swimlane
-
-See `12_SEQUENCES_AND_SWIMLANES.md` § Module load.
+Executable hello packages cover every established primary genre except ARPG.
+Gravewake is the current ARPG reference until the generic starter task lands.

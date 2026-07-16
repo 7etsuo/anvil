@@ -1,6 +1,7 @@
 # Spec: Agent-native ACI (v0.5)
 
-**Goal:** Grok Build (and similar coding agents) can author/fix games via a **small, structured** loop without Phaser docs or raw keyboard codes.
+**Goal:** Coding agents can author and repair games through a **small,
+structured** loop without Phaser docs or raw keyboard codes.
 
 ## Research drivers
 
@@ -14,14 +15,14 @@
 ## Canonical loop
 
 ```
-anvil tools          → discover surface
-anvil validate       → schema OK
+pnpm anvil tools          → discover surface
+pnpm anvil validate       → schema OK
 edit content JSON
-anvil test           → pass/fail (primary)
-on fail: anvil observe --json  (read summary first)
+pnpm anvil test           → pass/fail (primary)
+on fail: pnpm anvil observe --json  (read summary first)
 agentStep / fix content
-anvil test
-anvil doctor         → one-shot health
+pnpm anvil test
+pnpm anvil doctor         → one-shot health
 ```
 
 ## Programmatic API
@@ -90,11 +91,18 @@ Agents should read **diagnosis before** re-running observe dumps.
 
 Errors use `SCHEMA_INVALID` / `REF_MISSING` with `path` + `hint` for agents.
 
+This core content walk is not the schema-v2 authoring compiler. For v2 intent,
+traits, prefabs, triggers, machines, and source hashes, call `compileProject`
+from `@anvil/authoring` in the current host/title workflow. Generic CLI
+integration remains pending.
+
 ## Rules for implementers
 
-1. Do **not** grow CLI past ~15 agent-facing tools without strong need.  
+1. Do **not** grow the ACI without a concrete agent need and machine-readable
+   discovery.
 2. Prefer **content JSON** edits over new TypeScript for balance/content.  
 3. Errors always `{ ok:false, errors:[{ code, message, path?, hint? }] }`.  
 4. Screenshots optional; JSON is the default sense channel.  
 5. Test failures must include **diagnosis** for agents.  
-
+6. Keep planned commands out of current quick starts until live help/tests
+   prove them.

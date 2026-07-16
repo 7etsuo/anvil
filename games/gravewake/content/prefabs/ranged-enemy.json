@@ -1,0 +1,11 @@
+{
+  "id": "ranged-enemy",
+  "traits": ["living", "enemy", "ranged"],
+  "components": {
+    "actor": {
+      "hp": 25,
+      "speed": 80,
+      "projectileDamage": 8
+    }
+  }
+}

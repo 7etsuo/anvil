@@ -1,6 +1,7 @@
 # Gravewake — Technical Systems Design
 
-Implementation map for the **game layer** on **Anvil** (`@anvil/core` + `@anvil/genre-topdown2d`).
+Implementation map for the **game layer** on **Anvil** (`@anvil/core` +
+`@anvil/genre-topdown2d` + `@anvil/genre-arpg`).
 Gravewake uses Anvil APIs only. The conceptual systems below may be separate engine services or responsibilities inside `GravewakeGame`; do not recreate reusable mechanics in the title.
 
 ---
@@ -13,7 +14,7 @@ Gravewake uses Anvil APIs only. The conceptual systems below may be separate eng
 | Bundler | Vite |
 | Engine | Anvil |
 | Browser rendering | Anvil `CanvasRenderFacade` + game presentation layer |
-| Content | JSON under `content/` |
+| Content | Schema-v2 JSON compiled to immutable `AnvilGameIR` |
 | Assets | `public/assets/` |
 | Save | Anvil run state, `localStorage` key `anvil_run_gravewake_run0` |
 

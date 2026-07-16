@@ -1,5 +1,6 @@
 {
   "id": "shade",
+  "prefab": "ranged-enemy",
   "name": "Shade",
   "hp": 26,
   "speed": 70,

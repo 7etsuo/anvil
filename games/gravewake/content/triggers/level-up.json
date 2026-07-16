@@ -1,0 +1,7 @@
+{
+  "id": "level-up",
+  "when": { "op": "event", "name": "player.level_up" },
+  "then": [
+    { "op": "add_counter", "key": "progression.level_up_events", "amount": 1 }
+  ]
+}

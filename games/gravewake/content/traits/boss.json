@@ -1,0 +1,10 @@
+{
+  "id": "boss",
+  "requires": ["enemy"],
+  "components": {
+    "actor": {
+      "radius": 18,
+      "boss": true
+    }
+  }
+}

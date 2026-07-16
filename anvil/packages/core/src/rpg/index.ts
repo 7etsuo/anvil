@@ -9,9 +9,16 @@ export {
 export { Inventory, defaultUid } from "./Inventory.js";
 export { Equipment } from "./Equipment.js";
 export type { ItemDefLookup } from "./Equipment.js";
-export { CharacterSheet } from "./CharacterSheet.js";
+export { CharacterSheet, levelThreshold } from "./CharacterSheet.js";
 export type {
   CharacterSheetOpts,
+  EquipBestChange,
+  EquipBestOptions,
+  EquipBestResult,
+  EquipBestScoreInput,
+  LevelCurve,
+  LevelCurveInput,
+  LevelGainResult,
   LevelProgress,
   StatBreakdown,
 } from "./CharacterSheet.js";

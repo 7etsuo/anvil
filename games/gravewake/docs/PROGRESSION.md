@@ -23,10 +23,10 @@ Level rewards = **stats** + **potion capacity milestones** + feel (level-up FX).
 | Field | Value |
 |-------|-------|
 | Start level | **1** |
-| Max level v1 | **20** |
+| Max character level | **100** |
 | Soft story target for boss | **Level 8–12** |
 | Open-world grind comfort | Levels 1–15 easily in Parish |
-| Levels 16–20 | Slower; dungeon clears + elites |
+| Levels 16–100 | Extrapolating endgame curve; dungeon clears, elites, and bosses |
 
 ---
 
@@ -54,7 +54,9 @@ xpToNext(L) = floor(40 * L^1.65 + 20)
 | 15→16 | ~1450 | — |
 | 19→20 | ~2200 | — |
 
-Exact values implemented from formula in code; table is design intent.
+The authored cumulative table controls levels 1–15. Beyond that, Anvil's
+`LevelCurve` grows the previous per-level XP step by **12%** until the explicit
+level-100 cap. The cap is content data, not inferred from table length.
 
 ### XP rewards (base)
 
@@ -113,7 +115,7 @@ Full heal **optional on level-up: Yes — restore HP to max** (satisfying Diablo
 | 1–4 | 5 |
 | 5–9 | 6 |
 | 10–14 | 7 |
-| 15–20 | 8 |
+| 15–100 | 8 |
 
 ### Skill ranks (no new buttons — passive power)
 
@@ -181,9 +183,9 @@ Boss at level 3 should be **brutal**; at 10 + rare gear **fair**; at 15+ **domin
 
 ---
 
-## 10. Out of scope v1
+## 10. Out of scope
 
-- Paragon / infinite levels  
+- Post-100 paragon levels
 - Respec  
 - Multiple classes  
 - XP boosters / battle pass  

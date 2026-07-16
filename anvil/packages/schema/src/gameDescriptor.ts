@@ -30,7 +30,7 @@ export const ModuleId = z.enum([
   "genre-net",
 ]);
 
-export const GameYamlSchema = z.object({
+const GameYamlBaseShape = {
   id: z.string().regex(/^[a-z0-9-]+$/),
   title: z.string().min(1),
   version: z.string().default("0.0.0"),
@@ -41,8 +41,17 @@ export const GameYamlSchema = z.object({
   seed: z.number().int().optional(),
   contentRoot: z.string().default("content"),
   assetsRoot: z.string().default("assets"),
+};
+
+export const LegacyGameYamlSchema = z.object({
+  ...GameYamlBaseShape,
+  schemaVersion: z.literal(1).default(1),
+});
+
+export const GameYamlSchema = z.object({
+  ...GameYamlBaseShape,
   /** Intent / authoring pointer (schema v2+) */
-  intent: z.string().optional(),
+  intent: AssetPath.default("game.spec.yaml"),
   /** 1 = legacy game.yaml only; 2 = game.yaml + game.spec.yaml authoring */
   schemaVersion: z.union([z.literal(1), z.literal(2)]).default(1),
 });

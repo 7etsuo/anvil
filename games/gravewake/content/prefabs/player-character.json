@@ -1,0 +1,10 @@
+{
+  "id": "player-character",
+  "traits": ["living", "player"],
+  "components": {
+    "actor": {
+      "hp": 100,
+      "speed": 190
+    }
+  }
+}

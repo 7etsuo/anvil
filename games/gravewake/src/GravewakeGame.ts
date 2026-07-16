@@ -10,6 +10,7 @@ import type {
   InputMap,
   InteractableSystem,
   ItemDef,
+  LevelCurve,
   MinimapFog,
   ParticleSystem,
   ProjectileSystem,
@@ -55,12 +56,18 @@ import {
   type ActorDef,
   type MapDef,
 } from "@anvil/genre-topdown2d";
+import {
+  ArpgRuleRuntime,
+  type ArpgRuleContext,
+} from "@anvil/genre-arpg";
+import type { Effect } from "@anvil/schema";
 import { areaToTileMap, wallsForSim } from "./tileAreas.js";
 import type { TileMap } from "@anvil/core";
 import type {
   AreaId,
   AreaMapDef,
   GravewakeCombatStats,
+  GravewakeAuthoringData,
   GravewakeObservation,
   GravewakeSkillPanelState,
   PortalDef,
@@ -100,6 +107,13 @@ const BOSS_IDS = new Set([
   "death_knight",
   "bone_tyrant",
 ]);
+
+const EMPTY_AUTHORING: GravewakeAuthoringData = {
+  sourceHash: "uncompiled",
+  rules: { triggers: {}, machines: {} },
+  actorPrefabs: {},
+  prefabs: {},
+};
 
 /**
  * Endless Diablo-like Gravewake: open wastes, dungeons, timed packs, scaling threat.
@@ -160,6 +174,8 @@ export class GravewakeGame {
   private timeAlive = 0;
   private bossesKilled = 0;
   private areaTransitioning = false;
+  private readonly authoring: GravewakeAuthoringData;
+  private readonly authoredRules: ArpgRuleRuntime;
   fx: FxEvent[] = [];
   kills = 0;
   exitHint = "";
@@ -182,6 +198,7 @@ export class GravewakeGame {
     > = {},
     rng: () => number = Math.random,
     services: GravewakeServices = {},
+    authoring: GravewakeAuthoringData = EMPTY_AUTHORING,
   ) {
     this.world = world;
     this.actors = actors;
@@ -191,6 +208,11 @@ export class GravewakeGame {
     this.lootTables = lootTables;
     this.rng = rng;
     this.services = services;
+    this.authoring = authoring;
+    this.authoredRules = new ArpgRuleRuntime(
+      authoring.rules.triggers,
+      authoring.rules.machines,
+    );
     this.abilities = services.abilities ?? new Abilities();
     this.abilities.registerAll([
       {
@@ -357,6 +379,75 @@ export class GravewakeGame {
     if (!restored) this.enterArea("town", undefined, { fade: false });
   }
 
+  /** Runtime adapter from finite authored effects to public Anvil services. */
+  private authoredContext(): ArpgRuleContext {
+    return {
+      areaId: this.area,
+      state: {
+        area: this.area,
+        areaKind: this.areas[this.area]?.kind ?? "hub",
+        level: this.sheet.level,
+        kills: this.kills,
+        bossesKilled: this.bossesKilled,
+      },
+      hasItem: (itemId, count) =>
+        this.sheet.inventory
+          .all()
+          .filter((stack) => stack.defId === itemId)
+          .reduce((total, stack) => total + stack.qty, 0) >= count,
+      questStatus: (questId) => {
+        const status = this.services.quests?.get(questId)?.status;
+        if (status === "completed") return "complete";
+        return status === "active" ? "active" : "inactive";
+      },
+      applyEffect: (effect) => this.applyAuthoredEffect(effect),
+      emit: (event, data) => {
+        if (event === "quest.flag" && typeof data.key === "string") {
+          this.services.quests?.setFlag(data.key);
+        }
+        this.services.events?.emit(event, { ...data });
+      },
+    };
+  }
+
+  private applyAuthoredEffect(effect: Effect): void {
+    if (effect.op === "play_audio") {
+      this.services.audio?.play(effect.cue, "sfx");
+      return;
+    }
+    if (effect.op === "start_quest") {
+      this.services.quests?.start(effect.quest);
+      return;
+    }
+    if (effect.op === "grant_item") {
+      this.sheet.pickup(effect.item, effect.count);
+      return;
+    }
+    if (effect.op === "remove_item") {
+      let remaining = effect.count;
+      for (const stack of [...this.sheet.inventory.all()]) {
+        if (stack.defId !== effect.item || remaining <= 0) continue;
+        const take = Math.min(stack.qty, remaining);
+        this.sheet.inventory.remove(stack.uid, take);
+        remaining -= take;
+      }
+      return;
+    }
+    if (effect.op === "despawn") {
+      this.world.destroy(effect.entity);
+      return;
+    }
+    if (effect.op === "heal" || effect.op === "damage") {
+      const target = this.world.get(effect.target);
+      if (!target?.health) return;
+      target.health.hp = effect.op === "heal"
+        ? Math.min(target.health.max, target.health.hp + effect.amount)
+        : Math.max(0, target.health.hp - effect.amount);
+      return;
+    }
+    this.services.events?.emit("arpg:effect_unhandled", { effect });
+  }
+
   /** Projectile hit query + damage application (holy smite bolts, etc.). */
   private wireProjectiles(): void {
     const proj = this.services.projectiles;
@@ -471,6 +562,14 @@ export class GravewakeGame {
     this.wallet.set("gold", this.sheet.gold);
   }
 
+  private levelCurve(): LevelCurve {
+    return {
+      thresholds: this.progression.xpToLevel,
+      growth: this.progression.xpCurve?.growth,
+      maxLevel: this.progression.xpCurve?.maxLevel,
+    };
+  }
+
   private syncSheetFromWallet(): void {
     this.sheet.gold = this.wallet.get("gold");
   }
@@ -523,6 +622,33 @@ export class GravewakeGame {
       /* headless / storage unavailable */
     }
     return true;
+  }
+
+  /** Equip the strongest wearable backpack item in every paper-doll slot. */
+  equipBestItems(): number {
+    const result = this.sheet.equipBest();
+    if (result.changes.length === 0) {
+      this.services.events?.emit("ui:error", {});
+      this.pushFx({ kind: "banner", text: "Already wearing the best gear", t: 1.2 });
+      return 0;
+    }
+    this.syncPlayerFromSheet();
+    this.services.audio?.play("equip_metal", "sfx");
+    this.services.events?.emit("inventory:equip_best", {
+      changes: result.changes.map(({ slot, defId }) => ({ slot, defId })),
+    });
+    this.services.events?.emit("ui:confirm", {});
+    this.pushFx({
+      kind: "banner",
+      text: `Equipped best gear in ${result.changes.length} ${result.changes.length === 1 ? "slot" : "slots"}`,
+      t: 1.5,
+    });
+    try {
+      this.saveRun();
+    } catch {
+      /* headless / storage unavailable */
+    }
+    return result.changes.length;
   }
 
   /** Unequip a paper-doll slot if the backpack has room. */
@@ -1455,8 +1581,11 @@ export class GravewakeGame {
     }
 
     this.pushFx({ kind: "banner", text: area.name, t: 2.0 });
-    if (id === "wastes") this.services.quests?.setFlag("entered_wastes");
-    if (area.kind === "dungeon") this.services.quests?.setFlag("entered_dungeon");
+    this.authoredRules.dispatch(
+      "area.enter",
+      { area: id, kind: area.kind },
+      this.authoredContext(),
+    );
     this.services.events?.emit("audio:zone_music", {
       zone: area.kind === "dungeon" ? "dungeon" : id === "town" ? "town" : "battle",
     });
@@ -1737,6 +1866,7 @@ export class GravewakeGame {
     this.timeAlive += dt;
 
     const dtMs = dt * 1000;
+    this.authoredRules.update(dtMs, this.authoredContext());
     for (const k of Object.keys(this.cd) as SkillId[]) {
       this.cd[k] = Math.max(0, this.cd[k]! - dtMs);
     }
@@ -2471,6 +2601,11 @@ export class GravewakeGame {
       this.services.quests?.addCount("kill", 1);
 
       const isBoss = BOSS_IDS.has(e.actorId);
+      this.authoredRules.dispatch(
+        "enemy.killed",
+        { actorId: e.actorId, entityId: e.id, boss: isBoss },
+        this.authoredContext(),
+      );
       this.services.death?.markDead(e.id, {
         x: e.x,
         y: e.y,
@@ -2482,8 +2617,11 @@ export class GravewakeGame {
       this.wallet.add("shards", isBoss ? 5 : this.rng() < 0.2 ? 1 : 0);
       if (isBoss) {
         this.bossesKilled += 1;
-        this.services.quests?.setFlag("boss_slain");
-        this.services.quests?.setFlag("bellwarden_dead");
+        this.authoredRules.dispatch(
+          "boss.killed",
+          { actorId: e.actorId, entityId: e.id, bossesKilled: this.bossesKilled },
+          this.authoredContext(),
+        );
         this.milestoneBoss = true;
         this.bossSlainOnce = true;
         this.pushFx({
@@ -2505,7 +2643,7 @@ export class GravewakeGame {
       let xp = this.progression.xpPerKill[e.actorId] ?? 10;
       const ent = this.world.get(e.id);
       if (ent?.data.elite) xp = Math.floor(xp * 2.5);
-      const leveled = this.sheet.addXp(xp, this.progression.xpToLevel);
+      const levelGain = this.sheet.addXpDetailed(xp, this.levelCurve());
       if (!isBoss) this.dropLoot(e.x, e.y, e.actorId);
       this.pushFx({ kind: "kill", x: e.x, y: e.y, gold: 0, t: 0.45 });
       if (this.services.events) {
@@ -2517,22 +2655,38 @@ export class GravewakeGame {
           y: e.y,
         });
       }
-      if (leveled) {
+      if (levelGain.levelsGained > 0) {
+        this.authoredRules.dispatch(
+          "player.level_up",
+          {
+            from: levelGain.beforeLevel,
+            to: levelGain.afterLevel,
+            levelsGained: levelGain.levelsGained,
+          },
+          this.authoredContext(),
+        );
         this.pushFx({ kind: "levelup", t: 1.5 });
-        this.pushFx({
-          kind: "banner",
-          text: `Level ${this.sheet.level} — choose a skill (T)`,
-          t: 2.8,
-        });
         this.syncPlayerFromSheet();
         const p = this.world.get("player");
         if (p?.health) p.health.hp = p.health.max;
         this.sheet.pickup("health_potion", 1);
         // Skill point — player chooses (T panel), no silent auto-unlock
-        this.skillTree.addPoints(1);
-        this.pendingSkillChoice = true;
-        this.closePanels();
-        this.showSkills = true;
+        if (!this.skillTree.isComplete()) {
+          this.skillTree.addPoints(levelGain.levelsGained);
+        }
+        this.pendingSkillChoice =
+          this.skillTree.unlockable(this.sheet.level).length > 0;
+        this.pushFx({
+          kind: "banner",
+          text: this.pendingSkillChoice
+            ? `Level ${this.sheet.level} — choose a skill (T)`
+            : `Level ${this.sheet.level} — power increased`,
+          t: 2.8,
+        });
+        if (this.pendingSkillChoice) {
+          this.closePanels();
+          this.showSkills = true;
+        }
         this.services.resources?.fill("player");
         this.services.floatText?.spawn({
           x: e.x,
@@ -2587,17 +2741,20 @@ export class GravewakeGame {
         : tableId
       : tableId;
     const table = this.lootTables[useId] ?? this.lootTables.wastes_pack;
-    const zoneLevel = Math.max(
-      1,
-      Math.round(this.threatTier() + 1),
-    );
+    // Threat chooses tables/gold/rarity; it is not a character-level gate.
+    // Item power may lead the hero by one level, while every dropped reward
+    // remains immediately wearable.
+    const characterLevel = this.sheet.level;
+    const zoneLevel = characterLevel;
     const drop = dropFromTable(this.world, x, y, table, {
       rng: this.rng,
       goldMul: 1 + Math.floor(this.threatTier()) * 0.25,
       scatter: 24,
       itemDefs: this.items,
-      characterLevel: this.sheet.level,
+      characterLevel,
       zoneLevel,
+      maxItemLevel: characterLevel + 1,
+      maxRequiredLevel: characterLevel,
     });
     if (drop.kind === "gold" && drop.gold) {
       this.pushFx({
@@ -2775,7 +2932,7 @@ export class GravewakeGame {
       threat: Math.round(this.threatTier() * 10) / 10,
       xp: this.sheet.xp,
       level: this.sheet.level,
-      xpProgress: this.sheet.xpProgress(this.progression.xpToLevel),
+      xpProgress: this.sheet.xpProgress(this.levelCurve()),
       gold: this.sheet.gold,
       wallet: this.wallet.snapshot(),
       mana: this.services.resources?.get("player", "mana")?.current ?? 0,
@@ -2881,6 +3038,12 @@ export class GravewakeGame {
       })),
       mapW: area?.width ?? 0,
       mapH: area?.height ?? 0,
+      authoring: {
+        sourceHash: this.authoring.sourceHash,
+        actorPrefabs: this.authoring.actorPrefabs,
+        prefabs: this.authoring.prefabs,
+      },
+      declarative: this.authoredRules.snapshot(),
       /** Live walls for renderer (procgen geometry). */
       walls: area?.walls ?? [],
       tileMap: this.tileMap

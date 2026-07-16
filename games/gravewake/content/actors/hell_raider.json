@@ -1,5 +1,6 @@
 {
   "id": "hell_raider",
+  "prefab": "melee-enemy",
   "name": "Hell Raider",
   "hp": 70,
   "speed": 115,

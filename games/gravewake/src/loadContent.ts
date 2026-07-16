@@ -1,55 +1,47 @@
-import fs from "node:fs";
-import path from "node:path";
-import type { ItemDef } from "@anvil/core";
+import { compileProject } from "@anvil/authoring";
+import {
+  materializeArpgContent,
+  type ArpgLootTable,
+} from "@anvil/genre-arpg";
 import type { ActorDef } from "@anvil/genre-topdown2d";
-import type { AreaMapDef, ProgressionDef } from "./types.js";
+import type { ItemDef } from "@anvil/core";
+import type {
+  AreaMapDef,
+  GravewakeAuthoringData,
+  ProgressionDef,
+} from "./types.js";
 
-function readJsonDir<T extends { id: string }>(
-  dir: string,
-): Record<string, T> {
-  const out: Record<string, T> = {};
-  if (!fs.existsSync(dir)) return out;
-  for (const name of fs.readdirSync(dir)) {
-    if (!name.endsWith(".json")) continue;
-    const raw = JSON.parse(
-      fs.readFileSync(path.join(dir, name), "utf8"),
-    ) as T;
-    out[raw.id] = raw;
-  }
-  return out;
-}
-
-export function loadGravewakeContent(gameRoot: string): {
+export interface GravewakeContent {
   actors: Record<string, ActorDef>;
   areas: Record<string, AreaMapDef>;
   progression: ProgressionDef;
   items: Record<string, ItemDef>;
-  lootTables: Record<
-    string,
-    {
-      id: string;
-      entries: Array<{ item: string; weight: number; min?: number; max?: number }>;
-    }
-  >;
-} {
-  const base = path.join(gameRoot, "content");
-  const progressionPath = path.join(base, "progression.json");
-  const progression = fs.existsSync(progressionPath)
-    ? (JSON.parse(fs.readFileSync(progressionPath, "utf8")) as ProgressionDef)
-    : {
-        xpPerKill: {},
-        xpToLevel: [0, 50, 120, 220, 350],
-        meleeDamage: 12,
-        meleeRange: 72,
-        startGold: 25,
-        potionHeal: 40,
-      };
+  lootTables: Record<string, ArpgLootTable>;
+  authoring: GravewakeAuthoringData;
+}
 
+/** Node/headless content loader backed by the canonical schema-v2 compiler. */
+export function loadGravewakeContent(gameRoot: string): GravewakeContent {
+  const compiled = compileProject(gameRoot);
+  if (!compiled.ok) {
+    const details = compiled.errors
+      .map((error) => `${error.code}${error.path ? ` (${error.path})` : ""}: ${error.message}`)
+      .join("\n");
+    throw new Error(`Gravewake authoring compilation failed:\n${details}`);
+  }
+  const content = materializeArpgContent<AreaMapDef, ProgressionDef>(compiled.ir);
+  if (!content.progression) throw new Error("Gravewake content/progression.json missing from compiled IR");
   return {
-    actors: readJsonDir<ActorDef>(path.join(base, "actors")),
-    areas: readJsonDir<AreaMapDef>(path.join(base, "areas")),
-    progression,
-    items: readJsonDir<ItemDef>(path.join(base, "items")),
-    lootTables: readJsonDir(path.join(base, "loot")),
+    actors: content.actors,
+    areas: content.areas,
+    progression: content.progression,
+    items: content.items,
+    lootTables: content.lootTables,
+    authoring: {
+      sourceHash: content.sourceHash,
+      rules: content.rules,
+      actorPrefabs: content.authoring.actorPrefabs,
+      prefabs: content.authoring.prefabs,
+    },
   };
 }

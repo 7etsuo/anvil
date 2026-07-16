@@ -1,5 +1,6 @@
 {
   "id": "plague_scuttler",
+  "prefab": "melee-enemy",
   "name": "Plague Scuttler",
   "hp": 36,
   "speed": 125,

@@ -1,5 +1,6 @@
 {
   "id": "thrall",
+  "prefab": "melee-enemy",
   "name": "Ash Thrall",
   "hp": 32,
   "speed": 100,

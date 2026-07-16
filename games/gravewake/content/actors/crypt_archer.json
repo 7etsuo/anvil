@@ -1,5 +1,6 @@
 {
   "id": "crypt_archer",
+  "prefab": "ranged-enemy",
   "name": "Crypt Archer",
   "hp": 40,
   "speed": 90,

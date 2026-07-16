@@ -1,5 +1,6 @@
 {
   "id": "bellwarden",
+  "prefab": "melee-boss",
   "name": "The Bellwarden",
   "hp": 280,
   "speed": 78,

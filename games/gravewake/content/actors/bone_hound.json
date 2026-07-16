@@ -1,5 +1,6 @@
 {
   "id": "bone_hound",
+  "prefab": "melee-enemy",
   "name": "Bone Hound",
   "hp": 24,
   "speed": 155,

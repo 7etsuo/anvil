@@ -1,0 +1,31 @@
+{
+  "id": "campaign",
+  "initial": "lychgate",
+  "states": [
+    {
+      "id": "lychgate",
+      "enter": [{ "op": "emit", "event": "campaign.phase", "data": { "phase": "lychgate" } }],
+      "transitions": [
+        { "to": "wastes", "when": { "op": "flag", "key": "campaign.entered_wastes", "eq": true } }
+      ]
+    },
+    {
+      "id": "wastes",
+      "enter": [{ "op": "emit", "event": "campaign.phase", "data": { "phase": "wastes" } }],
+      "transitions": [
+        { "to": "dungeon", "when": { "op": "flag", "key": "campaign.entered_dungeon", "eq": true } }
+      ]
+    },
+    {
+      "id": "dungeon",
+      "enter": [{ "op": "emit", "event": "campaign.phase", "data": { "phase": "dungeon" } }],
+      "transitions": [
+        { "to": "endless", "when": { "op": "flag", "key": "campaign.boss_slain", "eq": true } }
+      ]
+    },
+    {
+      "id": "endless",
+      "enter": [{ "op": "emit", "event": "campaign.phase", "data": { "phase": "endless" } }]
+    }
+  ]
+}

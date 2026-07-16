@@ -1,5 +1,6 @@
 {
   "id": "ash_ghoul",
+  "prefab": "melee-enemy",
   "name": "Ash Ghoul",
   "hp": 48,
   "speed": 88,

@@ -182,6 +182,37 @@ describe("LootPolicy + RunState", () => {
     expect((d.gold ?? 0) > 0).toBe(true);
   });
 
+  it("can keep high-threat loot wearable without discarding item power", () => {
+    const w = new World();
+    const d = dropFromTable(
+      w,
+      10,
+      10,
+      { id: "gear", entries: [{ item: "blade", weight: 1 }] },
+      {
+        rng: () => 0.999,
+        characterLevel: 1,
+        zoneLevel: 4,
+        maxItemLevel: 2,
+        maxRequiredLevel: 1,
+        itemDefs: {
+          blade: {
+            id: "blade",
+            name: "Blade",
+            slot: "weapon",
+            stats: { damage: 3 },
+          },
+        },
+      },
+    );
+    expect(d).toMatchObject({
+      kind: "item",
+      defId: "blade",
+      itemLevel: 2,
+      reqLevel: 1,
+    });
+  });
+
   it("serializes run state", () => {
     const st = buildRunState({
       gameId: "gravewake",

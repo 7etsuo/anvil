@@ -1,0 +1,13 @@
+{
+  "id": "melee-boss",
+  "parent": "melee-enemy",
+  "traits": ["boss"],
+  "components": {
+    "actor": {
+      "hp": 250,
+      "speed": 75,
+      "contactDamage": 18,
+      "meleeRange": 50
+    }
+  }
+}

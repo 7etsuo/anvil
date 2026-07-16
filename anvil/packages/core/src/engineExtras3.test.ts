@@ -82,6 +82,23 @@ describe("SkillTree", () => {
     t.addPoints(1);
     expect(t.unlock("whirlwind", 3)).toBe(true);
   });
+
+  it("reports currently unlockable nodes and completion", () => {
+    const t = new SkillTree({
+      id: "small",
+      startPoints: 2,
+      nodes: [
+        { id: "first", name: "First" },
+        { id: "second", name: "Second", requires: ["first"] },
+      ],
+    });
+    expect(t.unlockable().map((node) => node.id)).toEqual(["first"]);
+    expect(t.isComplete()).toBe(false);
+    expect(t.unlock("first")).toBe(true);
+    expect(t.unlockable().map((node) => node.id)).toEqual(["second"]);
+    expect(t.unlock("second")).toBe(true);
+    expect(t.isComplete()).toBe(true);
+  });
 });
 
 describe("Wallet", () => {

@@ -1,0 +1,10 @@
+{
+  "id": "boss-killed",
+  "when": { "op": "event", "name": "boss.killed" },
+  "then": [
+    { "op": "set_flag", "key": "campaign.boss_slain", "value": true },
+    { "op": "add_counter", "key": "combat.bosses_killed", "amount": 1 },
+    { "op": "emit", "event": "quest.flag", "data": { "key": "boss_slain" } },
+    { "op": "emit", "event": "quest.flag", "data": { "key": "bellwarden_dead" } }
+  ]
+}

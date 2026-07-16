@@ -1,0 +1,11 @@
+{
+  "id": "player",
+  "conflicts": ["enemy"],
+  "components": {
+    "actor": {
+      "team": "player",
+      "ai": "none",
+      "contactDamage": 0
+    }
+  }
+}

@@ -1,0 +1,15 @@
+{
+  "id": "enter-wastes",
+  "when": {
+    "op": "all",
+    "conditions": [
+      { "op": "event", "name": "area.enter" },
+      { "op": "compare", "left": { "path": "event.area" }, "cmp": "eq", "right": "wastes" }
+    ]
+  },
+  "then": [
+    { "op": "set_flag", "key": "campaign.entered_wastes", "value": true },
+    { "op": "emit", "event": "quest.flag", "data": { "key": "entered_wastes" } }
+  ],
+  "once": true
+}

@@ -1,0 +1,29 @@
+schemaVersion: 2
+summary: Hello FPS2 is an Anvil game. Replace this migration summary with the intended player experience.
+quality: playable
+players:
+  min: 1
+  max: 1
+platforms:
+  - web
+requirements:
+  - id: lifecycle.start
+    category: lifecycle
+    priority: must
+    description: The game starts in a playable state.
+    weight: 10
+    verify:
+      - smoke
+  - id: input.responds
+    category: input
+    priority: must
+    description: Primary player input produces visible state change.
+    weight: 10
+    verify:
+      - smoke
+  - id: lifecycle.restart
+    category: restart
+    priority: should
+    description: The player can restart after a terminal state.
+    weight: 7
+    verify: []

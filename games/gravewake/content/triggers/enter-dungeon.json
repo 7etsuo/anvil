@@ -1,0 +1,16 @@
+{
+  "id": "enter-dungeon",
+  "when": {
+    "op": "all",
+    "conditions": [
+      { "op": "event", "name": "area.enter" },
+      { "op": "compare", "left": { "path": "event.kind" }, "cmp": "eq", "right": "dungeon" }
+    ]
+  },
+  "then": [
+    { "op": "set_flag", "key": "campaign.entered_wastes", "value": true },
+    { "op": "set_flag", "key": "campaign.entered_dungeon", "value": true },
+    { "op": "emit", "event": "quest.flag", "data": { "key": "entered_dungeon" } }
+  ],
+  "once": true
+}

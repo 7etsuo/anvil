@@ -3,6 +3,9 @@
   "name": "Ruby",
   "rarity": "magic",
   "maxStack": 20,
-  "stats": { "damage": 2 },
-  "flavor": "Socket for +damage. Hot to the touch."
+  "stats": {
+    "damage": 2
+  },
+  "flavor": "Socket for +damage. Hot to the touch.",
+  "icon": "icons/ruby_gem.png"
 }

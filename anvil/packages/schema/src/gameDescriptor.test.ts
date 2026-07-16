@@ -25,10 +25,28 @@ describe("GameYamlSchema", () => {
       }),
     ).toThrow();
   });
+
+  it("accepts arpg genre and schemaVersion 2", () => {
+    const r = GameYamlSchema.parse({
+      id: "gravewake",
+      title: "Gravewake",
+      genre: "arpg",
+      modules: ["genre-arpg"],
+      entryScene: "main",
+      schemaVersion: 2,
+      intent: "game.spec.yaml",
+    });
+    expect(r.genre).toBe("arpg");
+    expect(r.schemaVersion).toBe(2);
+  });
 });
 
 describe("normalizeModules", () => {
   it("auto-appends genre-card", () => {
     expect(normalizeModules("card", [])).toEqual(["genre-card"]);
+  });
+
+  it("auto-appends genre-arpg", () => {
+    expect(normalizeModules("arpg", [])).toEqual(["genre-arpg"]);
   });
 });

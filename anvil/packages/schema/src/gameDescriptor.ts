@@ -16,6 +16,7 @@ export const GenreEnum = z.enum([
   "vn",
   "shmup",
   "fps2",
+  "arpg",
 ]);
 
 export const ModuleId = z.enum([
@@ -25,6 +26,7 @@ export const ModuleId = z.enum([
   "genre-vn",
   "genre-shmup",
   "genre-fps2",
+  "genre-arpg",
   "genre-net",
 ]);
 
@@ -39,7 +41,10 @@ export const GameYamlSchema = z.object({
   seed: z.number().int().optional(),
   contentRoot: z.string().default("content"),
   assetsRoot: z.string().default("assets"),
-  schemaVersion: z.literal(1).default(1),
+  /** Intent / authoring pointer (schema v2+) */
+  intent: z.string().optional(),
+  /** 1 = legacy game.yaml only; 2 = game.yaml + game.spec.yaml authoring */
+  schemaVersion: z.union([z.literal(1), z.literal(2)]).default(1),
 });
 
 export type GameYaml = z.infer<typeof GameYamlSchema>;
@@ -55,6 +60,7 @@ export function normalizeModules(genre: Genre, modules: string[]): string[] {
     vn: "genre-vn",
     shmup: "genre-shmup",
     fps2: "genre-fps2",
+    arpg: "genre-arpg",
   };
   const needed = genreMod[genre];
   if (needed) out.add(needed);

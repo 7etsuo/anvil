@@ -163,6 +163,8 @@ Format inspired by GitHub Spec Kit `tasks` phase + SDD (arXiv:2602.00180).
 | T-M9-001 | Unpark game decision (Gravewake or other) | M6+ | games/gravewake/PARKED | **[x]** Gravewake |
 | T-M9-002 | Implement game **only** on Anvil APIs under `games/` | T-M9-001 | games/gravewake docs | **[x]** |
 | T-M9-003 | Full content + tests + assets | T-M9-002 | — | **[x]** greybox slice |
+| T-M9-004 | Harden procedural instance entry + interactive paper-doll/backpack inventory | T-M9-003 | S-RPG, S-TOPDOWN | **[x]** |
+| T-M9-005 | Guarantee connected procedural landmarks, corridor clearance, and path feedback | T-M9-004 | S-TOPDOWN | **[x]** |
 
 ---
 

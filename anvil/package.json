@@ -11,11 +11,12 @@
   "scripts": {
     "check": "pnpm -r run build && pnpm test && pnpm lint && pnpm validate:examples && pnpm test:examples && pnpm validate:gravewake && pnpm test:gravewake && pnpm --dir ../games/gravewake lint && pnpm --dir ../games/gravewake build:web",
     "build": "pnpm -r run build",
+    "play": "pnpm --dir ../games/gravewake run play",
     "test": "pnpm --filter @anvil/schema --filter @anvil/core --filter @anvil/genre-card --filter @anvil/genre-topdown2d --filter @anvil/genre-vn --filter @anvil/genre-shmup --filter @anvil/genre-fps2 --filter @anvil/genre-net --filter @anvil/net-colyseus --filter @anvil/cli --filter @anvil/render-phaser --filter @anvil/recipes run test",
     "lint": "eslint .",
     "validate:examples": "node packages/cli/dist/index.js validate examples/hello-empty && node packages/cli/dist/index.js validate examples/hello-card && node packages/cli/dist/index.js validate examples/hello-topdown && node packages/cli/dist/index.js validate examples/hello-vn && node packages/cli/dist/index.js validate examples/hello-shmup && node packages/cli/dist/index.js validate examples/hello-fps2 && node packages/cli/dist/index.js validate examples/hello-net",
     "test:examples": "node packages/cli/dist/index.js test examples/hello-empty && node packages/cli/dist/index.js test examples/hello-card && node packages/cli/dist/index.js test examples/hello-topdown && node packages/cli/dist/index.js test examples/hello-vn && node packages/cli/dist/index.js test examples/hello-shmup && node packages/cli/dist/index.js test examples/hello-fps2 && node packages/cli/dist/index.js test examples/hello-net",
-    "test:gravewake": "node packages/cli/dist/index.js test ../games/gravewake",
+    "test:gravewake": "pnpm --dir ../games/gravewake test",
     "validate:gravewake": "node packages/cli/dist/index.js validate ../games/gravewake",
     "dev:hello": "node packages/cli/dist/index.js dev examples/hello-empty",
     "build:hello": "node packages/cli/dist/index.js build examples/hello-empty",

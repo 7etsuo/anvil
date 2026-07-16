@@ -127,6 +127,34 @@ export interface ItemStack {
   data?: Record<string, unknown>;
 }
 
+/**
+ * Fully resolved, serializable item information for UI and agent observers.
+ * Runtime ownership remains keyed by uid; definitions are flattened here so a
+ * consumer does not need a second content lookup to understand the item.
+ */
+export interface CharacterItemView extends ItemStack {
+  name: string;
+  rarity: ItemRarity;
+  slot?: EquipSlot;
+  icon?: string;
+  flavor?: string;
+  maxStack: number;
+  stats: Partial<Stats>;
+  canEquip: boolean;
+  equippedSlot?: EquipSlot;
+}
+
+/** Diablo-style paper doll + capacity-limited backpack snapshot. */
+export interface CharacterInventoryView {
+  capacity: number;
+  used: number;
+  free: number;
+  /** Stable bag positions; empty cells are null. Equipped items are excluded. */
+  bag: Array<CharacterItemView | null>;
+  /** Every supported paper-doll slot is present, even when empty. */
+  equipment: Record<EquipSlot, CharacterItemView | null>;
+}
+
 export interface CharacterSaveBlob {
   level: number;
   xp: number;

@@ -7,8 +7,8 @@
 
 | API | Role |
 |-----|------|
-| `CharacterSheet` | level, xp, gold, baseStats, inventory, equipment, `finalStats()` |
-| `Inventory` | stacks, capacity, add/remove |
+| `CharacterSheet` | level, xp, gold, baseStats, inventory, equipment, `finalStats()`, serializable `inventoryView()` |
+| `Inventory` | owned stacks, capacity-limited `bag()`, equipped-capacity accounting, add/remove |
 | `Equipment` | slot → item uid, equip/unequip, gear mods |
 | `computeFinalStats` / `applyArmor` | stat aggregation + mitigation |
 | `spawnGroundLoot` / `tryPickupNearest` | world loot entities (`tags: loot, pickup`) |
@@ -41,6 +41,13 @@ setZoneSaveHooks(handle, () => graph.toJSON(), (d) => graph.loadJSON(d))
   "rarity": "common"
 }
 ```
+
+## Character inventory view
+
+`CharacterSheet.inventoryView()` is the renderer/agent contract. It always
+returns every paper-doll slot plus a stable, null-padded backpack grid with
+`capacity`, `used`, and `free`. Equipped items remain owned by uid for save
+compatibility, but do not consume backpack capacity.
 
 ## Ground loot entity
 

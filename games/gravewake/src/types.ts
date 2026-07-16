@@ -1,4 +1,5 @@
 import type {
+  CharacterInventoryView,
   EquipSlot,
   EquippedVisualLayer,
   ItemRarity,
@@ -199,6 +200,8 @@ export interface GravewakeObservation {
   lootCompare: { text: string; color: string; t: number } | null;
   shards: number;
   inventory: GravewakeInventoryRow[];
+  /** Engine-owned paper doll + capacity-limited backpack snapshot. */
+  inventoryView: CharacterInventoryView;
   equipped: Record<string, string | null>;
   stats: GravewakeCombatStats;
   sheetStats: Stats;

@@ -19,6 +19,10 @@ import {
   drawIsoWalls,
   type Cam,
 } from "./diabloView.js";
+import {
+  drawInventoryPanel,
+  inventoryPanelActionAt,
+} from "./inventoryPanel.js";
 
 /** Full-window logical resolution (updated on resize). */
 let VIEW_W = 1280;
@@ -354,6 +358,7 @@ async function main(): Promise<void> {
   let started = false;
   /** Cam focus mirror for diabloView helpers (kept in sync with handle.camera). */
   let cam: Cam = { wx: 200, wy: 320 };
+  let pointer = { x: -1000, y: -1000 };
 
   const syncCamFromEngine = () => {
     cam = { wx: handle.camera.wx, wy: handle.camera.wy };
@@ -429,15 +434,21 @@ async function main(): Promise<void> {
     syncMove();
   });
 
+  const pointerInView = (clientX: number, clientY: number) => {
+    const rect = canvas?.getBoundingClientRect();
+    if (!rect || !canvas) return null;
+    const sx = ((clientX - rect.left) / rect.width) * VIEW_W;
+    const sy = ((clientY - rect.top) / rect.height) * VIEW_H;
+    return { x: sx, y: sy };
+  };
+
   /** Screen → world click via engine ViewCamera. */
   const onWorldClick = (clientX: number, clientY: number, button: number) => {
     const gw = getBrowserGravewake();
     if (!gw || !started) return;
-    const rect = canvas?.getBoundingClientRect();
-    if (!rect || !canvas) return;
-    const sx = ((clientX - rect.left) / rect.width) * VIEW_W;
-    const sy = ((clientY - rect.top) / rect.height) * VIEW_H;
-    const w = handle.camera.unproject(sx, sy);
+    const screen = pointerInView(clientX, clientY);
+    if (!screen) return;
+    const w = handle.camera.unproject(screen.x, screen.y);
     if (button === 0) {
       gw.clickWorld(w.x, w.y);
     } else if (button === 2) {
@@ -447,11 +458,48 @@ async function main(): Promise<void> {
 
   // One pointer path avoids duplicate canvas/mount events and suppresses the
   // title click instead of also turning it into a world move.
+  mount.addEventListener("pointermove", (e) => {
+    const screen = pointerInView(e.clientX, e.clientY);
+    if (screen) pointer = screen;
+  });
+  mount.addEventListener("pointerleave", () => {
+    pointer = { x: -1000, y: -1000 };
+  });
   mount.addEventListener("pointerdown", (e) => {
     if (!started) {
       beginPlay();
       e.preventDefault();
       return;
+    }
+    const gw = getBrowserGravewake();
+    const screen = pointerInView(e.clientX, e.clientY);
+    if (screen) pointer = screen;
+    if (gw && screen) {
+      const blob = gw.observeBlob();
+      if (blob.inventoryOpen) {
+        if (e.button === 0) {
+          const action = inventoryPanelActionAt(
+            blob.inventoryView,
+            VIEW_W,
+            VIEW_H,
+            screen.x,
+            screen.y,
+          );
+          if (action?.kind === "equip") gw.equipItem(action.uid);
+          else if (action?.kind === "unequip") gw.unequipItem(action.slot);
+        }
+        e.preventDefault();
+        return;
+      }
+      if (
+        blob.statsOpen ||
+        blob.skillsOpen ||
+        blob.craftOpen ||
+        blob.vendorOpen
+      ) {
+        e.preventDefault();
+        return;
+      }
     }
     if (e.button === 0 || e.button === 2) {
       e.preventDefault();
@@ -1702,54 +1750,20 @@ async function main(): Promise<void> {
     }
 
     // Only one modal at a time (game already enforces; draw order safety)
-    // inventory panel
     if (blob.inventoryOpen && !blob.statsOpen && !blob.skillsOpen && !blob.craftOpen && !blob.vendorOpen) {
-      const inv = blob.inventory;
-      const iw = 340;
-      const ih = 380;
-      const ix = VIEW_W / 2 - iw / 2;
-      const iy = VIEW_H / 2 - ih / 2 - 20;
-      ctx.fillStyle = "rgba(0,0,0,0.55)";
-      ctx.fillRect(0, 0, VIEW_W, VIEW_H);
-      panel(ctx, ix, iy, iw, ih);
-      // gold border accent
-      ctx.strokeStyle = "rgba(201,164,108,0.55)";
-      ctx.lineWidth = 2;
-      ctx.strokeRect(ix + 3, iy + 3, iw - 6, ih - 6);
-      ctx.fillStyle = "#c9a46c";
-      ctx.font = "bold 20px Cinzel, Georgia, serif";
-      ctx.textAlign = "center";
-      ctx.fillText("INVENTORY", VIEW_W / 2, iy + 32);
-      ctx.fillStyle = "#9a8a70";
-      ctx.font = "12px system-ui";
-      ctx.fillText(`Gold ${blob.gold}  ·  Press I to close  ·  Best gear auto-equips`, VIEW_W / 2, iy + 52);
-      ctx.textAlign = "left";
-      let row = 0;
-      for (const item of inv) {
-        const yy = iy + 72 + row * 28;
-        if (yy > iy + ih - 40) break;
-        const col = RARITY_COLOR[item.rarity ?? "common"] ?? "#ccc";
-        ctx.fillStyle = row % 2 === 0 ? "rgba(255,255,255,0.03)" : "transparent";
-        ctx.fillRect(ix + 16, yy - 16, iw - 32, 26);
-        const can = item.canEquip !== false;
-        ctx.fillStyle = can ? col : "#666";
-        ctx.font = "bold 13px system-ui";
-        const qty = item.qty > 1 ? ` ×${item.qty}` : "";
-        const slot = item.slot ? ` [${item.slot}]` : "";
-        const lv =
-          item.itemLevel != null ? ` L${item.itemLevel}` : "";
-        const req =
-          !can && item.reqLevel != null ? `  (need Lv ${item.reqLevel})` : "";
-        ctx.fillText(`${item.name}${lv}${qty}${slot}${req}`, ix + 28, yy);
-        row++;
-      }
-      if (inv.length === 0) {
-        ctx.fillStyle = "#666";
-        ctx.font = "14px system-ui";
-        ctx.textAlign = "center";
-        ctx.fillText("Empty — slay the dead for loot", VIEW_W / 2, iy + 160);
-        ctx.textAlign = "left";
-      }
+      drawInventoryPanel(
+        ctx,
+        {
+          inventory: blob.inventoryView,
+          level: blob.level,
+          gold: blob.gold,
+          stats: blob.combatStats,
+        },
+        images,
+        VIEW_W,
+        VIEW_H,
+        pointer,
+      );
     }
 
     // Loot compare toast

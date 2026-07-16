@@ -5,9 +5,8 @@ Endless Diablo-like ARPG on **Anvil** — open **Ashen Wastes**, dungeon delves,
 ## Play
 
 ```bash
-cd anvil && pnpm install && pnpm -r run build
-cd ../games/gravewake
-pnpm install && pnpm run build
+cd anvil
+pnpm install
 pnpm run play   # http://127.0.0.1:5180/
 ```
 
@@ -29,18 +28,21 @@ Boss kills are **milestones**, not the end of the game. Packs keep spawning; thr
 |-------|--------|
 | **LMB** | Click-to-move / click enemy to chase+attack (Diablo) |
 | **RMB** or **Space** | Slash |
-| **WASD** | Keyboard move (cancels path) |
+| **WASD** | Screen-oriented isometric movement (cancels path) |
 | **2** | Whirl |
 | **3** | Smite |
 | **1** | Potion |
 | **F** | Loot / shrine |
-| **I** | Inventory |
+| **I** | Character equipment + 32-slot backpack |
 | **C** | Character stats (base + gear + total) |
+| **LMB in inventory** | Equip bag gear / unequip worn gear |
 | Portals / map edges | Travel |
 
-**Random maps:** overworld and dungeons are **procedurally generated** each visit (engine `generateOverworld` / `generateDungeon`). Hub (Lychgate) stays fixed. **Stats:** character has base stats; weapons/armor add gear mods — see **C**.
+**Random maps:** overworld and dungeons are **procedurally generated** each visit (engine `generateOverworld` / `generateDungeon`). Entrances, portals, and encounter space are reserved and connected before spawning. Hub (Lychgate) stays fixed. **Stats:** character has base stats; weapons/armor add gear mods — see **C**.
 
-Engine: A* pathfinding (`NavGrid`), click pathing, AI path around walls.
+Engine: A* pathfinding (`NavGrid`), click pathing, safe procedural-instance
+teleports, explicit no-path feedback, AI path around walls, navigation diagnostics,
+and an agent-readable paper-doll/backpack view.
 
 ### Art
 
@@ -50,7 +52,9 @@ Unique **Grok Imagine** sprites for all 18 combatants (thralls, hounds, ghouls, 
 
 ### Systems (Anvil)
 
-CharacterSheet, loot tables, equip, multi-skill combat, quests, particles, **PackSpawner** (timed respawns), scaled `spawnActorPublic`.
+CharacterSheet, capacity-aware bags, paper-doll equipment, loot tables,
+multi-skill combat, quests, particles, **PackSpawner** (timed respawns), scaled
+`spawnActorPublic`.
 
 ### Tests
 

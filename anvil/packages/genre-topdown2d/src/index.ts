@@ -5,6 +5,7 @@ export type {
   TopdownSimOptions,
   DamageMitigator,
   DamageSource,
+  MoveRequestResult,
 } from "./TopdownSim.js";
 export { PackSpawner } from "./PackSpawner.js";
 export type { PackSpawnerOpts } from "./PackSpawner.js";

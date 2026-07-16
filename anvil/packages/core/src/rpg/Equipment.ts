@@ -54,6 +54,10 @@ export class Equipment {
     }
     const previous = this.worn[slot] ?? null;
     this.worn[slot] = uid;
+    if (previous !== uid) {
+      inv.setEquipped(uid, true);
+      if (previous) inv.setEquipped(previous, false);
+    }
     return { ok: true, previous };
   }
 
@@ -78,9 +82,12 @@ export class Equipment {
     return { ...r, slot: def.slot };
   }
 
-  unequip(slot: EquipSlot): string | null {
+  unequip(slot: EquipSlot, inv?: Inventory): string | null {
     const prev = this.worn[slot] ?? null;
+    // Returning an item to a full bag would silently exceed capacity.
+    if (prev && inv?.isFull()) return null;
     this.worn[slot] = null;
+    if (prev) inv?.setEquipped(prev, false);
     return prev;
   }
 
@@ -118,8 +125,16 @@ export class Equipment {
     return { ...this.worn };
   }
 
-  loadJSON(data: Partial<Record<EquipSlot, string | null>>): void {
-    for (const s of EQUIP_SLOTS) this.worn[s] = data[s] ?? null;
+  loadJSON(
+    data: Partial<Record<EquipSlot, string | null>>,
+    inv?: Inventory,
+  ): void {
+    inv?.clearEquipped();
+    for (const s of EQUIP_SLOTS) {
+      const uid = data[s] ?? null;
+      this.worn[s] = uid;
+      if (uid) inv?.setEquipped(uid, true);
+    }
   }
 
   /** Helper: resolve worn stacks */

@@ -96,6 +96,22 @@ describe("TopdownSim", () => {
     expect(player.transform!.x).toBeLessThan(100);
   });
 
+  it("supports screen-oriented isometric WASD", () => {
+    const world = new World();
+    const sim = new TopdownSim(
+      world,
+      makeMap({ walls: [], spawns: [{ actor: "player", x: 160, y: 120, team: "player" }] }),
+      actors,
+      () => 0.5,
+      { inputSpace: "isometric" },
+    );
+    const player = world.get("player")!;
+    const before = { ...player.transform! };
+    sim.update(0.1, inputWith(["move_up"]));
+    expect(player.transform!.x).toBeLessThan(before.x);
+    expect(player.transform!.y).toBeLessThan(before.y);
+  });
+
   it("chase enemy reduces distance", () => {
     const world = new World();
     const sim = new TopdownSim(world, makeMap(), actors, () => 0.5);
@@ -155,6 +171,67 @@ describe("TopdownSim", () => {
     const s2 = [...w2.all()].find((e) => e.tags.includes("slime"))!.transform!;
     expect(s1.x).toBe(s2.x);
     expect(s1.y).toBe(s2.y);
+  });
+
+  it("uses the injected RNG for deterministic AI movement", () => {
+    const map = makeMap({ walls: [] });
+    const w1 = new World();
+    const w2 = new World();
+    const sim1 = new TopdownSim(w1, map, actors, () => 0.42);
+    const sim2 = new TopdownSim(w2, map, actors, () => 0.42);
+    const idle1 = inputWith([]);
+    const idle2 = inputWith([]);
+    for (let i = 0; i < 120; i++) {
+      sim1.update(1 / 60, idle1);
+      sim2.update(1 / 60, idle2);
+    }
+    const slime1 = [...w1.all()].find((entity) => entity.tags.includes("slime"))!;
+    const slime2 = [...w2.all()].find((entity) => entity.tags.includes("slime"))!;
+    expect(slime1.transform).toEqual(slime2.transform);
+  });
+
+  it("teleports the player to a nearby walkable point instead of into a wall", () => {
+    const world = new World();
+    const sim = new TopdownSim(world, makeMap(), actors, () => 0.5);
+    const actual = sim.teleportPlayer(110, 120, 8);
+    expect(actual).not.toBeNull();
+    expect(actual).not.toEqual({ x: 110, y: 120 });
+
+    const wall = makeMap().walls[4]!;
+    const nearestX = Math.max(wall.x, Math.min(actual!.x, wall.x + wall.w));
+    const nearestY = Math.max(wall.y, Math.min(actual!.y, wall.y + wall.h));
+    expect(Math.hypot(actual!.x - nearestX, actual!.y - nearestY)).toBeGreaterThanOrEqual(12);
+  });
+
+  it("rejects unreachable click movement with agent-readable diagnostics", () => {
+    const world = new World();
+    const sim = new TopdownSim(
+      world,
+      makeMap({
+        walls: [
+          { x: 0, y: 0, w: 320, h: 16 },
+          { x: 0, y: 224, w: 320, h: 16 },
+          { x: 0, y: 0, w: 16, h: 240 },
+          { x: 304, y: 0, w: 16, h: 240 },
+          { x: 145, y: 0, w: 30, h: 240 },
+        ],
+        spawns: [{ actor: "player", x: 60, y: 120, team: "player" }],
+      }),
+      actors,
+      () => 0.5,
+    );
+    const result = sim.setMoveTarget(260, 120);
+    expect(result).toMatchObject({
+      accepted: false,
+      reason: "unreachable",
+      pathLength: 0,
+    });
+    const navigation = sim.observeBlob().navigation as {
+      target: unknown;
+      lastRequest: { reason?: string };
+    };
+    expect(navigation.target).toBeNull();
+    expect(navigation.lastRequest.reason).toBe("unreachable");
   });
 
   it("ranged AI fires projectile", () => {

@@ -132,6 +132,7 @@ import { generateDungeon, generateOverworld } from "./map/Procgen.js";
 
 describe("Procgen", () => {
   it("generates dungeon with rooms and walls", () => {
+    const entrance = { x: 70, y: 300, clearance: 160 };
     const m = generateDungeon({
       seed: 42,
       width: 800,
@@ -139,6 +140,7 @@ describe("Procgen", () => {
       roomCount: [4, 4],
       enemyActors: ["scuttler"],
       enemyCount: [2, 2],
+      requiredPoints: [entrance],
     });
     expect(m.kind).toBe("dungeon");
     expect(m.walls.length).toBeGreaterThan(2);
@@ -146,17 +148,29 @@ describe("Procgen", () => {
       true,
     );
     expect(m.tileMap).toBeTruthy();
+    expect(m.tileMap!.blocksWorld(entrance.x, entrance.y, 12)).toBe(false);
   });
 
   it("generates overworld with rocks", () => {
+    const portal = { x: 700, y: 200, clearance: 180 };
     const m = generateOverworld({
       width: 1000,
       height: 800,
       rockCount: [5, 8],
       rng: () => 0.3,
+      requiredPoints: [portal],
     });
     expect(m.kind).toBe("overworld");
     expect(m.walls.length).toBeGreaterThan(4);
+    expect(
+      m.walls.some(
+        (wall) =>
+          portal.x >= wall.x &&
+          portal.x <= wall.x + wall.w &&
+          portal.y >= wall.y &&
+          portal.y <= wall.y + wall.h,
+      ),
+    ).toBe(false);
   });
 });
 

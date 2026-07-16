@@ -2,7 +2,10 @@ import { Equipment, type ItemDefLookup } from "./Equipment.js";
 import { Inventory } from "./Inventory.js";
 import { rollItemInstance } from "./itemization.js";
 import { addStats, computeFinalStats, emptyStats } from "./stats.js";
+import { EQUIP_SLOTS } from "./types.js";
 import type {
+  CharacterInventoryView,
+  CharacterItemView,
   CharacterSaveBlob,
   EquipSlot,
   EquippedVisualLayer,
@@ -275,7 +278,59 @@ export class CharacterSheet {
   }
 
   unequip(slot: import("./types.js").EquipSlot) {
-    return this.equipment.unequip(slot);
+    return this.equipment.unequip(slot, this.inventory);
+  }
+
+  /**
+   * Stable paper-doll and backpack contract for renderers and AI agents.
+   * Equipped gear is owned by the character but does not consume bag cells.
+   */
+  inventoryView(): CharacterInventoryView {
+    const equippedByUid = new Map<string, EquipSlot>();
+    for (const [slot, uid] of Object.entries(this.equipment.all()) as Array<
+      [EquipSlot, string | null]
+    >) {
+      if (uid) equippedByUid.set(uid, slot);
+    }
+
+    const resolve = (stack: import("./types.js").ItemStack): CharacterItemView => {
+      const def = this.defs[stack.defId];
+      const reqLevel = stack.reqLevel ?? stack.itemLevel ?? def?.itemLevel ?? 1;
+      const equippedSlot = equippedByUid.get(stack.uid);
+      return {
+        ...stack,
+        name: def?.name ?? stack.defId,
+        rarity: def?.rarity ?? "common",
+        slot: def?.slot,
+        icon: def?.icon,
+        flavor: def?.flavor,
+        maxStack: def?.maxStack ?? 1,
+        stats: { ...(stack.rolledStats ?? def?.stats ?? {}) },
+        canEquip: !def?.slot || this.level >= reqLevel,
+        equippedSlot,
+      };
+    };
+
+    const bagItems = this.inventory.bag().map(resolve);
+    const bag: CharacterInventoryView["bag"] = Array.from(
+      { length: Math.max(this.inventory.capacity, bagItems.length) },
+      (_, index) => bagItems[index] ?? null,
+    );
+    const equipment = Object.fromEntries(
+      EQUIP_SLOTS.map((slot) => {
+        const uid = this.equipment.get(slot);
+        const stack = uid ? this.inventory.get(uid) : undefined;
+        return [slot, stack ? resolve(stack) : null];
+      }),
+    ) as Record<EquipSlot, CharacterItemView | null>;
+
+    return {
+      capacity: this.inventory.capacity,
+      used: this.inventory.usedSlots(),
+      free: this.inventory.freeSlots(),
+      bag,
+      equipment,
+    };
   }
 
   /**
@@ -339,6 +394,6 @@ export class CharacterSheet {
     this.baseStats = emptyStats(data.baseStats);
     this.inventory.capacity = data.inventoryCapacity ?? 40;
     this.inventory.loadJSON(data.inventory ?? []);
-    this.equipment.loadJSON(data.equipped ?? {});
+    this.equipment.loadJSON(data.equipped ?? {}, this.inventory);
   }
 }

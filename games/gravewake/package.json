@@ -12,7 +12,8 @@
     "lint": "eslint .",
     "typecheck": "tsc -p tsconfig.json --noEmit && pnpm run typecheck:browser",
     "typecheck:browser": "tsc -p tsconfig.browser.json",
-    "test": "node ../../anvil/packages/cli/dist/index.js test .",
+    "test": "pnpm run test:instances && node ../../anvil/packages/cli/dist/index.js test .",
+    "test:instances": "node tests/instance-spawns.mjs",
     "validate": "node ../../anvil/packages/cli/dist/index.js validate ."
   },
   "dependencies": {

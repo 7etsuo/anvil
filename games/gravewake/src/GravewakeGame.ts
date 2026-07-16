@@ -5,6 +5,7 @@ import type {
   DamageType,
   DeathSystem,
   EventBus,
+  EquipSlot,
   FloatTextSystem,
   InputMap,
   InteractableSystem,
@@ -493,6 +494,63 @@ export class GravewakeGame {
     return this.sheet;
   }
 
+  /** Equip a backpack item. Public for renderers and agent actions. */
+  equipItem(uid: string): boolean {
+    const stack = this.sheet.inventory.get(uid);
+    if (!stack) return false;
+    const def = this.items[stack.defId];
+    const result = this.sheet.equip(uid);
+    if (!result.ok) {
+      this.services.events?.emit("ui:error", {});
+      const message =
+        result.error === "level_req"
+          ? `Requires level ${result.reqLevel ?? "?"}`
+          : "Cannot equip item";
+      this.pushFx({ kind: "banner", text: message, t: 1.2 });
+      return false;
+    }
+    this.syncPlayerFromSheet();
+    this.services.audio?.play("equip_metal", "sfx");
+    this.services.events?.emit("ui:confirm", {});
+    this.pushFx({
+      kind: "banner",
+      text: `Equipped ${def?.name ?? stack.defId}`,
+      t: 1.2,
+    });
+    try {
+      this.saveRun();
+    } catch {
+      /* headless / storage unavailable */
+    }
+    return true;
+  }
+
+  /** Unequip a paper-doll slot if the backpack has room. */
+  unequipItem(slot: EquipSlot): boolean {
+    const before = this.sheet.equipment.get(slot);
+    if (!before) return false;
+    const stack = this.sheet.inventory.get(before);
+    const removed = this.sheet.unequip(slot);
+    if (!removed) {
+      this.services.events?.emit("ui:error", {});
+      this.pushFx({ kind: "banner", text: "Backpack is full", t: 1.2 });
+      return false;
+    }
+    this.syncPlayerFromSheet();
+    this.services.events?.emit("ui:confirm", {});
+    this.pushFx({
+      kind: "banner",
+      text: `Unequipped ${this.items[stack?.defId ?? ""]?.name ?? slot}`,
+      t: 1.2,
+    });
+    try {
+      this.saveRun();
+    } catch {
+      /* headless / storage unavailable */
+    }
+    return true;
+  }
+
   getSkillTree(): SkillTree {
     return this.skillTree;
   }
@@ -596,6 +654,16 @@ export class GravewakeGame {
     this.showVendor = false;
   }
 
+  private hasOpenPanel(): boolean {
+    return (
+      this.showInv ||
+      this.showStats ||
+      this.showSkills ||
+      this.showCraft ||
+      this.showVendor
+    );
+  }
+
   private openPanel(
     which: "inv" | "stats" | "skills" | "craft" | "vendor",
   ): void {
@@ -616,6 +684,7 @@ export class GravewakeGame {
       else if (which === "skills") this.showSkills = true;
       else if (which === "craft") this.showCraft = true;
       else this.showVendor = true;
+      this.sim?.clearMoveTarget();
     }
   }
 
@@ -769,7 +838,6 @@ export class GravewakeGame {
       text: `Crafted ${this.items[r.outputId]?.name ?? r.outputId}`,
       t: 1.6,
     });
-    this.autoEquipBest();
     this.syncPlayerFromSheet();
     return true;
   }
@@ -955,19 +1023,42 @@ export class GravewakeGame {
    * Diablo-style click in world space.
    * Enemy near click → path + auto engage; empty ground → move.
    */
-  clickWorld(x: number, y: number): void {
-    if (!this.sim || this.sim.isLost()) return;
+  clickWorld(x: number, y: number): boolean {
+    if (!this.sim || this.sim.isLost() || this.hasOpenPanel()) return false;
     const enemy = this.sim.nearestEnemy(x, y, 56);
     if (enemy) {
       const e = this.world.get(enemy);
       if (e?.transform) {
-        this.sim.setMoveTarget(e.transform.x, e.transform.y, {
+        const result = this.sim.setMoveTarget(e.transform.x, e.transform.y, {
           autoEngage: true,
         });
-        return;
+        if (!result.accepted) this.showNoPathFeedback();
+        return result.accepted;
       }
     }
-    this.sim.setMoveTarget(x, y, { autoEngage: false });
+    const result = this.sim.setMoveTarget(x, y, { autoEngage: false });
+    if (!result.accepted) this.showNoPathFeedback();
+    return result.accepted;
+  }
+
+  private showNoPathFeedback(): void {
+    const pos = this.sim?.getPlayerPos() ?? { x: 0, y: 0 };
+    this.pushFx({
+      kind: "float",
+      x: pos.x,
+      y: pos.y,
+      text: "No path",
+      color: "#d98b72",
+      t: 0.8,
+    });
+    this.services.floatText?.spawn({
+      x: pos.x,
+      y: pos.y - 12,
+      text: "No path",
+      style: "info",
+      color: "#d98b72",
+    });
+    this.services.events?.emit("ui:error", {});
   }
 
   private pushFx(ev: FxEvent): void {
@@ -1133,6 +1224,16 @@ export class GravewakeGame {
       area.respawn?.packTable ??
       area.packTable ??
       ["scuttler", "fallen", "thrall", "wretch"];
+    const requiredPoints = [
+      ...area.spawns
+        .filter((spawn) => spawn.team === "player" || spawn.actor === "gravewarden")
+        .map((spawn) => ({ x: spawn.x, y: spawn.y, clearance: 220 })),
+      ...(area.portals ?? []).map((portal) => ({
+        x: portal.x + portal.w / 2,
+        y: portal.y + portal.h / 2,
+        clearance: 220,
+      })),
+    ];
     if (area.kind === "overworld") {
       const gen = generateOverworld({
         id: area.id,
@@ -1144,6 +1245,7 @@ export class GravewakeGame {
         westExit: true,
         eastExit: false,
         rockCount: [28, 50],
+        requiredPoints,
         rng: this.rng,
       });
       const playerSpawn =
@@ -1180,6 +1282,9 @@ export class GravewakeGame {
         enemyActors: enemyPool,
         enemyCount: area.respawn?.initialPack ?? [6, 12],
         roomCount: [5, 10],
+        roomSize: [180, 300],
+        corridorWidth: 112,
+        requiredPoints,
         rng: this.rng,
       });
       const spawns = gen.spawns.map((s) =>
@@ -1235,7 +1340,6 @@ export class GravewakeGame {
         inMs: 280,
         onMid: () => {
           run();
-          this.areaTransitioning = false;
         },
         onDone: () => {
           this.areaTransitioning = false;
@@ -1277,6 +1381,7 @@ export class GravewakeGame {
     this.sim = new TopdownSim(this.world, map, this.actors, this.rng, {
       autoWinOnClear: false,
       aiActiveRadius: 560,
+      inputSpace: "isometric",
     });
     this.wireCombatStats(this.sim);
     this.sim.setAggroTargetResolver((enemyId) => {
@@ -1314,11 +1419,10 @@ export class GravewakeGame {
     }
 
     if (spawn) {
-      const p = this.world.get("player");
-      if (p?.transform) {
-        p.transform.x = spawn.x;
-        p.transform.y = spawn.y;
-      }
+      // Authored portal/save coordinates may target stale geometry after
+      // procgen. The engine resolves nearby walkable space or retains the
+      // generated player spawn when no safe destination exists.
+      this.sim.teleportPlayer(spawn.x, spawn.y, 12);
     }
     this.syncPlayerFromSheet();
     this.services.resources?.attach("player");
@@ -1346,7 +1450,7 @@ export class GravewakeGame {
           Math.floor(this.rng() * (r.packSize[1] - r.packSize[0] + 1)),
         livingCount: () => this.sim?.livingEnemyCount() ?? 0,
         spawnOne: () => this.spawnRandomEnemy(area),
-        enabled: () => !this.showInv && !this.areaTransitioning,
+        enabled: () => !this.hasOpenPanel() && !this.areaTransitioning,
       });
     }
 
@@ -1642,11 +1746,18 @@ export class GravewakeGame {
     for (const f of this.fx) f.t -= dt;
     this.fx = this.fx.filter((f) => f.t > 0);
 
-    this.sim.update(dt, input);
+    const gameplayActive = !this.hasOpenPanel() && !this.areaTransitioning;
+    if (gameplayActive) this.sim.update(dt, input);
+    else this.sim.clearMoveTarget();
 
     // Auto-attack while click-chasing an enemy
     const ppos = this.sim.getPlayerPos();
-    if (ppos && this.sim.isAutoEngage() && this.cd.slash <= 0) {
+    if (
+      gameplayActive &&
+      ppos &&
+      this.sim.isAutoEngage() &&
+      this.cd.slash <= 0
+    ) {
       const near = this.sim.nearestEnemy(
         ppos.x,
         ppos.y,
@@ -2260,7 +2371,6 @@ export class GravewakeGame {
         style: "gold",
       });
       this.services.events?.emit("loot:pickup", { id });
-      this.autoEquipBest();
       this.syncPlayerFromSheet();
     }
   }
@@ -2318,7 +2428,6 @@ export class GravewakeGame {
         rolledStats: loot.rolledStats,
         itemLevel: loot.itemLevel,
       });
-      this.autoEquipBest();
       this.syncPlayerFromSheet();
       const nm = this.items[loot.defId!]?.name ?? "Loot";
       const lv = loot.itemLevel != null ? ` L${loot.itemLevel}` : "";
@@ -2339,34 +2448,6 @@ export class GravewakeGame {
           style: "info",
           color: cmp.color,
         });
-      }
-    }
-  }
-
-  private autoEquipBest(): void {
-    const scoreStack = (stack: {
-      rolledStats?: Partial<Record<string, number>>;
-      defId: string;
-      itemLevel?: number;
-    }) => {
-      const def = this.items[stack.defId];
-      const stats = stack.rolledStats ?? def?.stats;
-      return itemPowerScore(stats, stack.itemLevel ?? 1);
-    };
-    for (const stack of this.sheet.inventory.all()) {
-      const def = this.items[stack.defId];
-      if (!def?.slot) continue;
-      const req = stack.reqLevel ?? stack.itemLevel ?? 1;
-      if (this.sheet.level < req) continue; // engine equip gate too
-      const curUid = this.sheet.equipment.get(def.slot);
-      if (!curUid) {
-        this.sheet.equip(stack.uid);
-        continue;
-      }
-      const cur = this.sheet.inventory.get(curUid);
-      if (!cur) continue;
-      if (scoreStack(stack) > scoreStack(cur)) {
-        this.sheet.equip(stack.uid);
       }
     }
   }
@@ -2653,6 +2734,7 @@ export class GravewakeGame {
         rolledStats: s.rolledStats,
       };
     });
+    const inventoryView = this.sheet.inventoryView();
     const equipped: Record<string, string | null> = {};
     for (const [slot, uid] of Object.entries(this.sheet.equipment.all())) {
       if (!uid) {
@@ -2760,6 +2842,7 @@ export class GravewakeGame {
       lootCompare: this.lootCompareToast,
       shards: this.wallet.get("shards"),
       inventory: inv,
+      inventoryView,
       equipped,
       stats,
       /** Sheet final without skill tree (C panel base) */

@@ -29,6 +29,22 @@
     },
     {
       "tick": 0,
+      "assert": { "path": "genre.gravewake.inventoryView.capacity", "eq": 32 }
+    },
+    {
+      "tick": 0,
+      "assert": { "path": "genre.gravewake.inventoryView.used", "eq": 1 }
+    },
+    {
+      "tick": 0,
+      "assert": { "path": "genre.gravewake.inventoryView.equipment.weapon.defId", "eq": "rusty_sword" }
+    },
+    {
+      "tick": 0,
+      "assert": { "path": "genre.gravewake.inventoryView.bag.0.defId", "eq": "health_potion" }
+    },
+    {
+      "tick": 0,
       "assert": { "path": "genre.gravewake.victory", "eq": false }
     }
   ]

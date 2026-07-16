@@ -21,6 +21,15 @@ export type Rng = () => number;
 
 export type DamageSource = "contact" | "melee" | "projectile" | "dot" | "other";
 
+export type MoveRequestResult = {
+  accepted: boolean;
+  requested: PathPoint;
+  destination: PathPoint | null;
+  pathLength: number;
+  adjusted: boolean;
+  reason?: "no_player" | "no_walkable_target" | "unreachable";
+};
+
 /** Optional hook: turn raw damage into final (armor / resists / skills). */
 export type DamageMitigator = (
   targetId: string,
@@ -44,12 +53,15 @@ export type TopdownSimOptions = {
   aiActiveRadius?: number;
   /** Apply armor / resists before HP loss. */
   damageMitigator?: DamageMitigator;
+  /** Interpret directional input in world axes or screen-oriented iso axes. */
+  inputSpace?: "world" | "isometric";
 };
 
 export class TopdownSim {
   readonly map: MapDef;
   private actors = new Map<string, ActorRuntime>();
   private world: World;
+  private rng: Rng;
   private actorDefs: Record<string, ActorDef>;
   private playerId: string | null = null;
   private timeMs = 0;
@@ -64,10 +76,12 @@ export class TopdownSim {
   private playerPathI = 0;
   /** When true, auto-slash nearest enemy in melee while pathing. */
   private autoEngage = false;
+  private lastMoveRequest: MoveRequestResult | null = null;
   private aiActiveRadius: number;
   /** Per-actor animation controllers (multi-frame idle/walk/attack/death). */
   private anim = new Map<string, ActorAnimController>();
   private damageMitigator: DamageMitigator | null = null;
+  private inputSpace: "world" | "isometric";
   /** Resolve who an enemy should chase (threat/aggro). Falls back to player. */
   private aggroTargetResolver: ((enemyId: string) => string | null) | null =
     null;
@@ -78,10 +92,11 @@ export class TopdownSim {
     world: World,
     map: MapDef,
     actorDefs: Record<string, ActorDef>,
-    _rng: Rng = Math.random,
+    rng: Rng = Math.random,
     opts: TopdownSimOptions = {},
   ) {
     this.world = world;
+    this.rng = rng;
     this.map = map;
     this.mapId = map.id;
     this.actorDefs = actorDefs;
@@ -89,6 +104,7 @@ export class TopdownSim {
     this.aiActiveRadius =
       opts.aiActiveRadius === undefined ? 520 : opts.aiActiveRadius;
     this.damageMitigator = opts.damageMitigator ?? null;
+    this.inputSpace = opts.inputSpace ?? "world";
     this.nav = new NavGrid(map.width, map.height, map.walls, 28, 14);
     this.spawnAll();
   }
@@ -149,16 +165,62 @@ export class TopdownSim {
   /**
    * Diablo click-to-move. Optional autoEngage: chase and attack when close.
    */
-  setMoveTarget(x: number, y: number, opts?: { autoEngage?: boolean }): void {
-    const p = this.getPlayerPos();
-    if (!p) return;
-    this.moveTarget = {
+  setMoveTarget(
+    x: number,
+    y: number,
+    opts?: { autoEngage?: boolean },
+  ): MoveRequestResult {
+    const requested = {
       x: Math.max(8, Math.min(this.map.width - 8, x)),
       y: Math.max(8, Math.min(this.map.height - 8, y)),
     };
+    const p = this.getPlayerPos();
+    if (!p) {
+      return (this.lastMoveRequest = {
+        accepted: false,
+        requested,
+        destination: null,
+        pathLength: 0,
+        adjusted: false,
+        reason: "no_player",
+      });
+    }
+    const destination = this.nav.nearestWalkable(requested.x, requested.y, 8);
+    if (!destination) {
+      this.clearMoveTarget();
+      return (this.lastMoveRequest = {
+        accepted: false,
+        requested,
+        destination: null,
+        pathLength: 0,
+        adjusted: false,
+        reason: "no_walkable_target",
+      });
+    }
+    const path = this.nav.findPath(p.x, p.y, destination.x, destination.y);
+    if (!path.length) {
+      this.clearMoveTarget();
+      return (this.lastMoveRequest = {
+        accepted: false,
+        requested,
+        destination,
+        pathLength: 0,
+        adjusted:
+          destination.x !== requested.x || destination.y !== requested.y,
+        reason: "unreachable",
+      });
+    }
+    this.moveTarget = destination;
     this.autoEngage = opts?.autoEngage === true;
-    this.playerPath = this.nav.findPath(p.x, p.y, this.moveTarget.x, this.moveTarget.y);
+    this.playerPath = path;
     this.playerPathI = 0;
+    return (this.lastMoveRequest = {
+      accepted: true,
+      requested,
+      destination: { ...destination },
+      pathLength: path.length,
+      adjusted: destination.x !== requested.x || destination.y !== requested.y,
+    });
   }
 
   clearMoveTarget(): void {
@@ -178,6 +240,44 @@ export class TopdownSim {
 
   getPlayerPath(): PathPoint[] {
     return this.playerPath;
+  }
+
+  getLastMoveRequest(): MoveRequestResult | null {
+    return this.lastMoveRequest ? { ...this.lastMoveRequest } : null;
+  }
+
+  /** Resolve portal/save coordinates against the current navigation geometry. */
+  resolveWalkablePoint(
+    x: number,
+    y: number,
+    maxRadiusCells = 8,
+  ): PathPoint | null {
+    return this.nav.nearestWalkable(x, y, maxRadiusCells);
+  }
+
+  /**
+   * Move the player without allowing a stale/generated coordinate to embed it
+   * in collision. Returns the actual destination, or null when none is nearby.
+   */
+  teleportPlayer(
+    x: number,
+    y: number,
+    maxRadiusCells = 8,
+  ): PathPoint | null {
+    if (!this.playerId) return null;
+    const entity = this.world.get(this.playerId);
+    const runtime = this.actors.get(this.playerId);
+    if (!entity?.transform || !runtime) return null;
+    const point = this.resolveWalkablePoint(x, y, maxRadiusCells);
+    if (!point) return null;
+    entity.transform.x = point.x;
+    entity.transform.y = point.y;
+    runtime.vx = 0;
+    runtime.vy = 0;
+    runtime.homeX = point.x;
+    runtime.homeY = point.y;
+    this.clearMoveTarget();
+    return point;
   }
 
   private spawnAll(): void {
@@ -273,7 +373,7 @@ export class TopdownSim {
       homeY: y,
       aggro: team === "player",
       wanderMs: 0,
-      wanderAng: Math.random() * Math.PI * 2,
+      wanderAng: this.rng() * Math.PI * 2,
       path: [],
       pathI: 0,
       repathMs: 0,
@@ -562,6 +662,13 @@ export class TopdownSim {
     if (ix !== 0 || iy !== 0) {
       // Keyboard overrides click path (classic hybrid control)
       this.clearMoveTarget();
+      if (this.inputSpace === "isometric") {
+        // Screen-oriented WASD: W travels visually up, D visually right.
+        const screenX = ix;
+        const screenY = iy;
+        ix = screenX + screenY;
+        iy = screenY - screenX;
+      }
       const len = Math.hypot(ix, iy);
       ix /= len;
       iy /= len;
@@ -689,8 +796,8 @@ export class TopdownSim {
       } else {
         rt.wanderMs -= dtMs;
         if (rt.wanderMs <= 0) {
-          rt.wanderMs = 600 + Math.random() * 1400;
-          rt.wanderAng += (Math.random() - 0.5) * 1.8;
+          rt.wanderMs = 600 + this.rng() * 1400;
+          rt.wanderAng += (this.rng() - 0.5) * 1.8;
         }
         wishX = Math.cos(rt.wanderAng) * 0.35;
         wishY = Math.sin(rt.wanderAng) * 0.35;
@@ -707,7 +814,7 @@ export class TopdownSim {
             pe.transform.y,
           );
           rt.pathI = 0;
-          rt.repathMs = 280 + Math.random() * 120;
+          rt.repathMs = 280 + this.rng() * 120;
         }
         const steer = this.followPath(rt, me.transform.x, me.transform.y);
         if (steer) {
@@ -1051,6 +1158,13 @@ export class TopdownSim {
       won: this.won,
       lost: this.lost,
       playerId: this.playerId,
+      navigation: {
+        target: this.moveTarget ? { ...this.moveTarget } : null,
+        pathLength: this.playerPath.length,
+        waypointIndex: this.playerPathI,
+        autoEngage: this.autoEngage,
+        lastRequest: this.lastMoveRequest,
+      },
       entities,
     };
   }

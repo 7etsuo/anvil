@@ -31,6 +31,12 @@ Recent examples of the right loop: `CharacterSheet` / loot, `playerMeleeNearest`
 3. `anvil/docs/design/AGENTS.md`  
 4. Task’s `anvil/docs/design/specs/S-*.md`
 
+## Art with Grok Build + Imagine
+
+Anvil loads files; it does not generate art. For the agent asset loop (style
+bible → `image_gen` base → `image_edit` frames → drop under `assetsRoot`), see
+[`docs/GROK_WORKFLOW.md`](./docs/GROK_WORKFLOW.md).
+
 ## Commands
 
 ```bash

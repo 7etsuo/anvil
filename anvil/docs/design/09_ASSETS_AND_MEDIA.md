@@ -78,6 +78,10 @@ anvil assets missing
 
 No `anvil imagine` command.
 
+For Grok Build + Grok Imagine (style bible, base identity, frame edits, where
+to put files in this monorepo), see the monorepo guide:
+[`../../../docs/GROK_WORKFLOW.md`](../../../docs/GROK_WORKFLOW.md).
+
 ## 8. Bundled CC0 audio library
 
 Engine ships a ready-to-pick library at **`anvil/assets/audio/`** (music + SFX, all **CC0**).

@@ -18,6 +18,7 @@ consume public Anvil APIs.
 - To build a game or inspect the public surface: [`anvil/ENGINE.md`](./anvil/ENGINE.md)
 - To change the engine: [`anvil/docs/design/README.md`](./anvil/docs/design/README.md)
 - To work as a repository agent: [`AGENTS.md`](./AGENTS.md)
+- To use **Grok Build + Grok Imagine** for code and assets: [`docs/GROK_WORKFLOW.md`](./docs/GROK_WORKFLOW.md)
 - To understand the current title: [`games/gravewake/README.md`](./games/gravewake/README.md)
 
 ## Development setup

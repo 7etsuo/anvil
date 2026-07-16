@@ -226,6 +226,31 @@ describe("Inventory + Equipment + CharacterSheet", () => {
     expect(inv.add("iron_plate")).toBeNull();
   });
 
+  it("keeps equipped gear out of bag capacity and exposes a paper-doll view", () => {
+    const sheet = new CharacterSheet({ itemDefs: items, inventoryCapacity: 1 });
+    expect(sheet.pickup("rusty_sword")).toBe(true);
+    const sword = sheet.inventory.findByDef("rusty_sword")!;
+    expect(sheet.equip(sword.uid).ok).toBe(true);
+
+    // The equipped weapon no longer occupies the single backpack cell.
+    expect(sheet.inventory.usedSlots()).toBe(0);
+    expect(sheet.pickup("iron_plate")).toBe(true);
+    expect(sheet.pickup("potion")).toBe(false);
+
+    const view = sheet.inventoryView();
+    expect(view).toMatchObject({ capacity: 1, used: 1, free: 0 });
+    expect(view.equipment.weapon?.defId).toBe("rusty_sword");
+    expect(view.bag[0]?.defId).toBe("iron_plate");
+    expect(view.equipment.head).toBeNull();
+
+    // Unequip is blocked until the full bag has room.
+    expect(sheet.unequip("weapon")).toBeNull();
+    expect(sheet.equipment.get("weapon")).toBe(sword.uid);
+    sheet.inventory.remove(view.bag[0]!.uid);
+    expect(sheet.unequip("weapon")).toBe(sword.uid);
+    expect(sheet.inventory.usedSlots()).toBe(1);
+  });
+
   it("serialize round-trip", () => {
     const sheet = new CharacterSheet({ itemDefs: items });
     sheet.pickup("rusty_sword");

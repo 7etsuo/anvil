@@ -252,6 +252,7 @@ export type {
   OverworldGenOpts,
   ProcMapResult,
   ProcgenRng,
+  ProcgenRequiredPoint,
 } from "./map/Procgen.js";
 
 // Platform packaging (manifest only — real Electron shell is @anvil/desktop)

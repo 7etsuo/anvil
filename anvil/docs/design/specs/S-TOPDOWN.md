@@ -17,6 +17,15 @@
 | `move_right` | vx += speed |
 
 Normalize diagonal to speed length.
+`TopdownSimOptions.inputSpace: "isometric"` rotates directional input so WASD
+tracks screen-up/down/left/right while the simulation remains cartesian.
+
+Portal, save, and procedural-map coordinates MUST be resolved through
+`TopdownSim.resolveWalkablePoint` / `teleportPlayer`; a blocked destination is
+moved to nearby navigable space and MUST NOT snap a path back into collision.
+Generated dungeon entrances and required gameplay points MUST be carved into
+the connected room graph. Navigation occupancy MUST use cell-center clearance,
+not whole-cell overlap inflation that can seal valid corridors.
 
 ## 2. Collision (normative algorithm)
 

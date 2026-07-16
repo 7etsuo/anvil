@@ -39,7 +39,7 @@ Classic Diablo loop: **town → open wilds → dungeon → boss**, with XP level
 | Setting | Dark fantasy **bone-and-ash crypt** under a ruined cathedral |
 | Tone | Grim, readable, slightly gothic — not comedy, not sci-fi |
 | Perspective | **High 3/4 top-down** (soft iso-lean, not pure overhead) |
-| Controls | **WASD + mouse aim** (not click-to-move in v1) |
+| Controls | **Screen-oriented WASD + Diablo click-to-move/chase** |
 | Player class | Single kit: **hybrid melee + rites** (no class select) |
 | Player name (fiction) | The player character is a **Gravewarden** (no custom name UI v1) |
 | Campaign size | **1 town** + **1 open overworld** + **1 dungeon** |
@@ -223,7 +223,7 @@ All skippable with F / click after 0.5s.
 
 ## 14. Non-goals (v1)
 
-Multiplayer, seasons, crafting, skill tree, uniques, click-to-move, controller, mobile, second biome, mounts, pets, dialogue trees beyond vendor one-liner, 8-dir animation sheets.
+Multiplayer, seasons, controller, mobile, second biome, mounts, pets, dialogue trees beyond vendor one-liner, 8-dir animation sheets.
 
 ---
 

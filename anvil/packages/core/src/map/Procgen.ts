@@ -8,6 +8,14 @@ import { TileMap } from "./TileMap.js";
 
 export type ProcgenRng = () => number;
 
+/** A world point procgen must keep open (and connected for dungeons). */
+export type ProcgenRequiredPoint = {
+  x: number;
+  y: number;
+  /** Clear square width around the point in world units. */
+  clearance?: number;
+};
+
 export type DungeonGenOpts = {
   id?: string;
   width?: number;
@@ -21,6 +29,10 @@ export type DungeonGenOpts = {
   /** Optional enemy actor ids to scatter (empty = none) */
   enemyActors?: string[];
   enemyCount?: [number, number];
+  /** Minimum corridor width in world units. Defaults to 96. */
+  corridorWidth?: number;
+  /** Portals, entrances, objectives, and authored landmarks to keep connected. */
+  requiredPoints?: ProcgenRequiredPoint[];
   rng?: ProcgenRng;
 };
 
@@ -28,6 +40,7 @@ export type OverworldGenOpts = {
   id?: string;
   width?: number;
   height?: number;
+  seed?: number;
   border?: number;
   rockCount?: [number, number];
   rockSize?: [number, number];
@@ -37,6 +50,8 @@ export type OverworldGenOpts = {
   /** West hub exit gap */
   westExit?: boolean;
   eastExit?: boolean;
+  /** Portals, entrances, and landmarks rocks must not overlap. */
+  requiredPoints?: ProcgenRequiredPoint[];
   rng?: ProcgenRng;
 };
 
@@ -70,7 +85,7 @@ export function generateDungeon(opts: DungeonGenOpts = {}): ProcMapResult {
   const H = opts.height ?? 900;
   const border = opts.border ?? 36;
   const [rcLo, rcHi] = opts.roomCount ?? [6, 11];
-  const [rsLo, rsHi] = opts.roomSize ?? [80, 160];
+  const [rsLo, rsHi] = opts.roomSize ?? [140, 240];
   const nRooms = ri(rng, rcLo, rcHi);
 
   type Room = { x: number; y: number; w: number; h: number; cx: number; cy: number };
@@ -110,12 +125,23 @@ export function generateDungeon(opts: DungeonGenOpts = {}): ProcMapResult {
   for (let i = 0; i < tm.tiles.length; i++) tm.tiles[i] = 1;
 
   const digRect = (x: number, y: number, w: number, h: number) => {
-    const x0 = Math.max(1, Math.floor(x / ts));
-    const y0 = Math.max(1, Math.floor(y / ts));
-    const x1 = Math.min(tw - 2, Math.floor((x + w) / ts));
-    const y1 = Math.min(th - 2, Math.floor((y + h) / ts));
+    const x0 = Math.max(0, Math.floor(x / ts));
+    const y0 = Math.max(0, Math.floor(y / ts));
+    const x1 = Math.min(tw - 1, Math.floor((x + w) / ts));
+    const y1 = Math.min(th - 1, Math.floor((y + h) / ts));
     for (let ty = y0; ty <= y1; ty++) {
       for (let tx = x0; tx <= x1; tx++) tm.set(tx, ty, 0);
+    }
+  };
+
+  const hall = Math.max(ts * 2, opts.corridorWidth ?? 96);
+  const digCorridor = (x1: number, y1: number, x2: number, y2: number) => {
+    if (rng() < 0.5) {
+      digRect(Math.min(x1, x2), y1 - hall / 2, Math.abs(x2 - x1) + hall, hall);
+      digRect(x2 - hall / 2, Math.min(y1, y2), hall, Math.abs(y2 - y1) + hall);
+    } else {
+      digRect(x1 - hall / 2, Math.min(y1, y2), hall, Math.abs(y2 - y1) + hall);
+      digRect(Math.min(x1, x2), y2 - hall / 2, Math.abs(x2 - x1) + hall, hall);
     }
   };
 
@@ -129,24 +155,47 @@ export function generateDungeon(opts: DungeonGenOpts = {}): ProcMapResult {
     const y1 = a.cy;
     const x2 = b.cx;
     const y2 = b.cy;
-    const hall = 40;
-    if (rng() < 0.5) {
-      digRect(Math.min(x1, x2), y1 - hall / 2, Math.abs(x2 - x1) + hall, hall);
-      digRect(x2 - hall / 2, Math.min(y1, y2), hall, Math.abs(y2 - y1) + hall);
-    } else {
-      digRect(x1 - hall / 2, Math.min(y1, y2), hall, Math.abs(y2 - y1) + hall);
-      digRect(Math.min(x1, x2), y2 - hall / 2, Math.abs(x2 - x1) + hall, hall);
-    }
+    digCorridor(x1, y1, x2, y2);
   }
 
-  // west exit gap into dig
+  // West landing is an actual member of the graph, not an isolated pocket.
+  const start = rooms[0]!;
+  const westEntry = { x: border + hall * 0.5, y: H * 0.5 };
   digRect(0, H * 0.4, border + 80, H * 0.2);
+  digCorridor(westEntry.x, westEntry.y, start.cx, start.cy);
+
+  // Required gameplay landmarks get a clearing connected to the nearest room.
+  for (const point of opts.requiredPoints ?? []) {
+    if (
+      !Number.isFinite(point.x) ||
+      !Number.isFinite(point.y) ||
+      point.x < 0 ||
+      point.y < 0 ||
+      point.x > W ||
+      point.y > H
+    ) {
+      continue;
+    }
+    const clearance = Math.max(hall, point.clearance ?? hall);
+    digRect(
+      point.x - clearance / 2,
+      point.y - clearance / 2,
+      clearance,
+      clearance,
+    );
+    const nearest = rooms.reduce((best, room) =>
+      Math.hypot(room.cx - point.x, room.cy - point.y) <
+      Math.hypot(best.cx - point.x, best.cy - point.y)
+        ? room
+        : best,
+    );
+    digCorridor(point.x, point.y, nearest.cx, nearest.cy);
+  }
 
   const walls = tm.toWallRects();
   const mb = new MapBuilder(opts.id ?? "dungeon_proc", W, H, { border: 0 });
   for (const w of walls) mb.wall(w.x, w.y, w.w, w.h);
 
-  const start = rooms[0]!;
   const playerActor = opts.playerActor ?? "player";
   mb.spawn(playerActor, start.cx, start.cy, "player");
 
@@ -171,7 +220,7 @@ export function generateDungeon(opts: DungeonGenOpts = {}): ProcMapResult {
  * Open overworld with scattered rock/ruins obstacles and border.
  */
 export function generateOverworld(opts: OverworldGenOpts = {}): ProcMapResult {
-  const rng = opts.rng ?? Math.random;
+  const rng = opts.rng ?? mulberry32(opts.seed ?? 1);
   const W = opts.width ?? 2400;
   const H = opts.height ?? 1800;
   const border = opts.border ?? 40;
@@ -187,13 +236,25 @@ export function generateOverworld(opts: OverworldGenOpts = {}): ProcMapResult {
   const [rcLo, rcHi] = opts.rockCount ?? [25, 45];
   const [rsLo, rsHi] = opts.rockSize ?? [40, 140];
   const n = ri(rng, rcLo, rcHi);
+  const protectedPoints: ProcgenRequiredPoint[] = [
+    { x: 220, y: H / 2, clearance: 260 },
+    ...(opts.requiredPoints ?? []),
+  ];
   for (let i = 0; i < n; i++) {
     const w = ri(rng, rsLo, rsHi);
     const h = ri(rng, rsLo, Math.min(rsHi, w + 20));
     const x = ri(rng, border + 40, W - border - w - 40);
     const y = ri(rng, border + 40, H - border - h - 40);
-    // keep start clear
-    if (x < 400 && y > H * 0.3 && y < H * 0.7) continue;
+    const overlapsProtected = protectedPoints.some((point) => {
+      const half = Math.max(80, (point.clearance ?? 160) / 2);
+      return (
+        x < point.x + half &&
+        x + w > point.x - half &&
+        y < point.y + half &&
+        y + h > point.y - half
+      );
+    });
+    if (overlapsProtected) continue;
     mb.wall(x, y, w, h);
   }
 

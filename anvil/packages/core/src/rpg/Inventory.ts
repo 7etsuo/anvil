@@ -10,6 +10,8 @@ export function defaultUid(): string {
 
 export class Inventory {
   private slots: ItemStack[] = [];
+  /** Equipped items remain owned here by uid, but do not consume bag space. */
+  private equipped = new Set<string>();
   capacity: number;
   private uidFn: UidFn;
 
@@ -20,6 +22,11 @@ export class Inventory {
 
   all(): readonly ItemStack[] {
     return this.slots;
+  }
+
+  /** Items physically carried in the capacity-limited bag. */
+  bag(): readonly ItemStack[] {
+    return this.slots.filter((s) => !this.equipped.has(s.uid));
   }
 
   get(uid: string): ItemStack | undefined {
@@ -34,8 +41,33 @@ export class Inventory {
     return this.slots.length;
   }
 
+  usedSlots(): number {
+    return this.slots.reduce(
+      (used, stack) => used + (this.equipped.has(stack.uid) ? 0 : 1),
+      0,
+    );
+  }
+
+  freeSlots(): number {
+    return Math.max(0, this.capacity - this.usedSlots());
+  }
+
   isFull(): boolean {
-    return this.slots.length >= this.capacity;
+    return this.usedSlots() >= this.capacity;
+  }
+
+  /** Equipment coordinates bag-capacity accounting without moving ownership. */
+  setEquipped(uid: string, equipped: boolean): void {
+    if (equipped && this.get(uid)) this.equipped.add(uid);
+    else this.equipped.delete(uid);
+  }
+
+  isEquipped(uid: string): boolean {
+    return this.equipped.has(uid);
+  }
+
+  clearEquipped(): void {
+    this.equipped.clear();
   }
 
   /**
@@ -99,11 +131,13 @@ export class Inventory {
       return { ...s, qty };
     }
     this.slots.splice(i, 1);
+    this.equipped.delete(uid);
     return s;
   }
 
   clear(): void {
     this.slots = [];
+    this.equipped.clear();
   }
 
   toJSON(): ItemStack[] {
@@ -112,5 +146,6 @@ export class Inventory {
 
   loadJSON(rows: ItemStack[]): void {
     this.slots = rows.map((s) => ({ ...s }));
+    this.equipped.clear();
   }
 }

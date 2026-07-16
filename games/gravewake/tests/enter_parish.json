@@ -9,7 +9,7 @@
     },
     {
       "tick": 1,
-      "setDown": { "move_right": true }
+      "setDown": { "move_right": true, "move_down": true }
     },
     {
       "tick": 280,

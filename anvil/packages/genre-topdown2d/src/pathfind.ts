@@ -13,6 +13,8 @@ export class NavGrid {
   readonly width: number;
   readonly height: number;
   private blocked: Uint8Array;
+  private walls: WallRect[];
+  private padding: number;
   /** Simple path cache: key startCell-goalCell → path world points */
   private pathCache = new Map<string, PathPoint[]>();
   private pathCacheMax = 256;
@@ -31,16 +33,28 @@ export class NavGrid {
     this.cols = Math.max(1, Math.ceil(width / cell));
     this.rows = Math.max(1, Math.ceil(height / cell));
     this.blocked = new Uint8Array(this.cols * this.rows);
+    this.walls = walls.map((wall) => ({ ...wall }));
+    this.padding = Math.max(0, padding);
+    const half = cell * 0.5;
     for (const w of walls) {
-      const x0 = Math.max(0, Math.floor((w.x - padding) / cell));
-      const y0 = Math.max(0, Math.floor((w.y - padding) / cell));
+      // Occupancy is based on cell centers inside the radius-expanded wall.
+      // Marking every overlapping cell adds almost a whole extra cell of
+      // padding per side and seals otherwise traversable corridors.
+      const x0 = Math.max(
+        0,
+        Math.ceil((w.x - this.padding - half) / cell),
+      );
+      const y0 = Math.max(
+        0,
+        Math.ceil((w.y - this.padding - half) / cell),
+      );
       const x1 = Math.min(
         this.cols - 1,
-        Math.floor((w.x + w.w + padding) / cell),
+        Math.floor((w.x + w.w + this.padding - half) / cell),
       );
       const y1 = Math.min(
         this.rows - 1,
-        Math.floor((w.y + w.h + padding) / cell),
+        Math.floor((w.y + w.h + this.padding - half) / cell),
       );
       for (let gy = y0; gy <= y1; gy++) {
         for (let gx = x0; gx <= x1; gx++) {
@@ -69,6 +83,44 @@ export class NavGrid {
     return this.blocked[gy * this.cols + gx] === 1;
   }
 
+  /** Exact circle-vs-wall query using the same clearance as this grid. */
+  isWorldBlocked(x: number, y: number): boolean {
+    if (
+      x < this.padding ||
+      y < this.padding ||
+      x > this.width - this.padding ||
+      y > this.height - this.padding
+    ) {
+      return true;
+    }
+    for (const wall of this.walls) {
+      const nearestX = Math.max(wall.x, Math.min(x, wall.x + wall.w));
+      const nearestY = Math.max(wall.y, Math.min(y, wall.y + wall.h));
+      if (Math.hypot(x - nearestX, y - nearestY) < this.padding) return true;
+    }
+    return false;
+  }
+
+  /**
+   * Resolve an arbitrary world coordinate to a collision-safe point.
+   * Useful for portals, saves, teleports, and authored spawns on generated maps.
+   */
+  nearestWalkable(
+    x: number,
+    y: number,
+    maxRadiusCells = 8,
+  ): PathPoint | null {
+    const cell = this.worldToCell(x, y);
+    if (!this.isBlocked(cell.gx, cell.gy) && !this.isWorldBlocked(x, y)) {
+      return {
+        x: Math.max(this.cell * 0.5, Math.min(this.width - this.cell * 0.5, x)),
+        y: Math.max(this.cell * 0.5, Math.min(this.height - this.cell * 0.5, y)),
+      };
+    }
+    const free = this.nearestFree(cell.gx, cell.gy, maxRadiusCells);
+    return free ? this.cellCenter(free.gx, free.gy) : null;
+  }
+
   /**
    * A* path in world space (cell centers). Empty if no path.
    * 8-connected.
@@ -86,7 +138,9 @@ export class NavGrid {
     // If goal blocked, walk to nearest free cell around it
     let ggx = goal.gx;
     let ggy = goal.gy;
-    if (this.isBlocked(ggx, ggy)) {
+    const goalWasBlocked =
+      this.isBlocked(ggx, ggy) || this.isWorldBlocked(tx, ty);
+    if (goalWasBlocked) {
       const free = this.nearestFree(ggx, ggy, 6);
       if (!free) return [];
       ggx = free.gx;
@@ -94,7 +148,7 @@ export class NavGrid {
     }
     let sgx = start.gx;
     let sgy = start.gy;
-    if (this.isBlocked(sgx, sgy)) {
+    if (this.isBlocked(sgx, sgy) || this.isWorldBlocked(sx, sy)) {
       const free = this.nearestFree(sgx, sgy, 4);
       if (!free) return [];
       sgx = free.gx;
@@ -148,8 +202,11 @@ export class NavGrid {
           k = came.get(k);
         }
         cells.reverse();
-        // snap last to exact target
-        if (cells.length) cells[cells.length - 1] = { x: tx, y: ty };
+        // Preserve exact clicks only when the requested point is walkable.
+        // Snapping an adjusted goal back into a wall makes actors push forever.
+        if (cells.length && !goalWasBlocked) {
+          cells[cells.length - 1] = { x: tx, y: ty };
+        }
         const path = simplify(cells);
         if (this.pathCache.size >= this.pathCacheMax) {
           const first = this.pathCache.keys().next().value;

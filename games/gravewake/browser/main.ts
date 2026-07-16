@@ -99,6 +99,12 @@ const ASSET_URLS: Record<string, string> = {
   "icons/tyrant_edge.png": "/assets/icons/tyrant_edge.png",
   "icons/bellwardens_brand.png": "/assets/icons/bellwardens_brand.png",
   "icons/plague_shield.png": "/assets/icons/plague_shield.png",
+  "icons/warden_blade.png": "/assets/icons/warden_blade.png",
+  "icons/iron_helm.png": "/assets/icons/iron_helm.png",
+  "icons/rusty_sword.png": "/assets/icons/rusty_sword.png",
+  "icons/bone_cleaver.png": "/assets/icons/bone_cleaver.png",
+  "icons/ash_mail.png": "/assets/icons/ash_mail.png",
+  "icons/tyrant_plate.png": "/assets/icons/tyrant_plate.png",
   "props/chest.png": "/assets/props/chest.png",
   "props/shrine.png": "/assets/props/shrine.png",
   "props/waypoint.png": "/assets/props/waypoint.png",
@@ -318,6 +324,26 @@ async function main(): Promise<void> {
     Object.entries(ASSET_URLS).map(async ([key, url]) => {
       const img = await loadImage(url);
       if (img) images.set(key, img);
+    }),
+  );
+  // Ensure every item def icon is loaded (catches icons added after ASSET_URLS list)
+  await Promise.all(
+    Object.values(embeddedItems).map(async (def) => {
+      const keys = [
+        def.icon,
+        def.visual?.sprite,
+        `icons/${def.id}.png`,
+        `gear/${def.id}.png`,
+      ].filter((k): k is string => !!k);
+      for (const key of keys) {
+        if (images.has(key)) continue;
+        const url = key.startsWith("/") ? key : `/assets/${key.replace(/^assets\//, "")}`;
+        const img = await loadImage(url);
+        if (img) {
+          images.set(key, img);
+          images.set(key.replace(/^assets\//, ""), img);
+        }
+      }
     }),
   );
 

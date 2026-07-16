@@ -3,8 +3,19 @@
   "name": "Bone Greaves",
   "rarity": "magic",
   "slot": "feet",
-  "stats": { "armor": 5, "speed": 8, "resistPhysical": 0.04, "maxHp": 14 },
+  "stats": {
+    "armor": 5,
+    "speed": 8,
+    "resistPhysical": 0.04,
+    "maxHp": 14
+  },
   "flavor": "Shin-plates carved from crypt femurs.",
   "icon": "icons/bone_greaves.png",
-  "visual": { "sprite": "gear/bone_greaves.png", "ox": 0, "oy": 0.38, "scale": 0.3, "z": 12 }
+  "visual": {
+    "sprite": "gear/bone_greaves.png",
+    "ox": 0,
+    "oy": 0.38,
+    "scale": 0.3,
+    "z": 12
+  }
 }

@@ -279,13 +279,34 @@ function drawFallbackIcon(
   ctx.restore();
 }
 
+function resolveItemImage(
+  item: CharacterItemView,
+  images: ReadonlyMap<string, CanvasImageSource>,
+): CanvasImageSource | undefined {
+  const candidates: string[] = [];
+  if (item.icon) {
+    candidates.push(item.icon);
+    // tolerate leading slash / assets/ prefix
+    candidates.push(item.icon.replace(/^\/?assets\//, ""));
+    candidates.push(item.icon.replace(/^\//, ""));
+  }
+  // Common conventions when icon field is missing or stale
+  candidates.push(`icons/${item.defId}.png`);
+  candidates.push(`gear/${item.defId}.png`);
+  for (const key of candidates) {
+    const img = images.get(key);
+    if (img) return img;
+  }
+  return undefined;
+}
+
 function drawItem(
   ctx: CanvasRenderingContext2D,
   item: CharacterItemView,
   rect: Rect,
   images: ReadonlyMap<string, CanvasImageSource>,
 ): void {
-  const image = item.icon ? images.get(item.icon) : undefined;
+  const image = resolveItemImage(item, images);
   if (image) {
     const pad = Math.max(3, rect.w * 0.09);
     ctx.drawImage(image, rect.x + pad, rect.y + pad, rect.w - pad * 2, rect.h - pad * 2);

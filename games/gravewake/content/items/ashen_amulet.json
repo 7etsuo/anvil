@@ -3,8 +3,18 @@
   "name": "Ashen Amulet",
   "rarity": "magic",
   "slot": "amulet",
-  "stats": { "maxHp": 18, "resistFire": 0.1, "armor": 1 },
+  "stats": {
+    "maxHp": 18,
+    "resistFire": 0.1,
+    "armor": 1
+  },
   "flavor": "A cinder sealed in glass.",
   "icon": "icons/ashen_amulet.png",
-  "visual": { "sprite": "gear/ashen_amulet.png", "ox": 0, "oy": -0.12, "scale": 0.2, "z": 32 }
+  "visual": {
+    "sprite": "gear/ashen_amulet.png",
+    "ox": 0,
+    "oy": -0.12,
+    "scale": 0.2,
+    "z": 32
+  }
 }

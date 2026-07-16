@@ -1,6 +1,10 @@
 import { Equipment, type ItemDefLookup } from "./Equipment.js";
 import { Inventory } from "./Inventory.js";
-import { rollItemInstance } from "./itemization.js";
+import {
+  canEquipAtLevel,
+  itemPowerScore,
+  rollItemInstance,
+} from "./itemization.js";
 import { addStats, computeFinalStats, emptyStats } from "./stats.js";
 import { EQUIP_SLOTS } from "./types.js";
 import type {
@@ -10,8 +14,33 @@ import type {
   EquipSlot,
   EquippedVisualLayer,
   ItemDef,
+  ItemStack,
   Stats,
 } from "./types.js";
+
+export interface EquipBestScoreInput {
+  readonly stack: Readonly<ItemStack>;
+  readonly def: Readonly<ItemDef>;
+  readonly stats: Readonly<Partial<Stats>>;
+}
+
+export interface EquipBestOptions {
+  /** Override the generic combat-power heuristic for title-specific builds. */
+  score?: (input: EquipBestScoreInput) => number;
+}
+
+export interface EquipBestChange {
+  slot: EquipSlot;
+  uid: string;
+  defId: string;
+  previous: string | null;
+  score: number;
+}
+
+export interface EquipBestResult {
+  changes: EquipBestChange[];
+  evaluated: number;
+}
 
 /** Base + gear breakdown for UI / tooltips. */
 export type StatBreakdown = {
@@ -42,6 +71,67 @@ export interface LevelProgress {
   /** Normalized progress in the inclusive range 0..1. */
   ratio: number;
   atMaxLevel: boolean;
+}
+
+/**
+ * Cumulative XP thresholds with optional post-table growth. `thresholds[L]`
+ * is the total XP required to advance from level L to L+1. Arrays retain the
+ * legacy behavior and cap at their final entry.
+ */
+export interface LevelCurve {
+  thresholds: readonly number[];
+  /** Multiplier applied to the previous level's XP step after the table. */
+  growth?: number;
+  /** Highest reachable character level. Omit for unbounded extrapolation. */
+  maxLevel?: number;
+}
+
+export type LevelCurveInput = readonly number[] | LevelCurve;
+
+export interface LevelGainResult {
+  beforeLevel: number;
+  afterLevel: number;
+  levelsGained: number;
+  xp: number;
+}
+
+/** Resolve the cumulative next-level threshold, including safe extrapolation. */
+export function levelThreshold(
+  input: LevelCurveInput,
+  level: number,
+): number | null {
+  const curve = normalizeLevelCurve(input);
+  const targetLevel = Math.max(0, Math.floor(level));
+  if (curve.maxLevel !== undefined && targetLevel >= curve.maxLevel) {
+    return null;
+  }
+  if (targetLevel < curve.thresholds.length) {
+    const threshold = curve.thresholds[targetLevel];
+    return Number.isFinite(threshold) ? threshold! : null;
+  }
+  if (
+    curve.growth === undefined ||
+    !Number.isFinite(curve.growth) ||
+    curve.growth < 1 ||
+    curve.thresholds.length === 0
+  ) {
+    return null;
+  }
+
+  let threshold = curve.thresholds.at(-1)!;
+  const previous = curve.thresholds.at(-2) ?? 0;
+  let step = Math.max(1, threshold - previous);
+  for (let index = curve.thresholds.length; index <= targetLevel; index += 1) {
+    step = Math.max(1, Math.round(step * curve.growth));
+    threshold += step;
+  }
+  return threshold;
+}
+
+function normalizeLevelCurve(input: LevelCurveInput): LevelCurve {
+  return Array.isArray(input)
+    ? { thresholds: input }
+    : (input as LevelCurve);
 }
 
 /** Default draw order for paper-doll layers (body under gear under weapon). */
@@ -173,19 +263,27 @@ export class CharacterSheet {
     };
   }
 
-  addXp(amount: number, xpTable: number[]): boolean {
+  addXp(amount: number, curve: LevelCurveInput): boolean {
+    return this.addXpDetailed(amount, curve).levelsGained > 0;
+  }
+
+  /** Add XP and report every level crossed, including large single rewards. */
+  addXpDetailed(amount: number, curve: LevelCurveInput): LevelGainResult {
+    const beforeLevel = this.level;
     this.xp += amount;
-    let leveled = false;
-    while (
-      this.level < xpTable.length &&
-      this.xp >= xpTable[this.level]!
-    ) {
+    let next = levelThreshold(curve, this.level);
+    while (next !== null && this.xp >= next) {
       this.level += 1;
       this.baseStats.maxHp += 8;
       this.baseStats.damage += 1;
-      leveled = true;
+      next = levelThreshold(curve, this.level);
     }
-    return leveled;
+    return {
+      beforeLevel,
+      afterLevel: this.level,
+      levelsGained: this.level - beforeLevel,
+      xp: this.xp,
+    };
   }
 
   /**
@@ -193,10 +291,10 @@ export class CharacterSheet {
    * addXp. Keeping this here prevents game UIs from duplicating balance data or
    * applying a different level-to-threshold index.
    */
-  xpProgress(xpTable: readonly number[]): LevelProgress {
+  xpProgress(curve: LevelCurveInput): LevelProgress {
     const current =
-      this.level <= 1 ? 0 : (xpTable[this.level - 1] ?? xpTable.at(-1) ?? 0);
-    const next = this.level < xpTable.length ? xpTable[this.level]! : null;
+      this.level <= 1 ? 0 : (levelThreshold(curve, this.level - 1) ?? 0);
+    const next = levelThreshold(curve, this.level);
     if (next === null || next <= current) {
       return {
         current,
@@ -255,6 +353,98 @@ export class CharacterSheet {
     );
   }
 
+  /**
+   * Equip the highest-scoring wearable item in every slot. Equipped and bag
+   * items compete together; ties keep the current loadout to avoid churn.
+   */
+  equipBest(options: EquipBestOptions = {}): EquipBestResult {
+    const changes: EquipBestChange[] = [];
+    let evaluated = 0;
+    const score =
+      options.score ??
+      ((input: EquipBestScoreInput) =>
+        itemPowerScore(
+          input.stats,
+          input.stack.itemLevel ?? input.def.itemLevel ?? 1,
+        ));
+
+    const resolvedStats = (stack: ItemStack, def: ItemDef): Partial<Stats> => {
+      const parts: Array<Partial<Stats>> = [
+        stack.rolledStats && Object.keys(stack.rolledStats).length
+          ? stack.rolledStats
+          : (def.stats ?? {}),
+      ];
+      const sockets = stack.data?.sockets as Array<string | null> | undefined;
+      for (const gemId of sockets ?? []) {
+        if (!gemId) continue;
+        const gem = this.defs[gemId];
+        if (gem?.stats) parts.push(gem.stats);
+      }
+      return addStats(...parts);
+    };
+
+    for (const slot of EQUIP_SLOTS) {
+      const currentUid = this.equipment.get(slot);
+      let bestUid = currentUid;
+      let bestScore = Number.NEGATIVE_INFINITY;
+      if (currentUid) {
+        const current = this.inventory.get(currentUid);
+        const currentDef = current ? this.defs[current.defId] : undefined;
+        if (current && currentDef) {
+          bestScore = score({
+            stack: current,
+            def: currentDef,
+            stats: resolvedStats(current, currentDef),
+          });
+        }
+      }
+
+      for (const stack of this.inventory.all()) {
+        const def = this.defs[stack.defId];
+        if (
+          def?.slot !== slot ||
+          !canEquipAtLevel(this.level, stack, def)
+        ) {
+          continue;
+        }
+        evaluated += 1;
+        const candidateScore = score({
+          stack,
+          def,
+          stats: resolvedStats(stack, def),
+        });
+        if (
+          !Number.isFinite(candidateScore) ||
+          candidateScore <= bestScore
+        ) {
+          continue;
+        }
+        bestUid = stack.uid;
+        bestScore = candidateScore;
+      }
+
+      if (!bestUid || bestUid === currentUid) continue;
+      const stack = this.inventory.get(bestUid);
+      if (!stack) continue;
+      const equipped = this.equipment.equip(
+        slot,
+        bestUid,
+        this.inventory,
+        this.lookup,
+        this.level,
+      );
+      if (!equipped.ok) continue;
+      changes.push({
+        slot,
+        uid: bestUid,
+        defId: stack.defId,
+        previous: equipped.previous,
+        score: bestScore,
+      });
+    }
+    return { changes, evaluated };
+  }
+
   /** Pickup a leveled gear instance (itemLevel + rolled stats). */
   pickupLeveled(
     defId: string,
@@ -297,12 +487,18 @@ export class CharacterSheet {
       const def = this.defs[stack.defId];
       const reqLevel = stack.reqLevel ?? stack.itemLevel ?? def?.itemLevel ?? 1;
       const equippedSlot = equippedByUid.get(stack.uid);
+      // Prefer explicit icon; fall back to visual sprite or icons/<defId>.png
+      const icon =
+        def?.icon ??
+        def?.visual?.sprite ??
+        (def ? `icons/${def.id}.png` : undefined) ??
+        `icons/${stack.defId}.png`;
       return {
         ...stack,
         name: def?.name ?? stack.defId,
         rarity: def?.rarity ?? "common",
         slot: def?.slot,
-        icon: def?.icon,
+        icon,
         flavor: def?.flavor,
         maxStack: def?.maxStack ?? 1,
         stats: { ...(stack.rolledStats ?? def?.stats ?? {}) },

@@ -172,9 +172,27 @@ function tagsFromPath(rel: string): string[] {
     "battle",
     "dungeon",
     "rpg",
+    "peaceful",
+    "calm",
+    "ambient",
+    "lullaby",
+    "sadness",
+    "stars",
+    "dreams",
+    "zen",
+    "relax",
   ];
   for (const key of keys) {
     if (base.includes(key) || rel.toLowerCase().includes(key)) tags.add(key);
+  }
+  // Heuristic zen tags for known calm filenames
+  if (
+    /peaceful|lullaby|field_of_dreams|observing|among_the_stars|mysterious_ambient|mercury|map_theme|sadness|town_/.test(
+      base,
+    )
+  ) {
+    tags.add("calm");
+    tags.add("zen");
   }
   return [...tags];
 }
@@ -231,6 +249,19 @@ const DEFAULT_SUGGESTED: Record<string, string> = {
   music_dark: "music/waking_the_devil.mp3",
   music_space: "music/spacetime.mp3",
   music_warped: "music/warped.mp3",
+  // Calm / zen / hub (CC0)
+  music_peaceful: "music/peaceful_theme.ogg",
+  music_zen: "music/lullaby.mp3",
+  music_calm: "music/field_of_dreams.mp3",
+  music_ambient: "music/mysterious_ambient.mp3",
+  music_stars: "music/observing_the_star.ogg",
+  music_stars_alt: "music/among_the_stars.ogg",
+  music_melancholy: "music/sadness.ogg",
+  music_map: "music/map_theme.ogg",
+  music_soft: "music/mercury_calm.ogg",
+  // Prefer peaceful for hubs when agents pick "relax"
+  music_hub: "music/peaceful_theme.ogg",
+  music_hub_alt: "music/field_of_dreams.mp3",
 };
 
 /**

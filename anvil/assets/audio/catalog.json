@@ -1,16 +1,16 @@
 {
   "version": 1,
-  "generatedAt": "2026-07-15T23:05:00.503Z",
+  "generatedAt": "2026-07-16T03:14:09.364Z",
   "license": "CC0-1.0 (public domain dedication) unless noted in LICENSES.md",
   "root": "anvil/assets/audio",
   "description": "Bundled free (CC0) game audio for agents. Paths relative to this folder.",
   "counts": {
-    "total": 412,
-    "music": 16,
+    "total": 421,
+    "music": 25,
     "sfx": 396,
     "jingles": 0,
     "byFolder": {
-      "music": 16,
+      "music": 25,
       "sfx/combat": 15,
       "sfx/foley": 45,
       "sfx/inventory": 15,
@@ -60,9 +60,34 @@
     "music_tense": "music/doomed.mp3",
     "music_dark": "music/waking_the_devil.mp3",
     "music_space": "music/spacetime.mp3",
-    "music_warped": "music/warped.mp3"
+    "music_warped": "music/warped.mp3",
+    "music_peaceful": "music/peaceful_theme.ogg",
+    "music_zen": "music/lullaby.mp3",
+    "music_calm": "music/field_of_dreams.mp3",
+    "music_ambient": "music/mysterious_ambient.mp3",
+    "music_stars": "music/observing_the_star.ogg",
+    "music_stars_alt": "music/among_the_stars.ogg",
+    "music_melancholy": "music/sadness.ogg",
+    "music_map": "music/map_theme.ogg",
+    "music_soft": "music/mercury_calm.ogg",
+    "music_hub": "music/peaceful_theme.ogg",
+    "music_hub_alt": "music/field_of_dreams.mp3"
   },
   "entries": [
+    {
+      "id": "music.among_the_stars",
+      "path": "music/among_the_stars.ogg",
+      "kind": "music",
+      "channel": "music",
+      "ext": "ogg",
+      "bytes": 550340,
+      "tags": [
+        "music",
+        "stars",
+        "calm",
+        "zen"
+      ]
+    },
     {
       "id": "music.battle_theme_a",
       "path": "music/battle_theme_a.mp3",
@@ -159,6 +184,20 @@
       ]
     },
     {
+      "id": "music.field_of_dreams",
+      "path": "music/field_of_dreams.mp3",
+      "kind": "music",
+      "channel": "music",
+      "ext": "mp3",
+      "bytes": 3385581,
+      "tags": [
+        "music",
+        "dreams",
+        "calm",
+        "zen"
+      ]
+    },
+    {
       "id": "music.flags",
       "path": "music/flags.mp3",
       "kind": "music",
@@ -181,6 +220,101 @@
       ]
     },
     {
+      "id": "music.lullaby",
+      "path": "music/lullaby.mp3",
+      "kind": "music",
+      "channel": "music",
+      "ext": "mp3",
+      "bytes": 7802351,
+      "tags": [
+        "music",
+        "lullaby",
+        "calm",
+        "zen"
+      ]
+    },
+    {
+      "id": "music.map_theme",
+      "path": "music/map_theme.ogg",
+      "kind": "music",
+      "channel": "music",
+      "ext": "ogg",
+      "bytes": 410694,
+      "tags": [
+        "music",
+        "calm",
+        "zen"
+      ]
+    },
+    {
+      "id": "music.mercury_calm",
+      "path": "music/mercury_calm.ogg",
+      "kind": "music",
+      "channel": "music",
+      "ext": "ogg",
+      "bytes": 456779,
+      "tags": [
+        "music",
+        "calm",
+        "zen"
+      ]
+    },
+    {
+      "id": "music.mysterious_ambient",
+      "path": "music/mysterious_ambient.mp3",
+      "kind": "music",
+      "channel": "music",
+      "ext": "mp3",
+      "bytes": 466283,
+      "tags": [
+        "music",
+        "ambient",
+        "calm",
+        "zen"
+      ]
+    },
+    {
+      "id": "music.observing_the_star",
+      "path": "music/observing_the_star.ogg",
+      "kind": "music",
+      "channel": "music",
+      "ext": "ogg",
+      "bytes": 786458,
+      "tags": [
+        "music",
+        "calm",
+        "zen"
+      ]
+    },
+    {
+      "id": "music.peaceful_theme",
+      "path": "music/peaceful_theme.ogg",
+      "kind": "music",
+      "channel": "music",
+      "ext": "ogg",
+      "bytes": 2370964,
+      "tags": [
+        "music",
+        "peaceful",
+        "calm",
+        "zen"
+      ]
+    },
+    {
+      "id": "music.sadness",
+      "path": "music/sadness.ogg",
+      "kind": "music",
+      "channel": "music",
+      "ext": "ogg",
+      "bytes": 440601,
+      "tags": [
+        "music",
+        "sadness",
+        "calm",
+        "zen"
+      ]
+    },
+    {
       "id": "music.spacetime",
       "path": "music/spacetime.mp3",
       "kind": "music",
@@ -200,7 +334,9 @@
       "bytes": 766291,
       "tags": [
         "music",
-        "town"
+        "town",
+        "calm",
+        "zen"
       ]
     },
     {
@@ -212,7 +348,9 @@
       "bytes": 1316581,
       "tags": [
         "music",
-        "town"
+        "town",
+        "calm",
+        "zen"
       ]
     },
     {

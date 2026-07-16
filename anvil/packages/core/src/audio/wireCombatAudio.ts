@@ -37,6 +37,10 @@ export type CombatAudioCueMap = {
   music_town?: string;
   music_battle?: string;
   music_dungeon?: string;
+  music_peaceful?: string;
+  music_zen?: string;
+  music_calm?: string;
+  music_hub?: string;
 };
 
 export const DEFAULT_COMBAT_AUDIO_CUES: Required<
@@ -58,6 +62,10 @@ export const DEFAULT_COMBAT_AUDIO_CUES: Required<
     | "music_town"
     | "music_battle"
     | "music_dungeon"
+    | "music_peaceful"
+    | "music_zen"
+    | "music_calm"
+    | "music_hub"
   >
 > = {
   hit: "hit",
@@ -76,6 +84,10 @@ export const DEFAULT_COMBAT_AUDIO_CUES: Required<
   music_town: "music_town",
   music_battle: "music_battle",
   music_dungeon: "music_dungeon",
+  music_peaceful: "music_peaceful",
+  music_zen: "music_zen",
+  music_calm: "music_calm",
+  music_hub: "music_hub",
 };
 
 export type WireCombatAudioOpts = {
@@ -155,10 +167,26 @@ export function wireCombatAudio(
       return;
     }
     const z = (p.zone ?? "").toLowerCase();
-    if (z.includes("town") || z.includes("hub")) playMusic(cues.music_town);
-    else if (z.includes("dungeon") || z.includes("crypt"))
+    if (
+      z.includes("peaceful") ||
+      z.includes("zen") ||
+      z.includes("calm") ||
+      z.includes("title") ||
+      z.includes("menu")
+    ) {
+      playMusic(cues.music_peaceful ?? cues.music_zen ?? cues.music_hub);
+    } else if (z.includes("town") || z.includes("hub")) {
+      // Prefer calmer hub music when available
+      playMusic(
+        cues.music_hub ?? cues.music_peaceful ?? cues.music_town,
+      );
+    } else if (z.includes("dungeon") || z.includes("crypt")) {
       playMusic(cues.music_dungeon);
-    else playMusic(cues.music_battle);
+    } else if (z.includes("ambient") || z.includes("stars")) {
+      playMusic(cues.music_calm ?? cues.music_peaceful);
+    } else {
+      playMusic(cues.music_battle);
+    }
   });
 
   function playMusic(cue: string | undefined) {

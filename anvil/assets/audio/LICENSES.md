@@ -21,6 +21,14 @@ updates this file.
 | Free Music Pack (7 tracks) | Alexander Ehlers (tricksntraps) | [OpenGameArt](https://opengameart.org/content/free-music-pack) | `music/doomed.mp3`, `flags.mp3`, `great_mission.mp3`, `spacetime.mp3`, `twists.mp3`, `waking_the_devil.mp3`, `warped.mp3` |
 | 5 Action Chiptunes | Juhani Junkala | [OpenGameArt](https://opengameart.org/content/5-chiptunes-action) | `music/chiptune_*.mp3` |
 | Dungeon Ambience | community CC0 | [OpenGameArt](https://opengameart.org/content/dungeon-ambience) | `music/dungeon_ambience.ogg` |
+| Peaceful Theme | pebonius | [OpenGameArt](https://opengameart.org/content/peaceful-theme) | `music/peaceful_theme.ogg` |
+| Song 21 (mysterious ambient) | community CC0 | [OpenGameArt](https://opengameart.org/content/mysterious-ambience-song21) | `music/mysterious_ambient.mp3` |
+| Observing The Star | community CC0 | [OpenGameArt](https://opengameart.org/content/another-space-background-track) | `music/observing_the_star.ogg` |
+| The Field of Dreams | community CC0 | [OpenGameArt](https://opengameart.org/content/the-field-of-dreams) | `music/field_of_dreams.mp3` |
+| Sadness | community CC0 | [OpenGameArt](https://opengameart.org/content/sadness) | `music/sadness.ogg` |
+| Lullaby | community CC0 | [OpenGameArt](https://opengameart.org/content/lullaby-0) | `music/lullaby.mp3` |
+| Stars / OTTS ambient | community CC0 | [OpenGameArt](https://opengameart.org/content/stars) | `music/among_the_stars.ogg` |
+| Map / Mercury (NES shooter pack) | community CC0 | [OpenGameArt](https://opengameart.org/content/nes-shooter-music-5-tracks-3-jingles) | `music/map_theme.ogg`, `mercury_calm.ogg` |
 
 ## License text (CC0 1.0)
 

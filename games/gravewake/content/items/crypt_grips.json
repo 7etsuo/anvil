@@ -1,0 +1,10 @@
+{
+  "id": "crypt_grips",
+  "name": "Crypt Grips",
+  "rarity": "magic",
+  "slot": "hands",
+  "stats": { "armor": 3, "damage": 3, "critChance": 0.03, "resistCold": 0.05 },
+  "flavor": "Wraps that never warm.",
+  "icon": "icons/crypt_grips.png",
+  "visual": { "sprite": "gear/crypt_grips.png", "ox": 0.22, "oy": 0.18, "scale": 0.24, "z": 28 }
+}

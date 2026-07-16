@@ -1,16 +1,19 @@
 {
   "id": "wastes_pack",
   "entries": [
-    { "item": "gold", "weight": 45, "min": 4, "max": 22 },
-    { "item": "health_potion", "weight": 22, "min": 1, "max": 2 },
-    { "item": "rusty_sword", "weight": 10, "min": 1, "max": 1 },
-    { "item": "iron_helm", "weight": 10, "min": 1, "max": 1 },
-    { "item": "ash_mail", "weight": 7, "min": 1, "max": 1 },
-    { "item": "bone_cleaver", "weight": 4, "min": 1, "max": 1 },
+    { "item": "gold", "weight": 40, "min": 4, "max": 24 },
+    { "item": "health_potion", "weight": 18, "min": 1, "max": 2 },
+    { "item": "rusty_sword", "weight": 8, "min": 1, "max": 1 },
+    { "item": "iron_helm", "weight": 7, "min": 1, "max": 1 },
+    { "item": "ash_boots", "weight": 9, "min": 1, "max": 1 },
+    { "item": "grave_gauntlets", "weight": 9, "min": 1, "max": 1 },
+    { "item": "ash_mail", "weight": 5, "min": 1, "max": 1 },
+    { "item": "warden_cloak", "weight": 3, "min": 1, "max": 1 },
+    { "item": "bone_cleaver", "weight": 3, "min": 1, "max": 1 },
     { "item": "grave_ring", "weight": 2, "min": 1, "max": 1 },
-    { "item": "ruby_gem", "weight": 6, "min": 1, "max": 1 },
-    { "item": "sapphire_gem", "weight": 5, "min": 1, "max": 1 },
-    { "item": "emerald_gem", "weight": 4, "min": 1, "max": 1 },
-    { "item": "warden_cloak", "weight": 3, "min": 1, "max": 1 }
+    { "item": "ashen_amulet", "weight": 2, "min": 1, "max": 1 },
+    { "item": "ruby_gem", "weight": 5, "min": 1, "max": 1 },
+    { "item": "sapphire_gem", "weight": 4, "min": 1, "max": 1 },
+    { "item": "emerald_gem", "weight": 3, "min": 1, "max": 1 }
   ]
 }

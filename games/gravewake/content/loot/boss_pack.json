@@ -1,18 +1,20 @@
 {
   "id": "boss_pack",
   "entries": [
-    { "item": "gold", "weight": 25, "min": 40, "max": 120 },
-    { "item": "health_potion", "weight": 15, "min": 2, "max": 4 },
-    { "item": "bone_cleaver", "weight": 18, "min": 1, "max": 1 },
-    { "item": "ash_mail", "weight": 16, "min": 1, "max": 1 },
-    { "item": "iron_helm", "weight": 12, "min": 1, "max": 1 },
-    { "item": "warden_blade", "weight": 8, "min": 1, "max": 1 },
-    { "item": "grave_ring", "weight": 10, "min": 1, "max": 1 },
-    { "item": "tyrant_plate", "weight": 6, "min": 1, "max": 1 },
-    { "item": "ruby_gem", "weight": 12, "min": 1, "max": 3 },
-    { "item": "sapphire_gem", "weight": 10, "min": 1, "max": 2 },
-    { "item": "emerald_gem", "weight": 10, "min": 1, "max": 2 },
-    { "item": "topaz_gem", "weight": 10, "min": 1, "max": 2 },
-    { "item": "warden_cloak", "weight": 8, "min": 1, "max": 1 }
+    { "item": "gold", "weight": 20, "min": 50, "max": 140 },
+    { "item": "health_potion", "weight": 10, "min": 2, "max": 4 },
+    { "item": "warden_blade", "weight": 10, "min": 1, "max": 1 },
+    { "item": "bellwardens_brand", "weight": 10, "min": 1, "max": 1 },
+    { "item": "tyrant_edge", "weight": 6, "min": 1, "max": 1 },
+    { "item": "tyrant_plate", "weight": 8, "min": 1, "max": 1 },
+    { "item": "bone_greaves", "weight": 8, "min": 1, "max": 1 },
+    { "item": "crypt_grips", "weight": 8, "min": 1, "max": 1 },
+    { "item": "plague_shield", "weight": 7, "min": 1, "max": 1 },
+    { "item": "ashen_amulet", "weight": 8, "min": 1, "max": 1 },
+    { "item": "grave_ring", "weight": 7, "min": 1, "max": 1 },
+    { "item": "ruby_gem", "weight": 8, "min": 1, "max": 3 },
+    { "item": "sapphire_gem", "weight": 7, "min": 1, "max": 2 },
+    { "item": "emerald_gem", "weight": 7, "min": 1, "max": 2 },
+    { "item": "topaz_gem", "weight": 7, "min": 1, "max": 2 }
   ]
 }

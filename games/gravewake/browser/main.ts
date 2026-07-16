@@ -8,15 +8,18 @@ import {
   installGameAudio,
   observe,
 } from "@anvil/core";
+import { arpgModule } from "@anvil/genre-arpg";
 import audioContent from "../content/audio.json";
 import { browserGravewakeModule, getBrowserGravewake } from "./browserModule.js";
-import { embeddedAreas } from "./contentEmbed.js";
+import { embeddedAreas, embeddedItems } from "./contentEmbed.js";
 import type { FxEvent } from "../src/GravewakeGame.js";
-import { ISO } from "./diabloView.js";
 import {
+  ISO,
   depthOf,
   drawIsoFloor,
   drawIsoWalls,
+  drawPointLights,
+  resolveFloorMood,
   type Cam,
 } from "./diabloView.js";
 import {
@@ -330,18 +333,19 @@ async function main(): Promise<void> {
     headless: false,
     renderer,
     seed: 1,
-    modules: [browserGravewakeModule],
+    modules: [arpgModule, browserGravewakeModule],
     gameYaml: {
       id: "gravewake",
       title: "Gravewake",
-      genre: "none",
-      modules: [],
+      genre: "arpg",
+      modules: ["genre-arpg"],
       entryScene: "main",
       seed: 1,
       version: "0.3.1",
       contentRoot: "content",
       assetsRoot: "assets",
-      schemaVersion: 1,
+      intent: "game.spec.yaml",
+      schemaVersion: 2,
     },
   });
 
@@ -532,7 +536,8 @@ async function main(): Promise<void> {
               canSell: true,
             },
           );
-          if (action?.kind === "equip") gw.equipItem(action.uid);
+          if (action?.kind === "equip_best") gw.equipBestItems();
+          else if (action?.kind === "equip") gw.equipItem(action.uid);
           else if (action?.kind === "unequip") gw.unequipItem(action.slot);
           else if (action?.kind === "sell") gw.sellItem(action.uid);
           else if (action?.kind === "sell_junk") gw.sellJunk();
@@ -901,33 +906,20 @@ async function main(): Promise<void> {
     }
 
     // --- ISOMETRIC WORLD (Diablo presentation) ---
-    const mood =
-      blob.areaKind === "dungeon"
-        ? "dungeon"
-        : blob.areaKind === "overworld" || blob.area === "wastes"
-          ? "overworld"
-          : "hub";
+    const mood = resolveFloorMood(
+      String(blob.areaKind ?? ""),
+      String(blob.area ?? ""),
+    );
     const floorTex =
-      mood === "dungeon"
-        ? images.get("env/floor_dungeon.png") ?? floor
-        : mood === "overworld"
-          ? images.get("env/floor_wastes.png") ?? floor
-          : floor;
+      mood === "overworld"
+        ? images.get("env/floor_wastes.png") ?? floor
+        : mood === "hub"
+          ? floor
+          : images.get("env/floor_dungeon.png") ?? floor;
 
     if (area) {
       drawIsoFloor(ctx, area, cam, VIEW_W, VIEW_H, floorTex, mood);
-      // Atmosphere tint per zone so maps read distinct
-      if (mood === "dungeon") {
-        ctx.fillStyle = "rgba(20,10,40,0.18)";
-        ctx.fillRect(0, 0, VIEW_W, VIEW_H);
-      } else if (mood === "overworld") {
-        ctx.fillStyle = "rgba(80,50,20,0.12)";
-        ctx.fillRect(0, 0, VIEW_W, VIEW_H);
-      } else {
-        ctx.fillStyle = "rgba(40,50,70,0.08)";
-        ctx.fillRect(0, 0, VIEW_W, VIEW_H);
-      }
-      drawIsoWalls(ctx, area, cam, VIEW_W, VIEW_H, wallTex, 42);
+      drawIsoWalls(ctx, area, cam, VIEW_W, VIEW_H, wallTex, 42, mood);
       // Decorative props for map interest (deterministic scatter)
       const pillar = images.get("env/ruin_pillar.png");
       const arch = images.get("env/ruin_arch.png");
@@ -1101,15 +1093,50 @@ async function main(): Promise<void> {
       const loot = e.data.loot as { defId?: string; gold?: number; qty?: number } | undefined;
       const { x: sx, y: sy } = wp(e.transform.x, e.transform.y);
       const isGold = loot?.defId === "gold";
-      const pulse = 0.55 + Math.sin(now / 180 + e.transform.x) * 0.35;
-      const glow = ctx.createRadialGradient(sx, sy, 2, sx, sy, 28);
-      glow.addColorStop(0, isGold ? `rgba(255,210,60,${pulse})` : `rgba(120,160,255,${pulse * 0.8})`);
-      glow.addColorStop(1, "rgba(0,0,0,0)");
-      ctx.fillStyle = glow;
-      ctx.beginPath();
-      ctx.arc(sx, sy, 28, 0, Math.PI * 2);
-      ctx.fill();
-      if (lootImg) {
+      const defId = String(loot?.defId ?? "");
+      const def = embeddedItems[defId];
+      const rarity = def?.rarity ?? "common";
+      const pulse = 0.55 + Math.sin(now / 160 + e.transform.x) * 0.35;
+      // Diablo rarity beam + ground glow
+      const beam: Record<string, string> = {
+        common: "rgba(180,180,180,",
+        magic: "rgba(100,120,255,",
+        rare: "rgba(255,200,60,",
+        unique: "rgba(255,140,40,",
+        set: "rgba(60,200,100,",
+      };
+      const bc = beam[rarity] ?? beam.common!;
+      const beamH =
+        rarity === "unique" ? 90 : rarity === "rare" ? 70 : rarity === "magic" ? 50 : 28;
+      if (!isGold) {
+        const beamGrad = ctx.createLinearGradient(sx, sy - beamH, sx, sy);
+        beamGrad.addColorStop(0, `${bc}0)`);
+        beamGrad.addColorStop(0.4, `${bc}${0.55 * pulse})`);
+        beamGrad.addColorStop(1, `${bc}${0.15 * pulse})`);
+        ctx.fillStyle = beamGrad;
+        ctx.fillRect(sx - 4, sy - beamH, 8, beamH);
+        const ring = ctx.createRadialGradient(sx, sy, 2, sx, sy, 36);
+        ring.addColorStop(0, `${bc}${0.55 * pulse})`);
+        ring.addColorStop(1, "rgba(0,0,0,0)");
+        ctx.fillStyle = ring;
+        ctx.beginPath();
+        ctx.arc(sx, sy, 36, 0, Math.PI * 2);
+        ctx.fill();
+      } else {
+        const glow = ctx.createRadialGradient(sx, sy, 2, sx, sy, 28);
+        glow.addColorStop(0, `rgba(255,210,60,${pulse})`);
+        glow.addColorStop(1, "rgba(0,0,0,0)");
+        ctx.fillStyle = glow;
+        ctx.beginPath();
+        ctx.arc(sx, sy, 28, 0, Math.PI * 2);
+        ctx.fill();
+      }
+      // Prefer item icon on ground for rare+
+      const iconKey = def?.icon ?? def?.visual?.sprite;
+      const iconImg = iconKey ? images.get(iconKey) : null;
+      if (!isGold && iconImg && (rarity === "rare" || rarity === "unique" || rarity === "magic")) {
+        ctx.drawImage(iconImg, sx - 18, sy - 36, 36, 36);
+      } else if (lootImg) {
         const s = isGold ? 36 : 44;
         ctx.drawImage(lootImg, sx - s / 2, sy - s * 0.65, s, s);
       } else {
@@ -1120,18 +1147,28 @@ async function main(): Promise<void> {
       }
       if (player?.transform) {
         const d = Math.hypot(e.transform.x - player.transform.x, e.transform.y - player.transform.y);
-        if (d < 90) {
+        if (d < 100) {
           const name = isGold
             ? `${loot?.gold ?? 0} gold`
-            : String(loot?.defId ?? "loot").replace(/_/g, " ");
+            : def?.name ?? defId.replace(/_/g, " ");
+          const col =
+            rarity === "unique"
+              ? "#ff9a40"
+              : rarity === "rare"
+                ? "#ffd24a"
+                : rarity === "magic"
+                  ? "#8899ff"
+                  : isGold
+                    ? "#fd4"
+                    : "#ccc";
           ctx.font = "bold 11px system-ui";
           ctx.textAlign = "center";
-          ctx.fillStyle = isGold ? "#fd4" : "#acf";
-          ctx.fillText(name, sx, sy - 28);
+          ctx.fillStyle = col;
+          ctx.fillText(name, sx, sy - (isGold ? 28 : beamH * 0.45));
           if (d < 48) {
             ctx.fillStyle = "#ccc";
             ctx.font = "10px system-ui";
-            ctx.fillText("[F]", sx, sy - 40);
+            ctx.fillText("[F]", sx, sy - (isGold ? 40 : beamH * 0.45 + 12));
           }
           ctx.textAlign = "left";
         }
@@ -1197,6 +1234,17 @@ async function main(): Promise<void> {
         const dw = size * squash;
         const dh = size * stretch;
         const drawY = sy - dh * 0.55 - bob + lungeY;
+        // Elite ground corona
+        if (e.data.elite === true) {
+          const pulse = 0.35 + Math.sin(now / 200 + t.x) * 0.15;
+          const eg = ctx.createRadialGradient(sx, sy + size * 0.25, 2, sx, sy + size * 0.25, size * 0.55);
+          eg.addColorStop(0, `rgba(255,160,40,${pulse})`);
+          eg.addColorStop(1, "rgba(0,0,0,0)");
+          ctx.fillStyle = eg;
+          ctx.beginPath();
+          ctx.arc(sx, sy + size * 0.25, size * 0.55, 0, Math.PI * 2);
+          ctx.fill();
+        }
         ctx.save();
         ctx.translate(sx + lungeX, drawY);
         ctx.rotate(lean);
@@ -1205,6 +1253,31 @@ async function main(): Promise<void> {
           ctx.drawImage(img, -dw / 2, 0, dw, dh);
         } else {
           ctx.drawImage(img, -dw / 2, 0, dw, dh);
+        }
+        // Elite: true tint via offscreen multiply (no white ellipse flash)
+        if (tint && e.data.elite === true) {
+          try {
+            const oc = document.createElement("canvas");
+            oc.width = Math.max(1, Math.ceil(dw));
+            oc.height = Math.max(1, Math.ceil(dh));
+            const octx = oc.getContext("2d");
+            if (octx) {
+              octx.drawImage(img, 0, 0, dw, dh);
+              octx.globalCompositeOperation = "source-in";
+              octx.fillStyle = tint.length === 9 ? tint : tint.slice(0, 7) + "99";
+              octx.fillRect(0, 0, oc.width, oc.height);
+              ctx.globalAlpha = 0.45;
+              if (flipX) {
+                // already flipped transform
+                ctx.drawImage(oc, -dw / 2, 0, dw, dh);
+              } else {
+                ctx.drawImage(oc, -dw / 2, 0, dw, dh);
+              }
+              ctx.globalAlpha = 1;
+            }
+          } catch {
+            /* ignore */
+          }
         }
         // Diablo paper-doll: small slot-scaled layers (never full-body size)
         if (e.tags.includes("player")) {
@@ -1215,28 +1288,12 @@ async function main(): Promise<void> {
             const sc = Math.min(0.55, Math.max(0.12, layer.scale ?? 0.35));
             const gw = dw * sc;
             const gh = dh * sc;
-            // Anchor: body local space (0,0)=top-center of sprite draw
-            // ox/oy are fractions of *body* size toward hand/head
             const ox = layer.ox * dw;
             const oy = dh * 0.5 + layer.oy * dh - gh / 2;
             ctx.drawImage(gimg, -gw / 2 + ox, oy, gw, gh);
           }
         }
         ctx.restore();
-        if (tint) {
-          ctx.fillStyle = tint;
-          ctx.beginPath();
-          ctx.ellipse(
-            sx + lungeX,
-            drawY + dh * 0.45,
-            dw * 0.32,
-            dh * 0.38,
-            0,
-            0,
-            Math.PI * 2,
-          );
-          ctx.fill();
-        }
       } else {
         // bright fallback — never invisible
         ctx.fillStyle = e.tags.includes("player") ? "#e8c878" : "#e06060";
@@ -1505,6 +1562,13 @@ async function main(): Promise<void> {
         const p = wp(f.x, f.y);
         const sx = p.x;
         const sy = p.y - (1 - f.t) * 36;
+        const boom = images.get("fx/explosion.png");
+        if (boom?.complete) {
+          const sc = 0.7 + (1 - f.t) * 0.6;
+          ctx.globalAlpha = alpha * 0.9;
+          ctx.drawImage(boom, sx - 48 * sc, p.y - 56 * sc, 96 * sc, 96 * sc);
+          ctx.globalAlpha = 1;
+        }
         ctx.font = "bold 14px system-ui";
         ctx.textAlign = "center";
         ctx.fillStyle = `rgba(255,100,80,${alpha})`;
@@ -1564,13 +1628,52 @@ async function main(): Promise<void> {
       ctx.fillRect(p.x, p.y, p.r, p.r);
     }
 
-    // Soft vignette — keep readable (was crushing the scene to black)
+    // Dynamic lights: player torch, portals, loot, shrine (code-side AAA-lite)
+    {
+      const lights: Array<{ x: number; y: number; r: number; color: string; a?: number }> =
+        [];
+      if (player?.transform) {
+        const lp = wp(player.transform.x, player.transform.y);
+        lights.push({
+          x: lp.x,
+          y: lp.y - 10,
+          r: 220,
+          color: "#ffc878",
+          a: 0.28,
+        });
+      }
+      for (const pr of blob.portals) {
+        const s = handle.camera.project(pr.x + pr.w / 2, pr.y + pr.h / 2);
+        lights.push({
+          x: s.x,
+          y: s.y,
+          r: 90,
+          color: pr.kind === "boss" ? "#ff6040" : pr.kind === "dungeon" ? "#6080ff" : "#60c870",
+          a: 0.4,
+        });
+      }
+      for (const e of handle.world.query("transform")) {
+        if (!e.tags.includes("loot") || !e.transform) continue;
+        const s = wp(e.transform.x, e.transform.y);
+        const defId = String((e.data.loot as { defId?: string } | undefined)?.defId ?? "");
+        const rar = embeddedItems[defId]?.rarity ?? "common";
+        if (rar === "unique")
+          lights.push({ x: s.x, y: s.y, r: 70, color: "#ff9020", a: 0.45 });
+        else if (rar === "rare")
+          lights.push({ x: s.x, y: s.y, r: 55, color: "#ffd040", a: 0.35 });
+        else if (rar === "magic")
+          lights.push({ x: s.x, y: s.y, r: 40, color: "#6080ff", a: 0.28 });
+      }
+      drawPointLights(ctx, lights);
+    }
+
+    // Soft torch + vignette
     if (player?.transform) {
       const lp = wp(player.transform.x, player.transform.y);
       const core = ctx.createRadialGradient(lp.x, lp.y, 40, lp.x, lp.y, 420);
-      core.addColorStop(0, "rgba(255,200,120,0.06)");
-      core.addColorStop(0.55, "rgba(0,0,0,0)");
-      core.addColorStop(1, "rgba(0,0,0,0.28)");
+      core.addColorStop(0, "rgba(255,200,120,0.08)");
+      core.addColorStop(0.5, "rgba(0,0,0,0)");
+      core.addColorStop(1, "rgba(0,0,0,0.32)");
       ctx.fillStyle = core;
       ctx.fillRect(0, 0, VIEW_W, VIEW_H);
     }

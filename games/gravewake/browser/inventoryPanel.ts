@@ -8,6 +8,7 @@ import type {
 type Rect = { x: number; y: number; w: number; h: number };
 
 export type InventoryPanelAction =
+  | { kind: "equip_best" }
   | { kind: "equip"; uid: string }
   | { kind: "unequip"; slot: EquipSlot }
   | { kind: "sell"; uid: string }
@@ -162,6 +163,8 @@ export function inventoryPanelActionAt(
   opts?: { button?: number; shift?: boolean; canSell?: boolean },
 ): InventoryPanelAction | null {
   const l = layout(viewW, viewH, view.capacity);
+  const bestBtn = inventoryEquipBestButton(viewW, viewH, view.capacity);
+  if (contains(bestBtn, x, y)) return { kind: "equip_best" };
   // Sell-junk button (bottom-right of panel)
   const junkBtn: Rect = {
     x: l.panel.x + l.panel.w - 168,
@@ -189,6 +192,20 @@ export function inventoryPanelActionAt(
     return { kind: "sell", uid: hit.item.uid };
   }
   return null;
+}
+
+export function inventoryEquipBestButton(
+  viewW: number,
+  viewH: number,
+  capacity: number,
+): Rect {
+  const l = layout(viewW, viewH, capacity);
+  return {
+    x: l.panel.x + l.panel.w - 320,
+    y: l.panel.y + l.panel.h - 52,
+    w: 140,
+    h: 26,
+  };
 }
 
 export function inventorySellJunkButton(
@@ -462,6 +479,17 @@ export function drawInventoryPanel(
   ctx.fillStyle = "#9d9283";
   ctx.font = "bold 11px system-ui";
   ctx.fillText(statText(model.stats), l.panel.x + 24, l.panel.y + l.panel.h - 56);
+  const best = inventoryEquipBestButton(viewW, viewH, view.capacity);
+  const bestHovered = contains(best, pointer.x, pointer.y);
+  ctx.fillStyle = bestHovered ? "rgba(54,104,62,0.98)" : "rgba(31,70,39,0.96)";
+  ctx.fillRect(best.x, best.y, best.w, best.h);
+  ctx.strokeStyle = bestHovered ? "#9bd49f" : "#6ca576";
+  ctx.strokeRect(best.x + 0.5, best.y + 0.5, best.w - 1, best.h - 1);
+  ctx.fillStyle = "#c9efc7";
+  ctx.font = "bold 12px system-ui";
+  ctx.textAlign = "center";
+  ctx.fillText("EQUIP BEST", best.x + best.w / 2, best.y + 17);
+  ctx.textAlign = "left";
   // Sell junk button
   if (model.canSell !== false) {
     const junk: Rect = {
@@ -484,7 +512,7 @@ export function drawInventoryPanel(
   ctx.fillStyle = "#756b5e";
   ctx.font = "10px system-ui";
   ctx.fillText(
-    "L-click equip · R-click / Shift sell · unequip worn",
+    "Equip Best optimizes every slot · L-click equip · R-click / Shift sell",
     l.panel.x + 24,
     l.panel.y + l.panel.h - 18,
   );
